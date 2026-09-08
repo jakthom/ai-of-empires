@@ -4,8 +4,8 @@ import { test, expect, battlefieldKey } from './fixtures';
 // These canvas targets were inspected in Chrome at the seed 4817 opening.
 // Use actual pointer input and inspect only the UI session's public snapshots.
 for (const resource of [
-  { name: 'stone', type: 'stone', total: 'stone' as const, x: 537, y: 405 },
-  { name: 'wood', type: 'tree', total: 'wood' as const, x: 675, y: 527 },
+  { name: 'stone', type: 'stone', total: 'stone' as const, x: 485, y: 421 },
+  { name: 'wood', type: 'tree', total: 'wood' as const, x: 651, y: 594 },
 ]) {
   test(`gathers and delivers ${resource.name} through primary-click orders`, async ({ page, game }, info) => {
     await game.start();

@@ -31,7 +31,7 @@ h1, h2, p { margin: 0; }
 h1, h2 { font-family: Palatino, 'Palatino Linotype', Georgia, serif; font-weight: 400; text-wrap: balance; }
 #app { height: 100dvh; min-height: 500px; position: relative; }
 #world { position: absolute; inset: 70px 0 250px; background: #1b2a22; }
-#world canvas { display: block; width: 100%; height: 100%; touch-action: none; outline-offset: -3px; cursor: grab; }
+#world canvas { display: block; width: 100%; height: 100%; touch-action: none; outline-offset: -3px; cursor: default; }
 .topbar { position: absolute; top: 0; height: 70px; width: 100%; display: flex; align-items: center; background: var(--background); border-bottom: 1px solid #586044; padding: 0 24px; gap: 32px; z-index: 5; }
 .brand { color: var(--accent); display: flex; gap: 12px; align-items: center; text-decoration: none; margin-right: auto; flex-shrink: 0; }
 .brand svg { width: 34px; height: 34px; }

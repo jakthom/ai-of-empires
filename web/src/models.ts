@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { EntityView } from './api.generated';
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
@@ -23,7 +24,42 @@ function shape(group: THREE.Group, geometry: THREE.BufferGeometry, color: string
 }
 function box(g: THREE.Group, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number) { return shape(g, cube, color, x, y, z, sx, sy, sz); }
 function roof(g: THREE.Group, x: number, y: number, z: number, width: number, height: number, depth: number) {
+  box(g, '#654532', x, y - height / 2, z, width, .09, depth);
   const m = shape(g, cone, palette.roof, x, y, z, width / Math.SQRT2, height, depth / Math.SQRT2); m.rotation.y = Math.PI / 4;
+}
+function window(g: THREE.Group, x: number, y: number, z: number, side = false, size = .3) {
+  box(g, palette.wood, x, y, z, side ? .085 : size + .1, size + .12, side ? size + .1 : .085);
+  box(g, '#354843', x + (side ? .05 : 0), y, z + (side ? 0 : .05), side ? .02 : size, size, side ? size : .02);
+  box(g, '#bca876', x + (side ? .067 : 0), y, z + (side ? 0 : .067), side ? .025 : .035, size, side ? .035 : .025);
+  box(g, palette.limestone, x, y - size / 2 - .055, z, side ? .18 : size + .2, .075, side ? size + .2 : .18);
+}
+function timberWalls(g: THREE.Group, r: number, height: number) {
+  for (const x of [-r * .81,r * .81]) for (const z of [-r * .76,r * .76]) box(g,palette.wood,x,height / 2+.12,z,.085,height,.085);
+  for (const z of [-r * .78,r * .78]) box(g,palette.wood,0,height+.04,z,r*1.67,.1,.08);
+  // The original fronts face north; the south and east elevations must also
+  // read as buildings when the camera travels all the way around them.
+  for (const x of [-r*.46,r*.46]) window(g,x,height*.63+.12,r*.785,false,r > 1 ? .32 : .23);
+  for (const z of [-r*.37,r*.37]) window(g,r*.83,height*.63+.12,z,true,r > 1 ? .3 : .22);
+}
+
+function bakeStaticMeshes(g: THREE.Group) {
+  // Detailed buildings stay cheap to draw. Animated parts retain their own
+  // transforms, while static parts sharing a material become one mesh.
+  const batches = new Map<THREE.Material, THREE.Mesh[]>();
+  for (const o of g.children) {
+    if (!(o instanceof THREE.Mesh) || o instanceof THREE.InstancedMesh || o.name) continue;
+    const m = o.material as THREE.Material, batch = batches.get(m) ?? [];
+    batch.push(o); batches.set(m,batch);
+  }
+  for (const [m,meshes] of batches) {
+    if (meshes.length < 2) continue;
+    const parts = meshes.map(mesh => { mesh.updateMatrix(); return mesh.geometry.clone().applyMatrix4(mesh.matrix); });
+    const geometry = mergeGeometries(parts);
+    parts.forEach(part => part.dispose());
+    if (!geometry) throw new Error('Unable to assemble battlefield geometry.');
+    meshes.forEach(mesh => g.remove(mesh));
+    const mesh = new THREE.Mesh(geometry,m); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.privateGeometry = true; g.add(mesh);
+  }
 }
 function flag(g: THREE.Group, owner: number, x: number, y: number, z: number, scale = 1) {
   box(g, palette.wood, x, y + .8 * scale, z, .05, 1.6 * scale, .05);
@@ -34,6 +70,7 @@ function building(g: THREE.Group, e: EntityView) {
   const r = e.radius, type = e.type;
   if (type === 'farm') {
     box(g, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
+    for (let row = -3; row <= 3; row++) box(g,'#8c7550',0,.155,row*.29,r*1.72,.055,.12);
     const crops = new THREE.InstancedMesh(pine, material('#c6b567'), 63);
     const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
     let index = 0;
@@ -51,7 +88,8 @@ function building(g: THREE.Group, e: EntityView) {
     if (type === 'gate') box(g, '#302e24', 0, .45, -.61, .8, .9, .1);
     return;
   }
-  box(g, palette.shade, 0, .1, 0, r * 2, .18, r * 2);
+  box(g, '#817962', 0, .04, 0, r * 2, .16, r * 2);
+  box(g, palette.shade, 0, .14, 0, r * 1.85, .16, r * 1.85);
   if (type === 'lumber_camp' || type === 'mining_camp') {
     for (const x of [-.8, .8]) for (const z of [-.6, .6]) box(g, palette.wood, x, .55, z, .1, 1.1, .1);
     roof(g, 0, 1.25, 0, 2.2, .65, 1.7);
@@ -74,10 +112,15 @@ function building(g: THREE.Group, e: EntityView) {
       for (const dx of [-.3, .3]) for (const dz of [-.3, .3]) box(g, palette.limestone, x + dx, h * 1.22, z + dz, .23, .3, .23);
     }
     box(g, '#494234', 0, .55, -r * .76, .7, 1.1, .1);
+    for (const side of [-1,1]) for (const offset of [-.28,.28]) {
+      box(g,'#525746',offset,h*.66,side*r*.77,.1,.45,.045);
+      box(g,'#525746',side*r*.77,h*.66,offset,.045,.45,.1);
+    }
     flag(g, e.owner, 0, h + .15, 0, 1.2); return;
   }
-  const height = type === 'town_center' ? 1.45 : type === 'house' ? .8 : 1.1;
+  const height = type === 'town_center' ? 1.65 : type === 'house' ? 1.05 : 1.3;
   box(g, palette.limestone, 0, height / 2 + .12, 0, r * 1.65, height, r * 1.55);
+  timberWalls(g,r,height);
   roof(g, 0, height + .57, 0, r * 1.95, .85, r * 1.85);
   for (const x of [-r * .77, r * .77]) box(g, palette.wood, x, height / 2, -r * .79, .09, height, .09);
   box(g, '#494032', 0, .45, -r * .79, .4, .75, .07);
@@ -88,10 +131,15 @@ function building(g: THREE.Group, e: EntityView) {
   if (type === 'town_center') {
     box(g, palette.limestone, .9, 1.5, .5, 1.25, 3, 1.2);
     roof(g, .9, 3.2, .5, 1.6, 1, 1.6);
+    window(g,.9,2.35,1.11,false,.38); window(g,1.535,2.35,.5,true,.34);
     for (let i = 0; i < 4; i++) box(g, palette.limestone, 0, .12 + i * .1, -1.8 + i * .2, 1.3, .2, .4);
     flag(g, e.owner, .9, 3.6, .5);
     box(g, ownerColor(e.owner), -.6, .98, -1.5, 1.9, .08, .85);
     for (const x of [-1.45, .2]) box(g, palette.wood, x, .5, -1.8, .07, 1, .07);
+    box(g,'#574932',0,.55,r*.795,.5,.86,.09);
+    box(g,palette.wood,0,.54,r*.85,.065,.82,.09);
+    for (let i = 0; i < 3; i++) box(g,palette.shade,0,.07+i*.055,r*.98-i*.15,.9,.14,.3);
+    box(g,ownerColor(e.owner),-.65,1.46,r*.82,.32,.63,.055);
   } else if (type === 'mill') {
     box(g, palette.shade, .4, 1.3, .2, .75, 2.5, .75);
     roof(g, .4, 2.8, .2, 1.1, .65, 1.1);
@@ -104,6 +152,9 @@ function building(g: THREE.Group, e: EntityView) {
   } else if (type === 'monastery' || type === 'university') {
     box(g, palette.limestone, -.8, 1.5, .4, .6, 2.8, .65); roof(g, -.8, 3, .4, .85, .6, .85);
     box(g, '#b7a060', -.8, 3.55, .4, .045, .45, .045); box(g, '#b7a060', -.8, 3.6, .4, .25, .045, .045);
+  } else if (type === 'house') {
+    box(g,'#8e8771',r*.43,height+.59,-r*.25,.23,.8,.28);
+    box(g,'#655e4e',r*.43,height+1.01,-r*.25,.3,.1,.34);
   } else if (type === 'blacksmith') {
     box(g, '#777865', .6, 1.6, .5, .35, 1.8, .4);
     box(g, '#e19953', .4, .3, -1, .35, .2, .25);
@@ -112,7 +163,16 @@ function building(g: THREE.Group, e: EntityView) {
       box(g, ['#a86b4d', '#c8b96d', '#608278'][i], i - 1, .85, -1.5, .85, .08, .8);
       box(g, palette.wood, i - 1, .3, -1.5, .75, .5, .6);
     }
-  } else if (type !== 'house') flag(g, e.owner, -r * .8, 1.1, -r * .6, .65);
+  } else {
+    if (type === 'barracks' || type === 'archery_range') {
+      for (const x of [-.6,.6]) box(g,palette.wood,x,.55,r*.91,.085,1.1,.085);
+      box(g,palette.wood,0,1.05,r*.91,1.3,.085,.085);
+      for (const x of [-.35,0,.35]) {
+        const spear = box(g,'#898a76',x,.78,r*.96,.045,1.2,.045); spear.rotation.z = -.16;
+      }
+    }
+    flag(g, e.owner, -r * .8, 1.1, -r * .6, .65);
+  }
 }
 function unit(g: THREE.Group, e: EntityView) {
   const color = ownerColor(e.owner), type = e.type;
@@ -153,8 +213,10 @@ export function makeModel(e: EntityView) {
   else if (e.kind === 'unit') unit(g, e);
   else if (e.type === 'tree') {
     const variation = 1 + (e.id % 7) * .045;
-    shape(g, cylinder, palette.wood, 0, .6, 0, .11, 1.2, .11);
-    for (let i = 0; i < 3; i++) shape(g, pine, ['#41533a', '#516342', '#607448'][(e.id + i) % 3], 0, 1 + i * .5, 0, (.83 - i * .19) * variation, 1.3 * variation, (.83 - i * .19) * variation);
+    shape(g, cylinder, palette.wood, 0, .7, 0, .12, 1.4, .12);
+    if (e.id % 4 === 0) {
+      for (let i = 0; i < 3; i++) shape(g,stone,['#71834d','#879457','#9aa160'][i],Math.sin(i*2.4)*.32,1.45+i*.25,Math.cos(i*2.4)*.27,.69*variation,.74*variation,.65*variation);
+    } else for (let i = 0; i < 3; i++) shape(g, pine, ['#415d3e', '#536f43', '#688149'][(e.id + i) % 3], 0, 1.1 + i * .55, 0, (.83 - i * .19) * variation, 1.4 * variation, (.83 - i * .19) * variation);
   } else if (e.type === 'gold' || e.type === 'stone') {
     for (let i = 0; i < 3; i++) shape(g, stone, e.type === 'gold' ? ['#a49b67', '#c8b77d', '#dec37c'][i] : ['#a4a797', '#b7b8a7', '#92978a'][i], i * .35 - .35, .27 + (i % 2) * .14, (i % 2) * .3, .45, .43 + i * .08, .4);
   } else if (e.type === 'berries') {
@@ -168,9 +230,10 @@ export function makeModel(e: EntityView) {
   } else if (e.type === 'fish') {
     shape(g, orb, '#a7bfad', 0, -.06, 0, .3, .025, .1);
   }
-  if (!e.visible) g.traverse(o => { if (o instanceof THREE.Mesh) { const m = (o.material as THREE.MeshStandardMaterial).clone(); m.color.multiplyScalar(.4); o.material = m; o.userData.privateMaterial = true; } });
   if (e.progress < 1) {
     for (const x of [-e.radius, e.radius]) for (const z of [-e.radius, e.radius]) box(g, '#a8905b', x, 1, z, .07, 2, .07);
   }
+  bakeStaticMeshes(g);
+  if (!e.visible) g.traverse(o => { if (o instanceof THREE.Mesh) { const m = (o.material as THREE.MeshStandardMaterial).clone(); m.color.multiplyScalar(.4); o.material = m; o.userData.privateMaterial = true; } });
   return g;
 }

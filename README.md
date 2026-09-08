@@ -12,6 +12,10 @@ Follow each villager's current activity and immutable history, and search the li
 
 ![A farming villager's History tab beside the battlefield, with the expanded event log filtered to Villager 3.](docs/screenshots/villager-history.png)
 
+Rotate and tilt the perspective to explore raised ground, recessed rivers, and exposed banks.
+
+![A scout beside a river and ford, viewed from a lower angle that shows the depth of the banks.](docs/screenshots/perspective.png)
+
 ## Run
 
 Use Go 1.26 (or Go with automatic toolchain downloads enabled) and Node.js 22.12+.
@@ -45,14 +49,14 @@ Kingdoms start **at peace**. Passing troops do not trigger combat or an AI defen
 
 Military units and armed buildings default to **Return fire**. Idle defenders respond to actual recent attackers of themselves or nearby friends, with a six-tile pursuit limit around the defense position; villagers defend only themselves when idle. They do not target innocent units just because they belong to the attacker's kingdom. **Hold position** returns fire within range without pursuit; **Hold fire** disables automatic response; **Aggressive** opts into proximity attacks. Explicit **Attack**, **Attack move**, and hostile contextual orders can start conflicts regardless of the automatic stance. A normal Move order continues to its destination. AI raids target one chosen kingdom along their route and may defend against others that actually attack them.
 
-- **Drag the battlefield** to rotate and tilt the camera. **Click** selects a unit; **Shift-click** adds or removes one, and **Shift-drag** selects a group, replacing your previous selection.
+- **Click** to select an element. **Hold the left mouse button briefly, then drag** to pan (180 ms hold delay). **Hold both left and right mouse buttons**, then drag left/right to rotate or up/down to tilt; release either button to stop. **Shift + arrow keys** also rotate and tilt, including on a trackpad. **Shift-click** adds or removes a selection, and **Shift-drag** selects a group, replacing your previous selection.
 - Select your units, click **Give order** (or press **Q**), then click a resource, entity, or destination. The same control sets a selected building's rally point when you click the ground.
 - For quick orders, use **Option/Alt-click**, **Control-click on Mac**, or **right-click** with a mouse. Secondary click on a trackpad works too if enabled. No secondary click is required to play.
 - Hold **Shift** while issuing orders to queue them and keep targeting. Click **Cancel** or press **Escape** to return to selection.
 - Select villagers and open **Build** to place a building. Go checks the site and charges the cost.
 - Hover over a building to see its type and activity. Select it to train units, research, advance ages, or cancel queued work. New units emerge in clear spaces beside their own producer; a blocked exit waits for room. Units route around occupied space and steer past nearby traffic.
 - **H** selects the Town Center; **.** selects idle villagers; **A** starts attack move; **S** stops selected units.
-- Click **Pan view** (or press **P**), then drag to move across the map. Click it again or press Escape to return to rotation. Arrow keys, middle-drag, and clicking the minimap also pan, following the current camera angle. **Scroll or pinch** to zoom around the ground under your cursor; **+ / −** zooms around the center of the view.
+- Click **Pan view** (or press **P**), then drag to move across the map. Click it again or press Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also pan, following the current camera angle. **Scroll or pinch** to zoom around the ground under your cursor; **+ / −** zooms around the center of the view.
 - **Reset view / R** restores the starting camera angle and zoom at your current location. **H** returns to your Town Center. Camera gestures preserve your selection and send no gameplay commands.
 - **Cmd/Ctrl + a number** assigns a control group; the number recalls it. To remove a selection, choose **Delete**, then **Confirm removal**; Delete or Mac Delete/Backspace also confirms while removal is armed.
 - Space pauses; the speed button cycles through 1×, 1.7×, 3.4×, 8×, 16×, and 32×. The match menu lets you choose a speed directly.
@@ -86,7 +90,7 @@ The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI
 
 ## Implemented scope
 
-The `frontier-1` ruleset includes a seeded river map, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry.
+The `frontier-1` ruleset includes a seeded river map, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
 
 This is an initial playable ruleset. Its values and civilization availability are **not verified Age of Empires parity**. [GAME_SPEC.md](GAME_SPEC.md) remains the larger product target: full civilization trees, campaigns, scenario editing, human multiplayer and matchmaking, replays, audio, formations, complete reference rules, and large-army performance certification remain future work.
 

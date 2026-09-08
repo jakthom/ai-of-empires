@@ -44,7 +44,7 @@ test('shows backend activity and a worker history that survives removal and relo
   await page.mouse.click(629, 382);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   await page.getByRole('button', { name: /Give order/ }).click();
-  const order = await game.command('interact', () => page.mouse.click(675, 527));
+  const order = await game.command('interact', () => page.mouse.click(651, 594));
   const workerID = order.request().postDataJSON().entity_ids[0] as number;
   await expect(page.locator('#selected-status')).toContainText('Logging');
   await openGlobalHistory(page, `Villager #${workerID}`);

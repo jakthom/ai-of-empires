@@ -16,7 +16,7 @@ import type { Action, Catalog, Command, EntityView, Resources, Snapshot, Vec } f
 const crown = `<svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M8 28 5 12l10 8 5-14 5 14 10-8-3 16H8Z" stroke="currentColor" stroke-width="2"/><path d="M9 33h22" stroke="currentColor" stroke-width="2"/></svg>`;
 const symbols: Record<string, string> = { food: '◒', wood: '♠', gold: '◆', stone: '⬟' };
 document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
-  <div id="world"><div class="battlefield-controls" role="group" aria-label="Battlefield controls"><p class="camera-hint">Drag to rotate · Shift-drag to select</p><button id="give-order" aria-pressed="false" title="Give an order, then click a target or destination (Q)">Give order <kbd>Q</kbd></button><button id="pan-view" aria-pressed="false" title="Click and drag to move across the map (P)">Pan view</button><div class="zoom-controls" role="group" aria-label="Camera view"><button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button><button id="reset-view" aria-label="Reset view" title="Reset camera angle and zoom (R)">↺</button></div></div></div>
+  <div id="world"><div class="battlefield-controls" role="group" aria-label="Battlefield controls"><p class="camera-hint" title="Trackpad: Shift + arrow keys rotates and tilts">Hold left to pan · Hold left + right to rotate</p><button id="give-order" aria-pressed="false" title="Give an order, then click a target or destination (Q)">Give order <kbd>Q</kbd></button><button id="pan-view" aria-pressed="false" title="Click and drag to move across the map (P)">Pan view</button><div class="zoom-controls" role="group" aria-label="Camera view"><button id="zoom-out" aria-label="Zoom out" title="Zoom out">−</button><button id="zoom-in" aria-label="Zoom in" title="Zoom in">+</button><button id="reset-view" aria-label="Reset view" title="Reset camera angle and zoom (R)">↺</button></div></div></div>
   <header class="topbar">
     <a class="brand" href="#" aria-label="AI of Empires, show briefing">${crown}<span>AI <i>of</i><br>Empires</span></a>
     <div class="resources" aria-label="Your resources">${Object.entries(symbols).map(([name, icon]) => `<div class="resource ${name}" title="${name}"><span class="resource-icon">${icon}</span><div><strong id="res-${name}">—</strong><span>${name}</span></div></div>`).join('')}</div>
@@ -40,7 +40,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   </footer>
   <section id="event-tray" aria-label="Game event log"></section>
   <dialog id="start-dialog"><nav class="lobby-tabs" aria-label="Campaign setup"><button type="button" id="new-game-tab" aria-pressed="true">New game</button><button type="button" id="saved-games-tab" aria-pressed="false">Saved games</button></nav><form id="start-form"><div class="dialog-brand">${crown}<span>AI of Empires</span></div><div class="eyebrow">A NEW CAMPAIGN</div><h2>Make your mark<br>on history.</h2><p>Lead a settlement through four ages.<br>Build an economy. Raise an army. Claim the realm.</p><label class="game-name-label">Game name<input id="game-name" maxlength="80" placeholder="A name for this campaign (optional)" autocomplete="off"></label><label>Your civilization<select id="civilization" name="civilization"></select></label><p id="civilization-bonus" class="bonus"></p><div class="form-row"><label>Difficulty<select id="difficulty" aria-describedby="difficulty-description"></select></label><label>Opening<select id="game-mode"><option value="skirmish">Standard economy</option><option value="sandbox">Abundant resources</option></select></label></div><p id="difficulty-description" class="bonus" aria-live="polite"></p><div class="form-row setup-world"><label>Settlements<select id="settlements" aria-describedby="settlements-hint"></select></label><label>Map seed<input id="seed" type="number" value="4817" min="1" max="999999999"></label></div><p id="settlements-hint" class="bonus">Includes your kingdom. Each starts with 3 villagers and a scout.</p><p class="form-error" id="start-error" role="alert"></p><button id="start" class="primary" type="submit">Begin your reign <span>→</span></button><small>Trackpad or mouse · Keyboard shortcuts available · Autosaves every 10 seconds</small></form><section id="saved-games-panel" hidden><h2>Return to your kingdom.</h2><p>Resume by game name or session ID. Games rest here until you return.</p><form id="resume-form"><label>Game name or session ID<input id="session-search" type="search" maxlength="200" autocomplete="off" placeholder="Find a saved game"></label><button id="resume-game" class="secondary" type="submit">Resume by name or ID</button></form><p id="sessions-error" class="form-error" role="alert"></p><p id="sessions-status" role="status"></p><div id="saved-games-list"></div></section></dialog>
-  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="Close controls">×</button><div class="eyebrow">FIELD MANUAL</div><h2>Command your kingdom</h2><dl><dt>Click / Shift-drag</dt><dd>Click to select a unit. Shift-click adds or removes a unit; Shift-drag selects a group, replacing your previous selection.</dd><dt>Drag the world</dt><dd>Drag left or right to rotate, and up or down to tilt the camera. A click still selects units. Reset view (R) restores the starting angle and zoom.</dd><dt>Give order / Q</dt><dd>Select your units, choose Give order (or press Q), then click a resource, enemy, building, or destination. With a building selected, click the ground to set its rally point.</dd><dt>Quick orders</dt><dd>Option/Alt-click, Mac Control-click, or right-click gives the same order directly. Two-finger secondary click works too, if enabled on your trackpad.</dd><dt>Build</dt><dd>Select villagers, open Build, choose a building, then click its site.</dd><dt>Shift + order</dt><dd>Queue the order after the current task. Keep Shift held to place several orders.</dd><dt>Cmd/Ctrl + 1–9</dt><dd>Save a control group. Press its number to recall it.</dd><dt>H / . / A / S</dt><dd>Find your Town Center, select idle villagers, attack move, or stop.</dd><dt>Pan view / P</dt><dd>Turn on Pan view, then click and drag the battlefield. Click it again or press Escape to rotate the view again. Arrow keys, middle-drag, and clicking the minimap also move the camera.</dd><dt>Zoom / pause</dt><dd>Scroll or pinch to zoom around the ground under your cursor. The + / − buttons zoom around the center of the view. Space pauses the match.</dd><dt>Cancel / Escape</dt><dd>Leave any targeting mode. Right-click also cancels building placement.</dd><dt>Military stances</dt><dd>Return fire is the default: units respond to actual attacks on themselves or nearby friends, with limited pursuit. Hold position returns fire without pursuit. Hold fire disables automatic attacks. Aggressive and Attack move can start conflicts with passing kingdoms.</dd><dt>Kingdom relationships</dt><dd>Open the kingdom panel above the world to see who is at peace with you and whether they favor building, defense, or expansion.</dd><dt>Remove units</dt><dd>Choose Delete, then Confirm removal. Delete or the Mac Delete/Backspace key also confirms.</dd></dl><p>Villagers carry resources to a drop-off. Houses raise population capacity. Two distinct buildings from your current age unlock the next age at your Town Center.</p><button class="primary" data-close="help-dialog">Return to the realm</button></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="Close controls">×</button><div class="eyebrow">FIELD MANUAL</div><h2>Command your kingdom</h2><dl><dt>Click / Shift-drag</dt><dd>Click to select a unit. Shift-click adds or removes a unit; Shift-drag selects a group, replacing your previous selection.</dd><dt>Pan the world</dt><dd>Click to select. Hold the left mouse button briefly, then move to pan. Shift-drag selects a group.</dd><dt>Rotate the perspective</dt><dd>Hold both the left and right mouse buttons. Move left or right to rotate, and up or down to tilt. Release either button to stop. On a trackpad, use Shift + arrow keys to rotate and tilt. Reset view (R) restores the starting angle and zoom.</dd><dt>Give order / Q</dt><dd>Select your units, choose Give order (or press Q), then click a resource, enemy, building, or destination. With a building selected, click the ground to set its rally point.</dd><dt>Quick orders</dt><dd>Option/Alt-click, Mac Control-click, or right-click gives the same order directly. Two-finger secondary click works too, if enabled on your trackpad.</dd><dt>Build</dt><dd>Select villagers, open Build, choose a building, then click its site.</dd><dt>Shift + order</dt><dd>Queue the order after the current task. Keep Shift held to place several orders.</dd><dt>Cmd/Ctrl + 1–9</dt><dd>Save a control group. Press its number to recall it.</dd><dt>H / . / A / S</dt><dd>Find your Town Center, select idle villagers, attack move, or stop.</dd><dt>Pan view / P</dt><dd>Turn on Pan view, then click and drag the battlefield. Click it again or press Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also move the camera.</dd><dt>Zoom / pause</dt><dd>Scroll or pinch to zoom around the ground under your cursor. The + / − buttons zoom around the center of the view. Space pauses the match.</dd><dt>Cancel / Escape</dt><dd>Leave any targeting mode. Right-click also cancels building placement.</dd><dt>Military stances</dt><dd>Return fire is the default: units respond to actual attacks on themselves or nearby friends, with limited pursuit. Hold position returns fire without pursuit. Hold fire disables automatic attacks. Aggressive and Attack move can start conflicts with passing kingdoms.</dd><dt>Kingdom relationships</dt><dd>Open the kingdom panel above the world to see who is at peace with you and whether they favor building, defense, or expansion.</dd><dt>Remove units</dt><dd>Choose Delete, then Confirm removal. Delete or the Mac Delete/Backspace key also confirms.</dd></dl><p>Villagers carry resources to a drop-off. Houses raise population capacity. Two distinct buildings from your current age unlock the next age at your Town Center.</p><button class="primary" data-close="help-dialog">Return to the realm</button></dialog>
   <dialog id="menu-dialog"><button class="dialog-close" data-close="menu-dialog" aria-label="Close menu">×</button><div class="eyebrow">YOUR CAMPAIGN</div><h2>A moment to plan</h2><p>Autosaved every 10 seconds. Save and leave to stop the clock and return to this campaign later.</p><p id="session-name" class="session-name"></p><label>Session ID<input id="session-id" readonly></label><p id="save-status" class="bonus" role="status"></p><p id="save-error" class="form-error" role="alert"></p><button id="save-game" class="secondary">Save now</button><label>Game speed<select id="game-speed"></select></label><button id="menu-pause" class="primary">Pause / resume</button><button id="new-match" class="secondary">Start a new match</button><button id="saved-matches" class="secondary">Save and leave</button><button id="resign" class="text-button danger">Resign this battle</button></dialog>
   <dialog id="result-dialog"><div class="dialog-brand">${crown}</div><div class="eyebrow">THE CHRONICLE IS WRITTEN</div><h2 id="result-title">Victory</h2><p id="result-copy"></p><button id="play-again" class="primary">Begin another chapter →</button></dialog>
 `;
@@ -69,7 +69,7 @@ function setMode(mode: InputMode | null, message = '') {
   el('confirm-delete').hidden = mode?.kind !== 'delete';
   el('give-order').setAttribute('aria-pressed', String(mode?.kind === 'order'));
   el('pan-view').setAttribute('aria-pressed', String(mode?.kind === 'pan'));
-  world.canvas.style.cursor = !mode || mode.kind === 'pan' ? 'grab' : 'crosshair';
+  world.canvas.style.cursor = mode?.kind === 'pan' ? 'grab' : mode ? 'crosshair' : 'default';
 }
 function cancelMode() { setMode(null); }
 function canOrder() {
@@ -92,7 +92,7 @@ function toggleOrder() {
 }
 function togglePan() {
   if (activeMode?.kind === 'pan') cancelMode();
-  else setMode({ kind: 'pan' }, 'Pan view: click and drag the battlefield · Esc returns to rotation');
+  else setMode({ kind: 'pan' }, 'Pan view: click and drag the battlefield · Esc returns to selection');
   world.canvas.focus();
 }
 function confirmRemoval() {
@@ -222,8 +222,11 @@ function connection(state: string) {
 }
 
 function attachControls() {
-  type Gesture = { id: number; kind: 'orbit' | 'pan' | 'select' | 'action' | 'secondary'; x: number; y: number; lastX: number; lastY: number; shift: boolean; moved: boolean; handled: boolean };
+  type Gesture = { id: number; kind: 'pending' | 'orbit' | 'pan' | 'select' | 'action' | 'secondary'; x: number; y: number; lastX: number; lastY: number; shift: boolean; moved: boolean; handled: boolean; selectOnClick: boolean };
   let pointer: Gesture | null = null, secondaryGesture: Gesture | null = null;
+  const panHoldDelay = 180;
+  let holdTimer = 0;
+  function clearHold() { clearTimeout(holdTimer); holdTimer = 0; }
   const tooltip = document.createElement('div'); tooltip.className = 'building-tooltip'; tooltip.id = 'building-tooltip'; tooltip.setAttribute('role', 'tooltip'); tooltip.hidden = true; document.body.append(tooltip);
   let hoverFrame = 0;
   function clearHover() { cancelAnimationFrame(hoverFrame); hoverFrame = 0; tooltip.hidden = true; world.setHovered(null); }
@@ -245,7 +248,7 @@ function attachControls() {
       tooltip.style.top = `${Math.max(bounds.top + 4, Math.min(e.clientY + 16, bounds.bottom - tooltip.offsetHeight - 8))}px`;
     });
   });
-  const restingCursor = () => !activeMode || activeMode.kind === 'pan' ? 'grab' : 'crosshair';
+  const restingCursor = () => activeMode?.kind === 'pan' ? 'grab' : activeMode ? 'crosshair' : 'default';
   function secondaryOrder(gesture: Gesture, x: number, y: number, queue: boolean) {
     if (gesture.handled) return;
     gesture.handled = true;
@@ -254,29 +257,58 @@ function attachControls() {
   }
   world.canvas.addEventListener('contextmenu', e => {
     e.preventDefault();
-    // macOS can deliver contextmenu before pointerup; other systems do the
-    // reverse. Keep the gesture through both events and consume it once.
-    if (secondaryGesture) secondaryOrder(secondaryGesture, e.clientX, e.clientY, e.shiftKey);
+    // Some systems open the menu on press, others on release. Wait until
+    // release so adding the left button can turn a right hold into an orbit.
+    if (!pointer && secondaryGesture) secondaryOrder(secondaryGesture, e.clientX, e.clientY, e.shiftKey);
   });
+  function beginOrbit(e: PointerEvent) {
+    if (!pointer || (e.buttons & 3) !== 3) return;
+    clearHold(); secondaryGesture = null;
+    pointer.kind = 'orbit'; pointer.handled = true;
+    pointer.lastX = e.clientX; pointer.lastY = e.clientY;
+    el('selection-box').hidden = true;
+    world.canvas.style.cursor = 'grabbing';
+  }
   world.canvas.addEventListener('pointerdown', e => {
     clearHover();
     if (!e.isPrimary || pointer || e.button > 2) return;
     world.canvas.focus();
     const secondary = e.button === 2 || (e.button === 0 && (e.ctrlKey || e.altKey));
-    const kind = secondary ? 'secondary' : e.button === 1 || activeMode?.kind === 'pan' ? 'pan' : activeMode ? 'action' : e.shiftKey ? 'select' : 'orbit';
-    pointer = { id: e.pointerId, kind, x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, shift: e.shiftKey, moved: false, handled: false };
+    const selectOnClick = !secondary && e.button === 0 && !activeMode;
+    const kind = secondary ? 'secondary' : e.button === 1 || activeMode?.kind === 'pan' ? 'pan' : activeMode ? 'action' : e.shiftKey ? 'select' : 'pending';
+    pointer = { id: e.pointerId, kind, x: e.clientX, y: e.clientY, lastX: e.clientX, lastY: e.clientY, shift: e.shiftKey, moved: false, handled: false, selectOnClick };
     secondaryGesture = secondary ? pointer : null;
     world.canvas.setPointerCapture(e.pointerId);
     if (kind === 'select') world.canvas.style.cursor = 'crosshair';
+    if (kind === 'pending') {
+      const held = pointer;
+      holdTimer = window.setTimeout(() => {
+        holdTimer = 0;
+        if (pointer !== held || held.kind !== 'pending') return;
+        held.kind = 'pan'; world.canvas.style.cursor = 'grab';
+      }, panHoldDelay);
+    }
+    beginOrbit(e);
   });
   world.canvas.addEventListener('pointermove', e => {
     if (pointer && pointer.id !== e.pointerId) return;
+    // Pointer Events report extra mouse buttons as pointermove, including
+    // their release. Consume the entire chord, even after one button lifts.
+    if (pointer && (e.buttons & 3) === 3 && (pointer.kind !== 'orbit' || e.button !== -1)) beginOrbit(e);
+    if (pointer?.kind === 'orbit') {
+      if ((e.buttons & 3) === 3) world.orbitBy(e.clientX - pointer.lastX, e.clientY - pointer.lastY);
+      pointer.lastX = e.clientX; pointer.lastY = e.clientY; return;
+    }
+    if (pointer?.kind === 'pending') {
+      // Discard motion before the hold delay so a click cannot nudge the
+      // camera, and a subsequent pan starts without a jump.
+      pointer.lastX = e.clientX; pointer.lastY = e.clientY; return;
+    }
     if (pointer && pointer.kind !== 'secondary') {
       if (Math.hypot(e.clientX - pointer.x, e.clientY - pointer.y) > 5) pointer.moved = true;
-      if (pointer.moved && (pointer.kind === 'orbit' || pointer.kind === 'pan')) {
+      if (pointer.moved && pointer.kind === 'pan') {
         world.canvas.style.cursor = 'grabbing';
-        if (pointer.kind === 'orbit') world.orbitBy(e.clientX - pointer.lastX, e.clientY - pointer.lastY);
-        else world.pan(pointer.lastX - e.clientX, pointer.lastY - e.clientY);
+        world.panBetween(pointer.lastX, pointer.lastY, e.clientX, e.clientY);
         pointer.lastX = e.clientX; pointer.lastY = e.clientY; return;
       }
       if (pointer.moved && pointer.kind === 'select') { const box = el('selection-box'); box.hidden = false; Object.assign(box.style, { left: `${Math.min(pointer.x, e.clientX)}px`, top: `${Math.min(pointer.y, e.clientY)}px`, width: `${Math.abs(e.clientX - pointer.x)}px`, height: `${Math.abs(e.clientY - pointer.y)}px` }); }
@@ -300,6 +332,7 @@ function attachControls() {
   });
   world.canvas.addEventListener('pointerup', e => {
     if (!pointer || pointer.id !== e.pointerId) return;
+    clearHold();
     const down = pointer; pointer = null; el('selection-box').hidden = true;
     world.canvas.style.cursor = restingCursor();
     if (world.canvas.hasPointerCapture(e.pointerId)) world.canvas.releasePointerCapture(e.pointerId);
@@ -307,10 +340,10 @@ function attachControls() {
     if (down.kind === 'secondary') { secondaryOrder(down, e.clientX, e.clientY, e.shiftKey); return; }
     // A completed camera drag must never select or order whatever is under
     // the release point. Targeting also requires a click, not a drag.
-    if (down.handled || down.kind === 'pan' || (down.moved && down.kind !== 'select')) return;
+    if (down.handled || down.kind === 'pan' && !down.selectOnClick || (down.moved && down.kind !== 'select')) return;
     if (down.kind === 'action' && activeMode?.kind === 'order') { contextualOrder(e.clientX, e.clientY, e.shiftKey); return; }
     if (down.kind === 'action' && activeMode?.kind === 'delete') { cancelMode(); return; }
-    const point = world.groundPoint(e.clientX, e.clientY), target = world.pick(e.clientX, e.clientY);
+    const point = world.groundPoint(e.clientX, e.clientY), target = world.pick(down.selectOnClick ? down.x : e.clientX, down.selectOnClick ? down.y : e.clientY);
     if (down.kind === 'action' && activeMode?.kind === 'target' && point) {
       const action = activeMode.action;
       const cmd: Omit<Command, 'id'> = { kind: action.kind, entity_ids: selection, queue: e.shiftKey };
@@ -320,7 +353,7 @@ function attachControls() {
       const mode = activeMode, keepMode = e.shiftKey;
       void send(cmd).then(accepted => { if (!accepted) return; world.orderMarker(point); if (!keepMode && activeMode === mode) cancelMode(); }); return;
     }
-    if (down.kind === 'orbit' || down.kind === 'select') {
+    if (down.kind === 'pending' || down.kind === 'pan' || down.kind === 'select') {
       if (down.moved) {
         const ids = snapshot.entities.filter(entity => { if (entity.owner !== snapshot!.player.id || entity.kind !== 'unit' || entity.container) return false; const p = world.screenPoint(entity.id); return p && p.x >= Math.min(down.x, e.clientX) && p.x <= Math.max(down.x, e.clientX) && p.y >= Math.min(down.y, e.clientY) && p.y <= Math.max(down.y, e.clientY); }).map(e => e.id);
         select(ids);
@@ -329,14 +362,15 @@ function attachControls() {
     }
   });
   window.addEventListener('keydown', e => {
-    if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { clearGesture(); cancelMode(); return; }
+    if (e.key === 'Escape' && !document.querySelector('dialog[open]')) { world.keys.clear(); clearGesture(); cancelMode(); return; }
     if ((e.target as HTMLElement).matches('input, select, textarea, button, a, [contenteditable=true]') || (e.target as HTMLElement).closest('#event-tray, #entity-history-panel') || document.querySelector('dialog[open]')) return;
     if (/^[0-9]$/.test(e.key) && (e.ctrlKey || e.metaKey) && !e.altKey) {
       e.preventDefault(); if (!e.repeat) groups.set(e.key, [...selection]); return;
     }
     // Leave browser/OS combinations (Cmd+S, Cmd+A, Cmd+H, etc.) alone.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key.startsWith('Arrow')) { e.preventDefault(); world.keys.add(e.key); }
+    if (e.key === 'Shift') world.keys.add('Shift');
+    if (e.key.startsWith('Arrow')) { e.preventDefault(); world.keys.add(e.key); if (e.shiftKey) world.keys.add('Shift'); }
     if (e.repeat) return;
     if (e.key.toLowerCase() === 'q') { e.preventDefault(); toggleOrder(); }
     if (e.key.toLowerCase() === 'p') { e.preventDefault(); togglePan(); }
@@ -350,6 +384,7 @@ function attachControls() {
     if (/^[0-9]$/.test(e.key)) { e.preventDefault(); select((groups.get(e.key) ?? []).filter(id => snapshot?.entities.some(e => e.id === id))); }
   });
   function clearGesture() {
+    clearHold();
     const previous = pointer;
     pointer = null; secondaryGesture = null; el('selection-box').hidden = true;
     world.canvas.style.cursor = restingCursor();

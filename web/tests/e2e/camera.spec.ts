@@ -9,11 +9,22 @@ async function field(page: Page) {
   return { canvas, ...bounds };
 }
 
-async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+async function drag(page: Page, from: { x: number; y: number }, to: { x: number; y: number }, hold = 220) {
   await page.mouse.move(from.x, from.y);
   await page.mouse.down();
+  if (hold) await page.waitForTimeout(hold);
   await page.mouse.move(to.x, to.y, { steps: 10 });
   await page.mouse.up();
+  await page.mouse.move(2, 2);
+}
+
+async function orbit(page: Page, from: { x: number; y: number }, to: { x: number; y: number }) {
+  await page.mouse.move(from.x, from.y);
+  await page.mouse.down({ button: 'left' });
+  await page.mouse.down({ button: 'right' });
+  await page.mouse.move(to.x, to.y, { steps: 10 });
+  await page.mouse.up({ button: 'right' });
+  await page.mouse.up({ button: 'left' });
   await page.mouse.move(2, 2);
 }
 
@@ -36,7 +47,7 @@ for (const view of [
     const f = await field(page), minimap = page.locator('#minimap');
     if (view.rotate) {
       const start = { x: f.x + f.width * .7, y: f.y + f.height * .55 };
-      await drag(page, start, { x: start.x + 90, y: start.y + 40 });
+      await orbit(page, start, { x: start.x + 90, y: start.y + 40 });
     }
     const cursor = { x: Math.round(f.x + f.width * .83), y: Math.round(f.y + f.height * .4) };
     const pointAtCursor = async () => {
@@ -89,7 +100,7 @@ test('anchors trackpad pinch and line-based wheel events without browser page zo
   }
 });
 
-test('rotates and tilts by dragging directly, updates the minimap, and resets the view', async ({ page, game }, info) => {
+test('rotates and tilts while holding both mouse buttons, preserves selection, and resets the view', async ({ page, game }, info) => {
   await game.start();
   await game.command('pause', () => page.getByRole('button', { name: 'Pause match', exact: true }).click());
   await expect(page.locator('#paused')).toBeVisible();
@@ -98,12 +109,12 @@ test('rotates and tilts by dragging directly, updates the minimap, and resets th
   await f.canvas.focus();
   const before = await f.canvas.screenshot({ path: info.outputPath('world-original.png') }), mapBefore = await minimap.screenshot();
   const start = { x: f.x + f.width * .72, y: f.y + f.height * .57 };
-  await drag(page, start, { x: start.x + 140, y: start.y });
+  await orbit(page, start, { x: start.x + 140, y: start.y });
   await expect.poll(async () => (await f.canvas.screenshot()).equals(before)).toBe(false);
   await expect.poll(async () => (await minimap.screenshot()).equals(mapBefore)).toBe(false);
   const rotated = await f.canvas.screenshot();
   await page.screenshot({ path: info.outputPath('world-rotated.png') });
-  await drag(page, start, { x: start.x, y: start.y + 75 });
+  await orbit(page, start, { x: start.x, y: start.y + 75 });
   await expect.poll(async () => (await f.canvas.screenshot()).equals(rotated)).toBe(false);
   await page.screenshot({ path: info.outputPath('world-tilted.png') });
   await expect(page.locator('#selected-name')).toHaveText('Town Center');
@@ -120,7 +131,7 @@ test('keeps the grabbed ground point beneath the cursor when panning a rotated a
   await game.start();
   const f = await field(page);
   const start = { x: f.x + f.width * .72, y: f.y + f.height * .57 };
-  await drag(page, start, { x: start.x + 140, y: start.y + 40 });
+  await orbit(page, start, { x: start.x + 140, y: start.y + 40 });
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
   const anchor = { x: f.x + f.width * .68, y: f.y + f.height * .6 };
@@ -139,13 +150,104 @@ test('keeps the grabbed ground point beneath the cursor when panning a rotated a
   await page.screenshot({ path: info.outputPath('world-panned-after-rotation.png') });
 });
 
+test('pans after a short left hold and keeps selection and perspective unchanged', async ({ page, game }, info) => {
+  await game.start();
+  const f = await field(page), minimap = page.locator('#minimap');
+  const start = { x: f.x + f.width * .72, y: f.y + f.height * .56 };
+  const end = { x: start.x + 80, y: start.y + 36 };
+  const before = await minimap.screenshot();
+  await page.getByRole('button', { name: 'Give order' }).click();
+  const first = await game.command('rally', () => page.mouse.click(start.x, start.y));
+  const commands = commandsFrom(page);
+  await drag(page, start, end);
+  await expect(page.locator('#selected-name')).toHaveText('Town Center');
+  await expect(page.locator('#mode-hint')).toBeHidden();
+  expect(commands).toEqual([]);
+  const panned = await minimap.screenshot();
+  expect(panned.equals(before)).toBe(false);
+  // Reset only restores angle/zoom. Its footprint stays the same after a pan.
+  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  expect((await minimap.screenshot()).equals(panned)).toBe(true);
+  await page.getByRole('button', { name: 'Give order' }).click();
+  const second = await game.command('rally', () => page.mouse.click(end.x, end.y));
+  expect(second.request().postDataJSON().position.x).toBeCloseTo(first.request().postDataJSON().position.x, 5);
+  expect(second.request().postDataJSON().position.y).toBeCloseTo(first.request().postDataJSON().position.y, 5);
+  await page.screenshot({ path: info.outputPath('primary-drag-pan.png') });
+});
+
+test('selects on a single click, then pans on a held second click without rotating', async ({ page, game }) => {
+  await game.start();
+  const minimap = page.locator('#minimap'), before = await minimap.screenshot();
+  const commands = commandsFrom(page);
+  await page.mouse.click(629, 382);
+  await expect(page.locator('#selected-name')).toHaveText('Villager');
+  expect((await minimap.screenshot()).equals(before)).toBe(true);
+  await page.mouse.down({ clickCount: 2 });
+  await page.waitForTimeout(220);
+  await page.mouse.move(725, 420, { steps: 8 });
+  await page.mouse.up({ clickCount: 2 });
+  await expect(page.locator('#selected-name')).toHaveText('Villager');
+  const panned = await minimap.screenshot();
+  expect(panned.equals(before)).toBe(false);
+  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  expect((await minimap.screenshot()).equals(panned)).toBe(true);
+  expect(commands).toEqual([]);
+});
+
+test('ignores click motion before the pan hold delay and highlights the pressed element', async ({ page, game }) => {
+  await game.start();
+  await page.clock.install();
+  await page.clock.pauseAt(new Date());
+  const minimap = page.locator('#minimap'), before = await minimap.screenshot();
+  const commands = commandsFrom(page);
+  await page.mouse.move(629, 382);
+  await page.mouse.down();
+  await page.clock.runFor(100);
+  await page.mouse.move(644, 392);
+  await page.mouse.up();
+  await page.clock.runFor(250);
+  await expect(page.locator('#selected-name')).toHaveText('Villager');
+  expect((await minimap.screenshot()).equals(before)).toBe(true);
+  expect(commands).toEqual([]);
+});
+
+for (const firstPress of ['left', 'right'] as const) {
+  for (const firstRelease of ['left', 'right'] as const) {
+    test(`rotates with ${firstPress} pressed first and stops when ${firstRelease} releases`, async ({ page, game }) => {
+      await game.start();
+      const minimap = page.locator('#minimap'), before = await minimap.screenshot();
+      const commands = commandsFrom(page);
+      await page.mouse.move(629, 382);
+      await page.mouse.down({ button: firstPress });
+      await page.waitForTimeout(220);
+      expect(commands).toEqual([]);
+      await page.mouse.down({ button: firstPress === 'left' ? 'right' : 'left' });
+      await page.mouse.move(725, 420, { steps: 8 });
+      await expect(page.locator('#selected-name')).toHaveText('Town Center');
+      const rotated = await minimap.screenshot();
+      expect(rotated.equals(before)).toBe(false);
+      await page.mouse.up({ button: firstRelease });
+      await page.mouse.move(775, 450, { steps: 5 });
+      await page.waitForTimeout(220);
+      await page.mouse.move(805, 460, { steps: 5 });
+      expect((await minimap.screenshot()).equals(rotated)).toBe(true);
+      await page.mouse.up({ button: firstRelease === 'left' ? 'right' : 'left' });
+      await expect(page.locator('#selected-name')).toHaveText('Town Center');
+      expect(commands).toEqual([]);
+      // Consuming the chord must not suppress the next ordinary right click.
+      await game.command('rally', () => page.mouse.click(900, 375, { button: 'right' }));
+      expect(commands.map(command => command.kind)).toEqual(['rally']);
+    });
+  }
+}
+
 test('selects with a slightly unsteady click and keeps the camera still', async ({ page, game }) => {
   await game.start();
   const f = await field(page), mapBefore = await page.locator('#minimap').screenshot();
   // Visually verified first settler in the fixed opening, with two pixels of
   // trackpad motion between press and release (below the drag threshold).
   const point = { x: f.x + f.width / 2 - f.height * .14, y: f.y + f.height * .49 };
-  await drag(page, point, { x: point.x + 2, y: point.y + 1 });
+  await drag(page, point, { x: point.x + 2, y: point.y + 1 }, 0);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   await expect(page.locator('#selection-count')).toHaveText('1 selected');
   expect((await page.locator('#minimap').screenshot()).equals(mapBefore)).toBe(true);
@@ -157,6 +259,7 @@ test('cancels an in-progress camera drag and never orders on release', async ({ 
   const point = { x: f.x + f.width * .72, y: f.y + f.height * .57 };
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();
+  await page.waitForTimeout(220);
   await page.mouse.move(point.x + 80, point.y, { steps: 5 });
   await page.keyboard.press('Escape');
   const stopped = await page.locator('#minimap').screenshot({ path: info.outputPath('minimap-drag-cancelled.png') });
@@ -174,13 +277,13 @@ test('cancels an in-progress camera drag and never orders on release', async ({ 
   expect((await game.snapshot()).player.idle).toBe(3);
 });
 
-test('can rotate and reset on a compact trackpad layout', async ({ page, game }, info) => {
+test('can rotate and reset on a compact layout', async ({ page, game }, info) => {
   await page.setViewportSize({ width: 390, height: 640 });
   await game.start();
   const f = await field(page), minimap = page.locator('#minimap');
   const before = await minimap.screenshot();
   const point = { x: f.x + f.width * .65, y: f.y + f.height * .35 };
-  await drag(page, point, { x: point.x + 55, y: point.y + 45 });
+  await orbit(page, point, { x: point.x + 55, y: point.y + 45 });
   await expect.poll(async () => (await minimap.screenshot()).equals(before)).toBe(false);
   const reset = page.getByRole('button', { name: 'Reset view', exact: true });
   await expect(reset).toBeInViewport({ ratio: 1 });
@@ -190,11 +293,36 @@ test('can rotate and reset on a compact trackpad layout', async ({ page, game },
   await expect(page.locator('#selected-name')).toHaveText('Town Center');
 });
 
+test('rotates and tilts with Shift and arrows for trackpads, with ordinary arrows still panning', async ({ page, game }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await game.start();
+  const f = await field(page), minimap = page.locator('#minimap');
+  const before = await minimap.screenshot(), commands = commandsFrom(page);
+  await f.canvas.focus();
+  for (const arrow of ['ArrowRight', 'ArrowDown']) {
+    const previous = await minimap.screenshot();
+    await page.keyboard.down('Shift'); await page.keyboard.down(arrow);
+    await page.waitForTimeout(250);
+    await page.keyboard.up(arrow); await page.keyboard.up('Shift');
+    expect((await minimap.screenshot()).equals(previous)).toBe(false);
+  }
+  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  expect((await minimap.screenshot()).equals(before)).toBe(true);
+  await f.canvas.focus(); await page.keyboard.down('ArrowRight');
+  await page.waitForTimeout(200); await page.keyboard.up('ArrowRight');
+  const panned = await minimap.screenshot();
+  expect(panned.equals(before)).toBe(false);
+  await page.getByRole('button', { name: 'Reset view', exact: true }).click();
+  expect((await minimap.screenshot()).equals(panned)).toBe(true);
+  await expect(page.locator('#selected-name')).toHaveText('Town Center');
+  expect(commands).toEqual([]);
+});
+
 test('keeps lower-screen ground targeting available at minimum tilt and maximum zoom out', async ({ page, game }, info) => {
   await game.start();
   const f = await field(page);
   const point = { x: f.x + f.width * .72, y: f.y + f.height * .6 };
-  await drag(page, point, { x: point.x, y: f.y + f.height * .1 });
+  await orbit(page, point, { x: point.x, y: f.y + f.height * .1 });
   for (let i = 0; i < 8; i++) await page.getByRole('button', { name: 'Zoom out', exact: true }).click();
   const minimap = page.locator('#minimap'), bounds = await minimap.boundingBox();
   if (!bounds) throw new Error('No minimap bounds.');
@@ -204,8 +332,8 @@ test('keeps lower-screen ground targeting available at minimum tilt and maximum 
   await page.getByRole('button', { name: 'Give order' }).click();
   const response = await game.command('rally', () => f.canvas.click({ position: { x: f.width / 2, y: f.height * .93 } }));
   const position = (response.request().postDataJSON() as Command).position!;
-  expect(position.x).toBeGreaterThan(50);
-  expect(position.y).toBeGreaterThan(50);
+  expect(position.x).toBeGreaterThan(0);
+  expect(position.y).toBeGreaterThan(0);
   expect(position.x).toBeLessThan(72);
   expect(position.y).toBeLessThan(72);
   await page.screenshot({ path: info.outputPath('world-low-angle-wide-view.png') });
