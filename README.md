@@ -2,6 +2,16 @@
 
 A playable historical RTS with a Go server and a Three.js battlefield. Go owns the simulation, AI, visibility, resources, pathfinding, combat, and outcomes. The browser renders snapshots and sends player intentions.
 
+## Gameplay
+
+Grow a settlement with farms, resource camps, homes, and military buildings.
+
+![A Feudal Age settlement with a Town Center, farms, houses, and a barracks in the Three.js battlefield.](docs/screenshots/settlement.png)
+
+Follow each villager's current activity and immutable history, and search the live event log to locate individual entities.
+
+![A farming villager's History tab beside the battlefield, with the expanded event log filtered to Villager 3.](docs/screenshots/villager-history.png)
+
 ## Run
 
 Use Go 1.26 (or Go with automatic toolchain downloads enabled) and Node.js 22.12+.
