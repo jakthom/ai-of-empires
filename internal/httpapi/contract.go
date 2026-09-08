@@ -89,6 +89,14 @@ func OpenAPI() map[string]any {
 	paths := map[string]any{}
 	add := func(method, path, summary, input, output string, status int, auth bool) {
 		operation := map[string]any{"summary": summary, "responses": map[string]any{fmt.Sprint(status): map[string]any{"description": "Success", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/" + output}}}}, "default": map[string]any{"description": "Structured error", "content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/ErrorBody"}}}}}}
+		operation["responses"].(map[string]any)["503"] = map[string]any{
+			"description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+			"headers": map[string]any{"Retry-After": map[string]any{
+				"description": "Suggested retry delay in seconds; included during shutdown.",
+				"schema":      map[string]any{"type": "string", "example": "1"},
+			}},
+			"content": map[string]any{"application/json": map[string]any{"schema": map[string]any{"$ref": "#/components/schemas/ErrorBody"}}},
+		}
 		if auth {
 			operation["security"] = []any{map[string]any{"matchToken": []string{}}}
 			operation["parameters"] = []any{map[string]any{"name": "id", "in": "path", "required": true, "schema": map[string]any{"type": "string"}}}

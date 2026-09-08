@@ -17,7 +17,8 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 | Civilization strategy | Developing, defending, raiding, recovering | `internal/game/ai_strategy.go` |
 | Pairwise relationship | Peaceful, hostile | `internal/game/diplomacy.go` |
 | Match | Running, paused, finished | `internal/game/lifecycle.go` |
-| Server session lease | Open, closed | `internal/matches/lifecycle.go` |
+| Server session lease | Open, draining, closed | `internal/matches/lifecycle.go` |
+| Match service | Serving, draining, closed | `internal/matches/lifecycle.go` |
 
 Construction belongs to entity life; construction work belongs to the worker's behavior. Research and age advancement use production, whose completion effects publish the technology or new age. Trading, gathering, healing, conversion, relic handling, embarking, and unloading are unit behavior branches.
 
@@ -91,7 +92,24 @@ and continuation tests when extending the game.
 
 The match service commits the checkpoint, command receipts, and new immutable
 journal records in one SQLite transaction. Journal audiences are preserved from
-the moment of each event. Its separate server lease closes only after saving;
-loading a saved session creates a new lease without changing the game's running,
-paused, or finished state. SQLite I/O remains outside simulation effects and
-guards.
+the moment of each event. An idle or explicitly unloaded lease closes only after
+saving. Loading a saved session creates a new lease without changing the game's
+running, paused, or finished state. SQLite I/O remains outside simulation effects
+and guards.
+
+For process shutdown, `begin_shutdown` takes the service from Serving to Draining.
+Its named effect broadcasts shutdown and freezes each lease under its match
+lock. The mutation barrier waits for already executing commands and ticks;
+subsequent commands, including requests holding old authorized handles, are
+refused. Draining preserves receipts and the fractional simulation clock until
+checkpointing completes. The scheduler exits, and the transport uses the same
+shutdown notification for request admission and SSE cancellation.
+
+HTTP draining and SQLite checkpoint I/O run outside transition effects. After
+the final save attempts and database closure, `finish_shutdown` moves the service
+to Closed and releases its leases through their named cleanup effect. A failed
+save still terminates the process, reports the affected session and returns an
+error; it never acknowledges a partial checkpoint. Repeated shutdown requests
+are no-op transitions, and repeated or concurrent close calls return the original
+result without repeating saves or cleanup. Restarts construct new service and
+lease instances; these process lifecycles do not replace persisted game states.

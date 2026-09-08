@@ -4,15 +4,9 @@ import (
 	"context"
 	"flag"
 	"log/slog"
-	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
-
-	"crowns/internal/httpapi"
-	"crowns/internal/matches"
-	"crowns/web"
 )
 
 func main() {
@@ -20,36 +14,12 @@ func main() {
 	dbPath := flag.String("db", "data/ai-of-empires.sqlite", "SQLite session database path (:memory: for disposable games)")
 	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-	service, err := matches.OpenService(*dbPath)
-	if err != nil {
-		slog.Error("open session database", "error", err)
-		os.Exit(1)
-	}
-	simulationDone := make(chan struct{})
-	go func() { service.Run(ctx); close(simulationDone) }()
-	server := &http.Server{Addr: *addr, Handler: httpapi.New(service, web.Assets()), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10}
-	shutdownDone := make(chan struct{})
-	go func() {
-		defer close(shutdownDone)
-		<-ctx.Done()
-		shutdown, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-		_ = server.Shutdown(shutdown)
-	}()
-	slog.Info("AI of Empires is ready", "url", "http://"+*addr)
-	serveErr := server.ListenAndServe()
-	if err := serveErr; err != nil && err != http.ErrServerClosed {
-		slog.Error("server stopped", "error", err)
-	}
+	err := run(ctx, *addr, *dbPath)
+	// Keep signal handling installed through the final save. A second signal
+	// must not accidentally abort checkpointing when the HTTP listener closes.
 	stop()
-	<-simulationDone
-	<-shutdownDone
-	if err := service.Close(); err != nil {
-		slog.Error("save sessions on shutdown", "error", err)
-		os.Exit(1)
-	}
-	if serveErr != nil && serveErr != http.ErrServerClosed {
+	if err != nil {
+		slog.Error("server stopped with errors", "error", err)
 		os.Exit(1)
 	}
 }

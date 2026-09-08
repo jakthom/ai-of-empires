@@ -71,6 +71,12 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") {
 		w.Header().Set("Cache-Control", "no-store")
 	}
+	select {
+	case <-s.matches.Stopping():
+		domainError(w, matches.ErrShuttingDown)
+		return
+	default:
+	}
 	if origin := r.Header.Get("Origin"); origin != "" && origin != "http://"+r.Host && origin != "https://"+r.Host {
 		writeError(w, 403, "origin_rejected", "Cross-origin requests are not allowed.")
 		return
@@ -128,6 +134,9 @@ func domainError(w http.ResponseWriter, err error) {
 		writeError(w, 401, "unauthorized", "A valid match token is required.")
 	case errors.Is(err, matches.ErrCapacity):
 		writeError(w, 503, "server_full", "The server is full. Try again later.")
+	case errors.Is(err, matches.ErrShuttingDown):
+		w.Header().Set("Retry-After", "1")
+		writeError(w, 503, "server_shutting_down", "The server is shutting down. Reconnect after it restarts.")
 	case errors.Is(err, statemachine.ErrNotPermitted):
 		writeError(w, 422, "invalid_state", "This action is unavailable in the current state.")
 	default:
@@ -270,7 +279,7 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	if m == nil {
 		return
 	}
-	flusher, ok := w.(http.Flusher)
+	_, ok := w.(http.Flusher)
 	if !ok {
 		writeError(w, 500, "stream_unavailable", "Streaming is unavailable.")
 		return
@@ -278,9 +287,36 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(200)
+	controller := http.NewResponseController(w)
+	// Interrupt a blocked write too, not just the interval between snapshots.
+	// Join this watcher before returning so it cannot set a deadline on a
+	// connection after net/http has reused it for another request.
+	finished := make(chan struct{})
+	interrupted := make(chan struct{})
+	go func() {
+		defer close(interrupted)
+		select {
+		case <-s.matches.Stopping():
+		case <-r.Context().Done():
+		case <-finished:
+			return
+		}
+		_ = controller.SetWriteDeadline(time.Now())
+	}()
+	defer func() { close(finished); <-interrupted }()
 	ticker := time.NewTicker(100 * time.Millisecond)
 	defer ticker.Stop()
 	for {
+		// Set the deadline before checking cancellation: a new frame must not
+		// override the interrupting deadline and then block for another 10s.
+		_ = controller.SetWriteDeadline(time.Now().Add(10 * time.Second))
+		select {
+		case <-s.matches.Stopping():
+			return
+		case <-r.Context().Done():
+			return
+		default:
+		}
 		// Re-authorize to terminate streams when a match is deleted. Coalescing
 		// full read models means slow/reconnecting clients never require backlog.
 		if current, err := s.matches.AuthorizedStream(r.PathValue("id"), strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer ")); err != nil || current != m {
@@ -291,13 +327,15 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		controller := http.NewResponseController(w)
-		_ = controller.SetWriteDeadline(time.Now().Add(10 * time.Second))
 		if _, err = fmt.Fprintf(w, "id: %d\nevent: snapshot\ndata: %s\n\n", view.Tick, data); err != nil {
 			return
 		}
-		flusher.Flush()
+		if err := controller.Flush(); err != nil {
+			return
+		}
 		select {
+		case <-s.matches.Stopping():
+			return
 		case <-r.Context().Done():
 			return
 		case <-ticker.C:

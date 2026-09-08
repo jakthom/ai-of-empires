@@ -1,6 +1,7 @@
 package matches
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -13,9 +14,11 @@ import (
 	"crowns/internal/game"
 	"github.com/open-ships/statemachine"
 	_ "modernc.org/sqlite"
+	sqlite3 "modernc.org/sqlite/lib"
 )
 
 const AutosaveInterval = 10 * time.Second
+const ShutdownSaveTimeout = 15 * time.Second
 
 var ErrNameExists = errors.New("a game with that name already exists")
 
@@ -106,13 +109,20 @@ func (m *Match) Info() SavedGame { m.mu.Lock(); defer m.mu.Unlock(); return m.in
 
 // The caller holds the match lock. The checkpoint, authentication, command
 // receipts, and new journal records commit together or do not commit at all.
-func (m *Match) save(now time.Time) (result error) {
+func (m *Match) save(now time.Time) error {
+	return m.saveContext(context.Background(), now)
+}
+
+func (m *Match) saveContext(ctx context.Context, now time.Time) (result error) {
 	m.lastSaveAttempt = now
 	defer func() {
 		if result != nil {
 			m.saveError = "Autosave failed. Your game is still in memory; try saving again."
 		}
 	}()
+	if err := ctx.Err(); err != nil {
+		return err
+	}
 	if m.db == nil {
 		m.savedAt = now.UTC().Format(time.RFC3339Nano)
 		m.saveError = ""
@@ -124,6 +134,9 @@ func (m *Match) save(now time.Time) (result error) {
 	}
 	c := storedMatch{World: world, TokenHash: m.tokenHash, Accumulator: m.accumulator, Commands: map[string]storedCommand{}}
 	for id, cmd := range m.commands {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		stored := storedCommand{Hash: cmd.hash, Receipt: cmd.receipt}
 		if cmd.err != nil && !errors.As(cmd.err, &stored.Error) {
 			if errors.Is(cmd.err, statemachine.ErrNotPermitted) {
@@ -146,12 +159,12 @@ func (m *Match) save(now time.Time) (result error) {
 	if err != nil {
 		return err
 	}
-	tx, err := m.db.Begin()
+	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
-	_, err = tx.Exec(`INSERT INTO sessions(id,name_key,metadata,checkpoint,saved_at) VALUES(?,?,?,?,?)
+	_, err = tx.ExecContext(ctx, `INSERT INTO sessions(id,name_key,metadata,checkpoint,saved_at) VALUES(?,?,?,?,?)
 	 ON CONFLICT(id) DO UPDATE SET name_key=excluded.name_key, metadata=excluded.metadata, checkpoint=excluded.checkpoint, saved_at=excluded.saved_at`, m.id, strings.ToLower(m.world.Config.Name), metadata, data, now.UnixNano())
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed: sessions.name_key") {
@@ -159,17 +172,20 @@ func (m *Match) save(now time.Time) (result error) {
 		}
 		return err
 	}
-	stmt, err := tx.Prepare("INSERT INTO events(session_id,event_id,record) VALUES(?,?,?)")
+	stmt, err := tx.PrepareContext(ctx, "INSERT INTO events(session_id,event_id,record) VALUES(?,?,?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
 	for _, record := range m.world.JournalSince(m.savedCursor) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
 		encoded, err := json.Marshal(record)
 		if err != nil {
 			return err
 		}
-		if _, err = stmt.Exec(m.id, record.Event.ID, encoded); err != nil {
+		if _, err = stmt.ExecContext(ctx, m.id, record.Event.ID, encoded); err != nil {
 			return err
 		}
 	}
@@ -183,6 +199,9 @@ func (m *Match) save(now time.Time) (result error) {
 // The service lock protects loading and unloading; the match lock protects
 // simulation, token rotation and checkpoint commits.
 func (s *Service) load(id string) (*Match, error) {
+	if s.lifecycle.State() != serviceServing {
+		return nil, ErrShuttingDown
+	}
 	if m := s.matches[id]; m != nil {
 		return m, nil
 	}
@@ -254,6 +273,9 @@ func (s *Service) load(id string) (*Match, error) {
 func (s *Service) List(query string) (SavedGames, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() != serviceServing {
+		return SavedGames{}, ErrShuttingDown
+	}
 	result := SavedGames{Games: []SavedGame{}}
 	query = strings.ToLower(strings.TrimSpace(query))
 	if s.db == nil {
@@ -302,6 +324,9 @@ func (s *Service) List(query string) (SavedGames, error) {
 func (s *Service) Resume(identifier string) (Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() != serviceServing {
+		return Session{}, ErrShuttingDown
+	}
 	identifier = strings.TrimSpace(identifier)
 	id := ""
 	if s.db != nil {
@@ -343,6 +368,9 @@ func (s *Service) Resume(identifier string) (Session, error) {
 func (s *Service) Save(id string, m *Match, leave bool) (SavedGame, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() != serviceServing {
+		return SavedGame{}, ErrShuttingDown
+	}
 	if s.matches[id] != m {
 		return SavedGame{}, ErrNotFound
 	}
@@ -360,18 +388,71 @@ func (s *Service) Save(id string, m *Match, leave bool) (SavedGame, error) {
 	return info, nil
 }
 
-// Close is called after Run stops and the HTTP server has drained.
+// Close freezes games, checkpoints them with a fresh shutdown budget, and
+// closes SQLite. Repeated or concurrent calls return the first close result.
 func (s *Service) Close() error {
+	ctx, cancel := context.WithTimeout(context.Background(), ShutdownSaveTimeout)
+	defer cancel()
+	return s.CloseContext(ctx)
+}
+
+// CloseContext's context bounds final checkpoint I/O, independently of the
+// canceled simulation/request contexts. BeginShutdown is a mutation barrier:
+// even a stalled handler retaining a Match cannot change a saved world later.
+func (s *Service) CloseContext(ctx context.Context) error {
+	s.BeginShutdown()
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() == serviceClosed {
+		return s.closeErr
+	}
 	var result error
-	for _, m := range s.matches {
+	if s.db != nil && len(s.matches) > 0 {
+		// SQLite's busy handler can sleep before observing an interrupt. Use
+		// short waits during final saves; our retries obey the shared context.
+		if _, err := s.db.ExecContext(ctx, "PRAGMA busy_timeout=100"); err != nil {
+			result = errors.Join(result, fmt.Errorf("configure shutdown checkpoints: %w", err))
+		}
+	}
+	for id, m := range s.matches {
 		m.mu.Lock()
-		result = errors.Join(result, m.save(time.Now()))
+		err := m.saveOnShutdown(ctx)
 		m.mu.Unlock()
+		if err != nil {
+			result = errors.Join(result, fmt.Errorf("checkpoint session %s: %w", id, err))
+		}
 	}
 	if s.db != nil {
-		result = errors.Join(result, s.db.Close())
+		if err := s.db.Close(); err != nil {
+			result = errors.Join(result, fmt.Errorf("close session database: %w", err))
+		}
 	}
+	s.closeErr = result
+	s.fireService(finishShutdown)
 	return result
+}
+
+// Retry only transient lock contention. Other storage errors are reported
+// immediately, retaining the last committed checkpoint. Caller holds m.mu.
+func (m *Match) saveOnShutdown(ctx context.Context) error {
+	for {
+		err := m.saveContext(ctx, time.Now())
+		if err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return errors.Join(err, ctx.Err())
+		}
+		var sqliteErr interface{ Code() int }
+		if !errors.As(err, &sqliteErr) || (sqliteErr.Code()&0xff != sqlite3.SQLITE_BUSY && sqliteErr.Code()&0xff != sqlite3.SQLITE_LOCKED) {
+			return err
+		}
+		timer := time.NewTimer(100 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(err, ctx.Err())
+		case <-timer.C:
+		}
+	}
 }

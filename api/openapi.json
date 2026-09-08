@@ -1180,6 +1180,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1206,6 +1225,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1244,6 +1282,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1273,6 +1330,25 @@
         "responses": {
           "204": {
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1313,6 +1389,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1365,6 +1460,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1472,6 +1586,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1514,6 +1647,25 @@
             },
             "description": "SSE event `snapshot`, id = simulation tick; JSON data conforms to Snapshot. Bearer auth through fetch streaming."
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1555,6 +1707,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1653,6 +1824,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1705,6 +1895,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1747,6 +1956,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1788,6 +2016,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {
@@ -1832,6 +2079,25 @@
             },
             "description": "Success"
           },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
           "default": {
             "content": {
               "application/json": {
@@ -1868,6 +2134,25 @@
               }
             },
             "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
           },
           "default": {
             "content": {

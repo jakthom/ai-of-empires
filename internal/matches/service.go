@@ -25,6 +25,7 @@ import (
 var ErrNotFound = errors.New("match not found")
 var ErrUnauthorized = errors.New("invalid match token")
 var ErrCapacity = errors.New("server has reached its match capacity")
+var ErrShuttingDown = errors.New("server is shutting down")
 
 type Session struct {
 	MatchID  string `json:"match_id"`
@@ -68,12 +69,28 @@ type Match struct {
 	accumulator     float64
 }
 type Service struct {
-	mu      sync.Mutex
-	matches map[string]*Match
-	db      *sql.DB
+	mu        sync.Mutex
+	matches   map[string]*Match
+	db        *sql.DB
+	lifecycle *statemachine.Instance[serviceState, serviceEvent, *Service]
+	stopping  chan struct{}
+	closeErr  error
 }
 
-func NewService() *Service            { return &Service{matches: map[string]*Match{}} }
+func NewService() *Service {
+	return &Service{matches: map[string]*Match{}, stopping: make(chan struct{}), lifecycle: statemachine.NewInstance(serviceMachine, serviceServing)}
+}
+
+// Stopping broadcasts the start of shutdown to transports and long-lived
+// streams. BeginShutdown also waits for any already executing mutation.
+func (s *Service) Stopping() <-chan struct{} { return s.stopping }
+
+func (s *Service) BeginShutdown() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.fireService(beginShutdown)
+}
+
 func tokenHash(token string) [32]byte { return sha256.Sum256([]byte(token)) }
 func randomID(bytes int) (string, error) {
 	b := make([]byte, bytes)
@@ -85,6 +102,9 @@ func randomID(bytes int) (string, error) {
 func (s *Service) Create(cfg game.Config) (Session, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() != serviceServing {
+		return Session{}, ErrShuttingDown
+	}
 	if len(s.matches) >= 16 {
 		return Session{}, ErrCapacity
 	}
@@ -125,6 +145,10 @@ func (s *Service) AuthorizedStream(id, token string) (*Match, error) {
 }
 func (s *Service) authorized(id, token string, load bool) (*Match, error) {
 	s.mu.Lock()
+	if s.lifecycle.State() != serviceServing {
+		s.mu.Unlock()
+		return nil, ErrShuttingDown
+	}
 	m := s.matches[id]
 	var err error
 	if load {
@@ -142,8 +166,8 @@ func (s *Service) authorized(id, token string, load bool) (*Match, error) {
 	if subtle.ConstantTimeCompare(hash[:], m.tokenHash[:]) != 1 {
 		return nil, ErrUnauthorized
 	}
-	if m.lifecycle.State() == leaseClosed {
-		return nil, ErrNotFound
+	if err := m.available(); err != nil {
+		return nil, err
 	}
 	m.lastAccess = time.Now()
 	return m, nil
@@ -151,6 +175,9 @@ func (s *Service) authorized(id, token string, load bool) (*Match, error) {
 func (s *Service) Delete(id string, m *Match) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.lifecycle.State() != serviceServing {
+		return ErrShuttingDown
+	}
 	if s.matches[id] != m {
 		return ErrNotFound
 	}
@@ -174,8 +201,8 @@ func (m *Match) View() game.Snapshot {
 func (m *Match) Log(query game.LogQuery) (game.EventPage, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.lifecycle.State() == leaseClosed {
-		return game.EventPage{}, ErrNotFound
+	if err := m.available(); err != nil {
+		return game.EventPage{}, err
 	}
 	m.lastAccess = time.Now()
 	return m.world.Log(1, query)
@@ -183,8 +210,8 @@ func (m *Match) Log(query game.LogQuery) (game.EventPage, error) {
 func (m *Match) Apply(c game.Command) (Receipt, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	if m.lifecycle.State() == leaseClosed {
-		return Receipt{}, ErrNotFound
+	if err := m.available(); err != nil {
+		return Receipt{}, err
 	}
 	if c.ID == "" || len(c.ID) > 64 {
 		return Receipt{}, &game.RuleError{Code: "invalid_command_id", Message: "Use a unique command ID of 1–64 characters."}
@@ -240,13 +267,24 @@ func (s *Service) Run(ctx context.Context) {
 			return
 		case now := <-ticker.C:
 			s.mu.Lock()
+			if ctx.Err() != nil || s.lifecycle.State() != serviceServing {
+				s.mu.Unlock()
+				return
+			}
 			for id, m := range s.matches {
+				if ctx.Err() != nil {
+					break
+				}
 				m.mu.Lock()
 				// Save before closing a durable lease; failed writes keep the
 				// only authoritative copy alive and are retried next interval.
 				expiring := leaseExpired(nil, &leaseContext{m, now}) == nil
 				if s.db != nil && (now.Sub(m.lastSaveAttempt) >= AutosaveInterval || expiring) {
-					if err := m.save(now); err != nil {
+					if err := m.saveContext(ctx, now); err != nil {
+						if ctx.Err() != nil {
+							m.mu.Unlock()
+							break
+						}
 						slog.Error("checkpoint failed", "match", id, "error", err)
 						m.lastAccess = now
 						m.mu.Unlock()
@@ -260,7 +298,7 @@ func (s *Service) Run(ctx context.Context) {
 					continue
 				}
 				m.accumulator += .05 * m.world.Speed
-				for m.accumulator >= game.Step {
+				for m.accumulator >= game.Step && ctx.Err() == nil {
 					m.world.Update()
 					m.accumulator -= game.Step
 				}
