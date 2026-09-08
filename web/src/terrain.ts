@@ -68,11 +68,11 @@ class TerrainChunk {
   }
 
   updateFog(map: MapView) {
-    const tint = new THREE.Color(), colors = biomePalette(map.biome);
+    const tint = new THREE.Color();
     for (const [mesh,cells,wall] of [[this.surface,this.cells,false],[this.walls,this.wallCells,true]] as const) {
       const attribute = mesh.geometry.getAttribute('color');
       cells.forEach((cell,vertex) => {
-        const tile = map.tiles[cell], fog = map.fog[cell];
+        const tile = map.tiles[cell], fog = map.fog[cell], colors = biomePalette(tile.biome || map.biome);
         tint.set(!fog ? '#19281f' : wall ? tile.terrain === 'cliff' ? colors.cliff : colors.earth : colors[tile.terrain] ?? colors.grass);
         if (fog) tint.multiplyScalar((.98+Math.sin(cell*7.3)*.025) * (fog === 1 ? .38 : 1));
         attribute.setXYZ(vertex,tint.r,tint.g,tint.b);
@@ -127,7 +127,7 @@ export class BattlefieldTerrain {
           changed.add(nz*map.width+nx); geometry.add(this.chunkAt(nx,nz));
         }
       }
-      if (map.biome !== this.map.biome || map.fog[i] !== this.map.fog[i]) fog.add(this.chunkAt(x,z));
+      if (tile.biome !== old.biome || map.biome !== this.map.biome || map.fog[i] !== this.map.fog[i]) fog.add(this.chunkAt(x,z));
     });
     this.map = map;
     changed.forEach(i => { this.corners[i] = cornerHeights(map,i); });

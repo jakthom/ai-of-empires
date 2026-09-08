@@ -160,3 +160,37 @@ func TestSupportedSpeedsPreserveFixedPhysicsStep(t *testing.T) {
 		}
 	}
 }
+
+func TestSharedSpeedChangeIsVisibleToEveryKingdomAndCheckpointed(t *testing.T) {
+	w := New(Config{Settlements: 2, Difficulty: "peaceful"})
+	for range 2 {
+		if err := w.SetSpeed(32); err != nil {
+			t.Fatal(err)
+		}
+	}
+	data, err := w.Checkpoint()
+	if err != nil {
+		t.Fatal(err)
+	}
+	restored, err := Restore(data, w.JournalSince(0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, world := range []*World{w, restored} {
+		for player := 1; player <= 2; player++ {
+			page, err := world.Log(player, LogQuery{Limit: 200})
+			if err != nil {
+				t.Fatal(err)
+			}
+			count := 0
+			for _, event := range page.Events {
+				if event.Message == "Game speed set to 32×" {
+					count++
+				}
+			}
+			if count != 1 {
+				t.Fatalf("player%d observed %d speed-change events", player, count)
+			}
+		}
+	}
+}

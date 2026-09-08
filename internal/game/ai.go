@@ -116,7 +116,7 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 	if p.Temperament == aiExpansionist && policy.MilitaryPriorityAt > 0 {
 		openingBuildings = []string{"barracks", "lumber_camp", "mill"}
 	}
-	if w.Config.World.Type == "islands" {
+	if w.islandWorld() {
 		openingBuildings = []string{"lumber_camp", "dock", "barracks"}
 	}
 	for _, typ := range openingBuildings {

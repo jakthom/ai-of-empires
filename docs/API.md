@@ -33,6 +33,10 @@ Legacy `/matches` creation and authenticated single-player routes remain availab
 
 `Snapshot.world` and `SavedGame.world` contain the normalized creation settings. `Snapshot.map.biome` tells the renderer which scenery to use. `Snapshot.treaty_remaining` is the authoritative remaining time in game seconds. Do not run a client treaty clock or infer hostility from expiry. Attack and conversion commands during the initial peace period return `422 peace_period`; movement, economic work, and non-attacking attack-move travel remain available.
 
+The catalog includes Huge (224×224) and Giant (288×288), with settlement count still independent of area. With `biome: "mixed"`, each observed `Tile.biome` identifies its regional scenery. This optional field overrides `MapView.biome` for that cell; unknown terrain omits it. Single-biome worlds and older checkpoints can omit tile biomes. Regional metadata is generated in Go and checkpointed with the terrain.
+
+Buildings include optional `EntityView.appearance_age` (0–3, default 0), representing the owner's age when observed. Render materials from this field, not the viewer's age or a lookup of another kingdom's current state. Last-known buildings retain their observed age while outside sight. Age and biome are presentation inputs; texture generation and icons belong to the UI and carry no game rules.
+
 Go generates and validates terrain before publishing a session. Biomes do not affect rules. Natural resource abundance scales finite deposit amounts, not starting stockpiles, entity health, or farms. Hidden maps use normal visibility; explored maps expose terrain but retain entity fog; full reveal gives every kingdom full visibility. Terrain components route scouts, gathering and transport plans; they contain no foreign entity information. Older games retain their tiles and omit the new world type in their metadata (the UI labels them Original world).
 
 ## Durable sessions and shared controls

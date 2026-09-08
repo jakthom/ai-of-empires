@@ -47,9 +47,9 @@ Choose a civilization, optional game name, and **1–6 settlements including you
 
 World creation separates kingdom settings from geography, with advanced options for resources, distance, visibility, peace, and seed.
 
-![The game creation dialog with civilization, difficulty, settlement count, world type, biome, world size and advanced world options.](docs/screenshots/world-creation.png)
+![The game creation dialog with Mountain Lakes, Mixed Regions and Giant selected alongside kingdom and friend-seat settings.](docs/screenshots/world-creation.png)
 
-Create a world from eight presets:
+Create a world from twelve presets:
 
 | World | Geography |
 |---|---|
@@ -61,8 +61,22 @@ Create a world from eight presets:
 | Coastal Frontier | Shared mainland beside a broad sea |
 | Island Crowns | Separate home islands and a neutral central island |
 | Walled Basin | Palisades and four owned gates around each starting settlement |
+| Mountain Lakes | High plateaus, ridges, sheltered lakes and connecting land passes |
+| Braided Wetlands | Winding channels, wooded floodplains and shallow crossings |
+| Northern Fjords | Deep sea inlets and a mountainous shared mainland |
+| Scattered Archipelago | Irregular home islands and smaller offshore islets |
 
-Choose **Temperate, Desert, Alpine, or Tropical** scenery and **Small (96×96), Medium (128×128), or Large (160×160)** terrain. Biomes change colors and vegetation, with the same game rules. All kingdoms receive the same starting food, wood, gold, stone, deposits and population; civilization bonuses still apply.
+Choose **Temperate, Desert, Alpine, Tropical, Autumn Woodland, Savanna, or Mixed Regions** scenery. Mixed Regions combines all six landscapes in one seeded world: snowy uplands, green and autumn woods, golden grasslands, desert and tropical shores. The terrain, trees and minimap reflect each region. Biomes change scenery while retaining the same game rules and starting supplies; civilization bonuses still apply.
+
+World sizes are **Small (96×96), Medium (128×128), Large (160×160), Huge (224×224), and Giant (288×288)**. Huge provides nearly twice Large's area; Giant provides 3.24 times its area. Settlement count remains independent of size. Regional terrain and world settings survive autosave, resume, and portable archives.
+
+Every one of the **21 building types has its own icon** in Build and its selection portrait. Buildings also have distinct material palettes and recognizable details, such as archery targets, stable stalls, a university portico, and a domed Wonder. Textures evolve through all four ages: coarse daub, thatch and timber in Dark Age; plaster and colored tiles in Feudal Age; dressed stone in Castle Age; finer masonry and roof finishes in Imperial Age. Existing buildings update when their owner's age advances. Unseen enemy buildings retain their last observed appearance.
+
+The same Town Center in Dark Age, then Imperial Age after developing the settlement through normal gameplay:
+
+![A Dark Age Town Center with a thatched roof, coarse walls and timber beams.](docs/screenshots/buildings-dark-age.png)
+
+![The Town Center in Imperial Age, surrounded by a mill, market, blacksmith, monastery and university with distinct roof and masonry textures.](docs/screenshots/buildings-imperial-age.png)
 
 Open **Advanced world options** for natural resource abundance (70%, 100%, or 175% deposit amounts), starting separation, map reveal, seed, and an initial peace period of **0, 5, 10, 20, or 30 game minutes**. Natural abundance does not change starting stockpiles or farm yields. Terrain revealed shows geography while units and resources still require scouting; Everything visible reveals the world to every kingdom. Starting separation keeps a minimum clearance for each home economy, so crowded Small worlds limit how close starts can be.
 
@@ -148,7 +162,7 @@ The [multiplayer lifecycle and API guide](docs/MULTIPLAYER.md) diagrams the impl
 
 ## Implemented scope
 
-The `frontier-1` ruleset includes eight seeded world layouts, four visual biomes, three world sizes, initial peace periods, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
+The `frontier-1` ruleset includes twelve seeded world layouts, seven biome choices including mixed regions, five world sizes, initial peace periods, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models and textures are original procedural assets. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
 
 This is an initial playable ruleset. Its values and civilization availability are **not verified Age of Empires parity**. [GAME_SPEC.md](GAME_SPEC.md) remains the larger product target: full civilization trees, campaigns, scenario editing, public matchmaking, replay playback, audio, formations, complete reference rules, and large-army performance certification remain future work.
 

@@ -111,6 +111,7 @@ type Catalog struct {
 }
 
 type Tile struct {
+	Biome     string  `json:"biome,omitempty"`
 	Terrain   string  `json:"terrain"`
 	Elevation float64 `json:"elevation"`
 }
@@ -296,32 +297,33 @@ type Action struct {
 	Reason      string     `json:"reason,omitempty"`
 }
 type EntityView struct {
-	ID         int      `json:"id"`
-	Type       string   `json:"type"`
-	Kind       string   `json:"kind"`
-	Name       string   `json:"name"`
-	Owner      int      `json:"owner"`
-	Position   Vec      `json:"position"`
-	HP         float64  `json:"hp"`
-	MaxHP      float64  `json:"max_hp"`
-	Radius     float64  `json:"radius"`
-	Progress   float64  `json:"progress"`
-	Amount     float64  `json:"amount,omitempty"`
-	Resource   string   `json:"resource,omitempty"`
-	Cargo      float64  `json:"cargo,omitempty"`
-	CargoType  string   `json:"cargo_type,omitempty"`
-	State      string   `json:"state"`
-	Stance     string   `json:"stance,omitempty"`
-	Activity   string   `json:"activity"`
-	Visible    bool     `json:"visible"`
-	Actions    []Action `json:"actions"`
-	Tasks      []Task   `json:"tasks"`
-	Rally      *Vec     `json:"rally,omitempty"`
-	Deployed   bool     `json:"deployed"`
-	Passengers []int    `json:"passengers"`
-	Container  int      `json:"container,omitempty"`
-	Relic      bool     `json:"relic"`
-	Faith      float64  `json:"faith,omitempty"`
+	AppearanceAge int      `json:"appearance_age,omitempty"`
+	ID            int      `json:"id"`
+	Type          string   `json:"type"`
+	Kind          string   `json:"kind"`
+	Name          string   `json:"name"`
+	Owner         int      `json:"owner"`
+	Position      Vec      `json:"position"`
+	HP            float64  `json:"hp"`
+	MaxHP         float64  `json:"max_hp"`
+	Radius        float64  `json:"radius"`
+	Progress      float64  `json:"progress"`
+	Amount        float64  `json:"amount,omitempty"`
+	Resource      string   `json:"resource,omitempty"`
+	Cargo         float64  `json:"cargo,omitempty"`
+	CargoType     string   `json:"cargo_type,omitempty"`
+	State         string   `json:"state"`
+	Stance        string   `json:"stance,omitempty"`
+	Activity      string   `json:"activity"`
+	Visible       bool     `json:"visible"`
+	Actions       []Action `json:"actions"`
+	Tasks         []Task   `json:"tasks"`
+	Rally         *Vec     `json:"rally,omitempty"`
+	Deployed      bool     `json:"deployed"`
+	Passengers    []int    `json:"passengers"`
+	Container     int      `json:"container,omitempty"`
+	Relic         bool     `json:"relic"`
+	Faith         float64  `json:"faith,omitempty"`
 }
 type PlayerView struct {
 	ID           int       `json:"id"`

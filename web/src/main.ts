@@ -9,6 +9,7 @@ FORM: The user's pinned Age of Empires reference governs the composition.
 import './style.css';
 import { APIError, GameAPI } from './api';
 import { MultiplayerUI } from './multiplayer';
+import { buildingIcon } from './building-icons';
 import { WorldRenderer } from './world';
 import { EventLog } from './journal';
 import { ownerColor } from './models';
@@ -164,7 +165,7 @@ function refreshSelection() {
   entityHistory.setActive(historyOpen);
   const portrait = el('portrait'); portrait.dataset.kind = first?.kind || 'empty';
   const pSignature = first ? `${first.type}:${selected.length}` : 'none';
-  if (portrait.dataset.signature !== pSignature) { portrait.dataset.signature = pSignature; portrait.innerHTML = first ? `<span class="portrait-glyph">${first.kind === 'building' ? '♜' : first.kind === 'resource' ? symbols[first.resource || 'gold'] || '◆' : first.type === 'villager' ? '♟' : '♞'}</span>` : crown; }
+  if (portrait.dataset.signature !== pSignature) { portrait.dataset.signature = pSignature; portrait.innerHTML = first ? `<span class="portrait-glyph">${first.kind === 'building' ? buildingIcon(first.type) : first.kind === 'resource' ? symbols[first.resource || 'gold'] || '◆' : first.type === 'villager' ? '♟' : '♞'}</span>` : crown; }
   const actions = first?.actions ?? [];
   const filtered = actions.filter(a => tab === 'build' ? a.kind === 'build' : tab === 'research' ? a.kind === 'research' || a.kind === 'age' : tab === 'trade' ? !!a.gain : !a.gain && !['build', 'research'].includes(a.kind));
   const signature = JSON.stringify([selection, tab, filtered, own.map(e => e.stance), connectionReady, snapshot.paused]);
@@ -175,7 +176,7 @@ function refreshSelection() {
       const stance = a.kind === 'stance';
       const pressed = stance && own.every(e => e.stance === a.product) ? 'true' : stance && own.some(e => e.stance === a.product) ? 'mixed' : 'false';
       const detail = stance ? pressed === 'true' ? 'Selected' : pressed === 'mixed' ? 'Some selected' : 'Stance' : a.gain ? `${cost(a.cost)} → ${cost(a.gain)}` : cost(a.cost) || (a.duration ? `${a.duration}s` : a.kind === 'delete' ? 'Choose to confirm' : 'Command');
-      return `<button class="action ${a.kind === 'age' ? 'advance' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? '⌂' : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span></button>`;
+      return `<button class="action ${a.kind === 'age' ? 'advance' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? buildingIcon(a.product ?? '') : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span></button>`;
     }).join('') : `<p class="empty-actions">${first ? tab === 'build' ? 'Select villagers to construct buildings.' : tab === 'research' ? 'Select a building to see its technologies.' : 'No orders available for this selection.' : 'Select your Town Center to train villagers,<br>or select settlers to begin building.'}</p>`;
     text('action-help', tab === 'trade' ? 'Market exchange · prices shown as cost → received' : '');
     el('actions').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button => { const action = filtered[Number(button.dataset.action)]; button.onclick = () => runAction(action); button.onfocus = button.onpointerenter = () => text('action-help', action.reason || action.description); });
@@ -194,8 +195,7 @@ function minimap() {
   const canvas = el<HTMLCanvasElement>('minimap'), ctx = canvas.getContext('2d')!, map = snapshot.map, sx = canvas.width / map.width, sy = canvas.height / map.height;
   // Clear the previous camera outline before drawing fractional tile edges.
   ctx.fillStyle = '#202d24'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  const palette = biomePalette(map.biome);
-  map.tiles.forEach((tile, i) => { ctx.globalAlpha = map.fog[i] === 1 ? .45 : 1; ctx.fillStyle = !map.fog[i] ? '#202d24' : palette[tile.terrain] ?? palette.grass; ctx.fillRect((i % map.width) * sx, Math.floor(i / map.width) * sy, sx + .3, sy + .3); });
+  map.tiles.forEach((tile, i) => { const palette = biomePalette(tile.biome || map.biome); ctx.globalAlpha = map.fog[i] === 1 ? .45 : 1; ctx.fillStyle = !map.fog[i] ? '#202d24' : palette[tile.terrain] ?? palette.grass; ctx.fillRect((i % map.width) * sx, Math.floor(i / map.width) * sy, sx + .3, sy + .3); });
   ctx.globalAlpha = 1;
   for (const e of snapshot.entities) { if (e.container) continue; ctx.fillStyle = e.owner > 0 ? ownerColor(e.owner) : e.type === 'tree' ? '#455c35' : e.resource === 'gold' ? '#e3c576' : '#cdc7a4'; const r = e.kind === 'building' ? 2.5 : 1.3; ctx.fillRect(e.position.x * sx - r / 2, e.position.y * sy - r / 2, r, r); }
   const rect = world.canvas.getBoundingClientRect();

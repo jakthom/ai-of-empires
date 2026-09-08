@@ -144,11 +144,12 @@ export class WorldRenderer {
     for (const e of snapshot.entities) {
       if (e.container) continue;
       alive.add(e.id);
-      const signature = `${map.biome}:${e.type}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
+      const biome = map.tiles[Math.floor(e.position.y)*map.width+Math.floor(e.position.x)]?.biome || map.biome;
+      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
       let rendered = this.entities.get(e.id);
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
-        const object = makeModel(e, map.biome); this.scene.add(object);
+        const object = makeModel(e, biome); this.scene.add(object);
         if (e.type === 'farm') groundFarm(object, e.position, this.terrain);
         const foundation = e.kind === 'building' && !['farm', 'dock'].includes(e.type) ? new BuildingFoundation(e) : undefined;
         if (foundation) object.add(foundation);

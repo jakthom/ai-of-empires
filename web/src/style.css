@@ -370,3 +370,15 @@ dialog .world-note { font-size: 12px; line-height: 1.6; color: var(--muted); mar
  .seat-row { grid-template-columns:28px minmax(0,1fr); gap:12px; }.seat-actions { grid-column:2; flex-direction:row; flex-wrap:wrap; }.seat-invite { grid-template-columns:1fr; }
  .room-primary { flex-direction:column; gap:0; }.saved-game { flex-wrap:wrap; }.saved-game-actions { width:100%; }
 }
+
+/* A dedicated silhouette keeps each building recognizable in every age. */
+.action-icon:has(.building-icon) { display: block; width: 32px; flex: 0 0 32px; line-height: 0; }
+.building-icon { width: 32px; height: 32px; display: block; }
+.portrait .building-icon { width: 75%; height: 75%; max-width: 52px; max-height: 52px; }
+@media (max-width: 550px) {
+  .action-icon:has(.building-icon) { width: 24px; flex-basis: 24px; }
+  .action-icon .building-icon { width: 24px; height: 24px; }
+}
+@media (max-width: 360px) {
+  .actions:has(.building-icon) { grid-template-columns: 1fr; }
+}

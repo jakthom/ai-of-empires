@@ -20,7 +20,7 @@ The user's implementation requirements supersede the proposed Rust architecture 
 
 ## Brand Commitments
 
-Age of Empires is the explicit reference. Use a dimensional perspective battlefield and compact RTS controls. The user’s island-builder video reference informs terrain relief and readable geometry, while the game retains its medieval setting and original procedural assets. AI of Empires is the specification's working title. All render assets are original procedural Three.js geometry.
+Age of Empires is the explicit reference. Use a dimensional perspective battlefield and compact RTS controls. The user’s island-builder video reference informs terrain relief and readable geometry, while the game retains its medieval setting and original procedural assets. AI of Empires is the specification's working title. Render assets are original procedural Three.js geometry and textures, with a dedicated SVG silhouette for each building type.
 
 ## Evidence on Hand
 

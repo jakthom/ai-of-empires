@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { EntityView } from './api.generated';
+import { dressBuilding } from './building-materials';
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
@@ -107,7 +108,14 @@ function building(g: THREE.Group, e: EntityView) {
     for (const x of [-1.4, 1.4]) for (const z of [-1.3, 1.3]) shape(g, cylinder, palette.wood, x, .3, z, .09, 1, .09);
     roof(g, 0, 1.6, .6, 2, .8, 1.6); flag(g, e.owner, 1.3, .4, -1.2); return;
   }
-  if (type === 'castle' || type === 'tower' || type === 'wonder') {
+  if (type === 'wonder') {
+    for(let level=0;level<3;level++)box(g,palette.limestone,0,.25+level*.27,0,r*(1.9-level*.25),.3,r*(1.9-level*.25));
+    box(g,palette.limestone,0,1.7,0,r*1.1,1.8,r*1.1);
+    for(const x of [-r*.64,-r*.34,r*.34,r*.64])for(const z of [-r*.65,r*.65])shape(g,cylinder,palette.shade,x,1.6,z,.13,1.65,.13);
+    roof(g,0,2.95,0,r*1.65,.9,r*1.65);shape(g,orb,'#c0a15c',0,3.55,0,.7,.6,.7);
+    flag(g,e.owner,0,4.05,0,.6);return;
+  }
+  if (type === 'castle' || type === 'tower') {
     const h = type === 'tower' ? 2.5 : 2.15;
     box(g, palette.limestone, 0, h / 2, 0, r * 1.5, h, r * 1.5);
     const corners = type === 'tower' ? [[0, 0]] : [[-r * .7, -r * .7], [-r * .7, r * .7], [r * .7, -r * .7], [r * .7, r * .7]];
@@ -153,9 +161,14 @@ function building(g: THREE.Group, e: EntityView) {
       box(arm, '#e4d8ae', .12, .65, 0, .22, 1.05, .035); box(arm, palette.wood, 0, .6, 0, .045, 1.2, .06); windmill.add(arm);
     }
     g.add(windmill);
-  } else if (type === 'monastery' || type === 'university') {
+  } else if (type === 'monastery') {
     box(g, palette.limestone, -.8, 1.5, .4, .6, 2.8, .65); roof(g, -.8, 3, .4, .85, .6, .85);
     box(g, '#b7a060', -.8, 3.55, .4, .045, .45, .045); box(g, '#b7a060', -.8, 3.6, .4, .25, .045, .045);
+  } else if(type === 'university') {
+    for(const x of [-r*.6,-r*.2,r*.2,r*.6])shape(g,cylinder,palette.limestone,x,.75,r*.92,.09,1.4,.09);
+    roof(g,0,1.8,r*.82,r*1.6,.45,.85);
+    for(const side of [-1,1]){const page=box(g,'#e2d6ac',side*.18,2.28,0,.35,.06,.45);page.rotation.z=side*.16;}
+    box(g,palette.wood,0,2.25,0,.06,.07,.46);
   } else if (type === 'house') {
     box(g,'#8e8771',r*.43,height+.59,-r*.25,.23,.8,.28);
     box(g,'#655e4e',r*.43,height+1.01,-r*.25,.3,.1,.34);
@@ -168,12 +181,30 @@ function building(g: THREE.Group, e: EntityView) {
       box(g, palette.wood, i - 1, .3, -1.5, .75, .5, .6);
     }
   } else {
-    if (type === 'barracks' || type === 'archery_range') {
+    if (type === 'barracks') {
       for (const x of [-.6,.6]) box(g,palette.wood,x,.55,r*.91,.085,1.1,.085);
       box(g,palette.wood,0,1.05,r*.91,1.3,.085,.085);
       for (const x of [-.35,0,.35]) {
         const spear = box(g,'#898a76',x,.78,r*.96,.045,1.2,.045); spear.rotation.z = -.16;
       }
+    }
+    if(type === 'archery_range') {
+      for(const x of [-.62,.62]){
+        box(g,palette.wood,x,.5,r*.94,.07,1,.07);
+        for(const [radius,color] of [[.34,'#c6b187'],[.23,'#8e5844'],[.11,'#ded2ae']] as const){
+          const target=shape(g,cylinder,color,x,.87,r*.96+.04*(.35-radius),radius,.025,radius);target.rotation.x=Math.PI/2;
+        }
+      }
+    } else if(type === 'stable') {
+      box(g,palette.wood,0,.4,r*.96,1.75,.1,.1);
+      for(const x of [-.7,0,.7])box(g,palette.wood,x,.53,r*.96,.07,1.06,.07);
+      shape(g,orb,'#957049',.4,.72,r*.79,.18,.35,.2);shape(g,orb,'#957049',.4,.98,r*.93,.13,.18,.22);
+      box(g,'#cab37b',-.45,.3,r*.82,.6,.45,.5);
+    } else if(type === 'siege_workshop') {
+      box(g,palette.wood,0,.43,r*.92,1.2,.12,.55);
+      for(const x of [-.6,.6]){const wheel=shape(g,cylinder,'#4d4636',x,.29,r*.92,.27,.1,.27);wheel.rotation.z=Math.PI/2;}
+      const arm=box(g,palette.wood,0,.9,r*.87,.12,1.3,.12);arm.rotation.x=-.4;
+      box(g,palette.wood,0,1.45,r*.6,.45,.12,.35);
     }
     flag(g, e.owner, -r * .8, 1.1, -r * .6, .65);
   }
@@ -228,6 +259,10 @@ export function makeModel(e: EntityView, biome = 'temperate') {
           leaf.rotation.y = -a; leaf.rotation.z = -.22;
         }
       }
+    } else if (biome === 'autumn') {
+      for(let i=0;i<3;i++)shape(g,stone,['#986c3c','#b8863d','#a35432'][(e.id+i)%3],Math.sin(i*2.4)*.34,1.45+i*.24,Math.cos(i*2.4)*.3,.8*variation,.65*variation,.76*variation);
+    } else if (biome === 'savanna') {
+      for(let i=0;i<3;i++)shape(g,stone,['#7f8047','#999052','#6f7946'][i],(i-1)*.35,1.65+i*.13,Math.sin(i*2)*.22,.96*variation,.3,.78*variation);
     } else if (biome === 'alpine') {
       for (let i = 0; i < 3; i++) {
         shape(g, pine, '#42635b', 0, 1.1+i*.55, 0, (.83-i*.19)*variation, 1.4*variation, (.83-i*.19)*variation);
@@ -261,6 +296,7 @@ export function makeModel(e: EntityView, biome = 'temperate') {
   if (e.progress < 1) {
     for (const x of [-e.radius, e.radius]) for (const z of [-e.radius, e.radius]) box(g, '#a8905b', x, 1, z, .07, 2, .07);
   }
+  if (e.kind === 'building') dressBuilding(g, e);
   bakeStaticMeshes(g);
   if (!e.visible) g.traverse(o => { if (o instanceof THREE.Mesh) { const m = (o.material as THREE.MeshStandardMaterial).clone(); m.color.multiplyScalar(.4); o.material = m; o.userData.privateMaterial = true; } });
   return g;

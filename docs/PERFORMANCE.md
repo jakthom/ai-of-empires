@@ -87,3 +87,25 @@ then resume it by name. Local artifacts live in `web/.browser-artifacts/`.
 
 All validation uses disposable servers. The existing development server on port
 9090 and its in-memory match were left untouched.
+
+## Larger worlds and textured buildings — September 8, 2026
+
+Huge (224×224) and Giant (288×288) were checked in installed Chrome through the
+public creation, Start, pause, leave and resume controls, with six settlements,
+Mixed Regions, Mountain Lakes, full map reveal and Peaceful practice. In isolated
+three-second opening samples, both maps had a median animation-frame interval of
+16.7 ms (about 60 fps); the 95th percentile was 16.8 ms for Huge and 16.7 ms for
+Giant. This measures a quiet opening, not sustained armies or network delivery.
+The world-options browser tests attach their timing samples to the HTML report.
+
+Building textures are generated once per building type, age and surface, with
+128×128 pixel maps shared across entities and owners. The lazy cache has a fixed
+upper bound of 21 types × 4 ages × 5 surfaces; advancing ages and rejoining games
+reuse those materials. Removing or replacing a model releases its private
+geometry and fog materials while retaining shared textures. Browser checks cover
+every catalog building in all four ages, including material reuse.
+
+Giant contains 82,944 terrain cells, so snapshots, fog updates, generation and
+checkpoints cost more than on Small. Terrain remains chunked and culled by the
+camera. The short rendering sample does not establish a long-game memory bound
+or guarantee 32× simulation with a developed six-kingdom economy.

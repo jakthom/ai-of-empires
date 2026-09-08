@@ -208,7 +208,7 @@ func TestTreatyBlocksAllAggressionAndExpiresOnce(t *testing.T) {
 }
 
 func TestInvalidWorldSettingsAreRejected(t *testing.T) {
-	for _, options := range []WorldOptions{{Type: "ocean"}, {Biome: "space"}, {Size: "huge"}, {Resources: "infinite"}, {Separation: "overlap"}, {Reveal: "cheat"}, {TreatyMinutes: -1}, {TreatyMinutes: 6}} {
+	for _, options := range []WorldOptions{{Type: "ocean"}, {Biome: "space"}, {Size: "unsupported"}, {Resources: "infinite"}, {Separation: "overlap"}, {Reveal: "cheat"}, {TreatyMinutes: -1}, {TreatyMinutes: 6}} {
 		if _, err := NewWorld(Config{World: options}); err == nil {
 			t.Fatalf("accepted %+v", options)
 		}

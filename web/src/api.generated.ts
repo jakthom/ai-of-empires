@@ -130,6 +130,7 @@ export interface Difficulty {
 }
 
 export interface EntityView {
+  appearance_age?: number;
   id: number;
   type: string;
   kind: string;
@@ -460,6 +461,7 @@ export interface Technology {
 }
 
 export interface Tile {
+  biome?: string;
   terrain: string;
   elevation: number;
 }

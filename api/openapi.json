@@ -492,6 +492,9 @@
           "amount": {
             "type": "number"
           },
+          "appearance_age": {
+            "type": "integer"
+          },
           "cargo": {
             "type": "number"
           },
@@ -1667,6 +1670,9 @@
       "Tile": {
         "additionalProperties": false,
         "properties": {
+          "biome": {
+            "type": "string"
+          },
           "elevation": {
             "type": "number"
           },

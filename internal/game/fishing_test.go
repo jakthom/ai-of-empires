@@ -7,23 +7,23 @@ import (
 )
 
 func TestMaritimeWaterwaysHaveFiniteFishInEveryBiome(t *testing.T) {
-	for _, typ := range []string{"rivers", "lakes", "coast", "islands"} {
-		for _, biome := range []string{"temperate", "desert", "alpine", "tropical"} {
+	for _, typ := range []string{"rivers", "lakes", "coast", "islands", "mountain_lakes", "wetlands", "fjords", "archipelago"} {
+		for _, biome := range worldCatalog().Biomes {
 			for _, seed := range []int64{7, 4817} {
-				w, err := NewWorld(Config{Settlements: 6, Seed: seed, World: WorldOptions{Type: typ, Biome: biome, Resources: "scarce"}})
+				w, err := NewWorld(Config{Settlements: 6, Seed: seed, World: WorldOptions{Type: typ, Biome: biome.ID, Resources: "scarce"}})
 				if err != nil {
 					t.Fatal(err)
 				}
 				populated := map[int]bool{}
 				for _, fish := range w.entities(0, "fish") {
 					if w.tile(fish.Position).Terrain != "water" || fish.Resource != "food" || fish.Amount != 280 {
-						t.Fatalf("%s/%s: invalid fish %+v", typ, biome, fish)
+						t.Fatalf("%s/%s: invalid fish %+v", typ, biome.ID, fish)
 					}
 					populated[w.region(fish.Position, true)] = true
 				}
 				for i, tile := range w.Tiles {
 					if tile.Terrain == "water" && !populated[w.waterRegions[i]] {
-						t.Fatalf("%s/%s seed%d has an empty waterway", typ, biome, seed)
+						t.Fatalf("%s/%s seed%d has an empty waterway", typ, biome.ID, seed)
 					}
 				}
 				for _, p := range w.Players {
@@ -40,7 +40,7 @@ func TestMaritimeWaterwaysHaveFiniteFishInEveryBiome(t *testing.T) {
 						}
 					}
 					if n < 3 {
-						t.Fatalf("%s/%s: player%d has only %d nearby shoals", typ, biome, p.ID, n)
+						t.Fatalf("%s/%s seed%d: player%d has only %d nearby shoals; closest water %.2f", typ, biome.ID, seed, p.ID, n, closest)
 					}
 				}
 			}

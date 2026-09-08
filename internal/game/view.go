@@ -95,6 +95,11 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	d := w.stats(e)
 	v := EntityView{ID: e.ID, Type: e.Type, Kind: d.Kind, Name: d.Name, Owner: e.Owner, Position: e.Position, HP: e.HP, MaxHP: d.HP, Radius: d.Radius, Progress: e.Progress, Amount: e.Amount, Resource: e.Resource, State: string(e.behavior.State()), Visible: true, Actions: []Action{}, Tasks: []Task{}, Passengers: []int{}, Deployed: e.siege.State() == SiegeDeployed, Container: e.Container, Relic: e.Relic}
 	v.Activity = w.activity(e)
+	if d.Kind == "building" {
+		if owner := w.Players[e.Owner]; owner != nil {
+			v.AppearanceAge = owner.Age
+		}
+	}
 	if e.life.State() == Foundation {
 		v.State = string(Foundation)
 	}

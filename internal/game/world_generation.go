@@ -80,6 +80,9 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		}
 	}
 	w.rebuildRegions()
+	if w.trimSmallWaterPockets() {
+		w.rebuildRegions()
+	}
 	if err := w.validateTerrain(starts); err != nil {
 		return nil, rule("generation_failed", err.Error())
 	}
@@ -105,6 +108,7 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		w.seedSettlement(i+1, start)
 	}
 	w.seedCountryside(starts, rng)
+	w.assignRegionalBiomes()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")
 	if options.TreatyMinutes > 0 {
@@ -128,7 +132,7 @@ func worldStarts(cfg Config, rng *rand.Rand) []Vec {
 		a := angle + float64(i)*2*math.Pi/float64(n)
 		starts[i] = snap(Vec{center.X + math.Cos(a)*radius, center.Y + math.Sin(a)*radius})
 	}
-	if cfg.World.Type == "coast" || cfg.World.Type == "protected" {
+	if cfg.World.Type == "coast" || cfg.World.Type == "fjords" || cfg.World.Type == "protected" {
 		// Two rows keep all six home economies on the mainland even on Small.
 		cols := min(n, 3)
 		spread := math.Min(size-34, math.Max(float64(cols-1)*29, size*fraction*2))
@@ -166,6 +170,7 @@ func (w *World) generateTerrain(starts []Vec, rng *rand.Rand) {
 	phase, angle := rng.Float64()*6.28, rng.Float64()*6.28
 	c, sn := math.Cos(angle), math.Sin(angle)
 	center := Vec{s / 2, s / 2}
+	islands := archipelagoIslands(starts, s, phase)
 	for y := 0; y < w.Height; y++ {
 		for x := 0; x < w.Width; x++ {
 			p := Vec{float64(x) + .5, float64(y) + .5}
@@ -192,6 +197,34 @@ func (w *World) generateTerrain(starts []Vec, rng *rand.Rand) {
 					profile := math.Pow(1-math.Abs(v-math.Sin(u*.08+phase)*7)/2.5, .8)
 					t = Tile{Terrain: "cliff", Elevation: .55 + (1.2+.7*math.Sin(u*.13)*math.Sin(u*.13))*profile}
 				}
+			case "mountain_lakes":
+				wave := math.Sin(u*.065+phase) * math.Cos(v*.075-phase)
+				t.Elevation = .18 + 1.65*math.Pow(math.Max(0, wave), 2)
+				if wave > .82 {
+					t.Terrain = "cliff"
+				}
+				water = math.Hypot(u-s*.22, v*.8+s*.12) < s*.1 || math.Hypot(u+s*.23, v*.9-s*.12) < s*.115 || math.Hypot(u-s*.05, v+s*.31) < s*.075
+			case "wetlands":
+				t.Elevation = .1 + .2*math.Pow(math.Sin(u*.055+phase), 2)
+				bend := math.Sin(v*.065+phase) * s * .045
+				water = math.Abs(u-bend) < 2.6 || math.Abs(u-bend-s*.23) < 2.2 || math.Abs(u-bend+s*.23) < 2.2
+			case "fjords":
+				inlet := math.Pow(.5+.5*math.Cos(p.X/s*math.Pi*6+phase), 6)
+				shore := s * (.76 - .36*inlet)
+				water = p.Y > shore
+				t.Elevation = .2 + 1.3*math.Pow(math.Max(0, math.Sin(u*.08+phase)*math.Cos(v*.06)), 2)
+				if !water && p.Y > shore-2.5 && p.Y < s*.62 {
+					t.Terrain = "cliff"
+					t.Elevation += .5
+				}
+			case "archipelago":
+				water = p.Distance(center) > math.Max(7, s*.04)
+				for _, island := range islands {
+					a := math.Atan2(p.Y-island.Center.Y, p.X-island.Center.X)
+					if p.Distance(island.Center) < island.Radius*(.94+.06*math.Sin(3*a+phase)) {
+						water = false
+					}
+				}
 			}
 			if water {
 				t = Tile{Terrain: "water", Elevation: -.2}
@@ -203,7 +236,7 @@ func (w *World) generateTerrain(starts []Vec, rng *rand.Rand) {
 					t = Tile{Terrain: "grass", Elevation: .12}
 				}
 			}
-			if w.Config.World.Type != "islands" {
+			if !w.islandWorld() {
 				for _, home := range starts {
 					if segmentDistance(p, home, center) < 2.4 {
 						if t.Terrain == "water" {
@@ -293,7 +326,7 @@ func (w *World) seedCountryside(starts []Vec, rng *rand.Rand) {
 			return true
 		}
 		for _, home := range starts {
-			if p.Distance(home) < 15 || w.Config.World.Type != "islands" && segmentDistance(p, home, center) < 2.8 {
+			if p.Distance(home) < 15 || !w.islandWorld() && segmentDistance(p, home, center) < 2.8 {
 				return true
 			}
 		}
@@ -431,7 +464,7 @@ func (w *World) validateTerrain(starts []Vec) error {
 				return fmt.Errorf("The settlements need more space. Choose a larger world.")
 			}
 			connected := w.sameRegion(home, starts[j], false)
-			if connected == (w.Config.World.Type == "islands") {
+			if connected == w.islandWorld() {
 				return fmt.Errorf("The generator could not connect the intended routes. Try another seed.")
 			}
 		}

@@ -193,7 +193,7 @@ func (w *World) aiNavy(c *aiContext) {
 		product := ""
 		if len(w.entities(p.ID, "fishing_ship")) < 2 {
 			product = "fishing_ship"
-		} else if p.Age >= 1 && len(w.entities(p.ID, "transport")) == 0 && w.Config.World.Type == "islands" {
+		} else if p.Age >= 1 && len(w.entities(p.ID, "transport")) == 0 && w.islandWorld() {
 			product = "transport"
 		}
 		if product != "" && w.canTrain(p, dock, definitions[product]) == nil {
@@ -207,7 +207,7 @@ func (w *World) aiNavy(c *aiContext) {
 		fish := w.nearest(ship.Position, func(e *Entity) bool {
 			return e.Type == "fish" && e.Amount > 0 && w.visibleEntity(p.ID, e) && w.sameRegion(ship.Position, e.Position, true)
 		})
-		if fish != nil && (i > 0 || w.Config.World.Type != "islands") {
+		if fish != nil && (i > 0 || !w.islandWorld()) {
 			_ = w.Apply(p.ID, Command{Kind: "gather", EntityIDs: []int{ship.ID}, TargetID: fish.ID})
 			continue
 		}

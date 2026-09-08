@@ -59,7 +59,7 @@ test('rectangular roofs align with their eaves and the Town Center tower ends be
   const town = (await game.snapshot()).entities.find(entity => entity.type === 'town_center' && entity.owner === 1)!;
   const model = makeModel(town);
   try {
-    const roof = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).color.getHexString() === '9e5843') as THREE.Mesh;
+    const roof = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).userData.surface === 'roof') as THREE.Mesh;
     const vertices = roof.geometry.getAttribute('position');
     const ys = Array.from({ length: vertices.count }, (_, i) => vertices.getY(i)), base = Math.min(...ys);
     const xs = new Set<number>(), zs = new Set<number>();
@@ -68,7 +68,7 @@ test('rectangular roofs align with their eaves and the Town Center tower ends be
       xs.add(Math.round(vertices.getX(i) * 10000)); zs.add(Math.round(vertices.getZ(i) * 10000));
     }
     expect(xs.size).toBe(2); expect(zs.size).toBe(2);
-    const stone = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).color.getHexString() === 'd6cfb4') as THREE.Mesh;
+    const stone = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).userData.surface === 'wall') as THREE.Mesh;
     stone.geometry.computeBoundingBox();
     const upperRoofCenter = ys.filter((_, i) => Math.abs(vertices.getX(i) - .9) < 1e-5 && Math.abs(vertices.getZ(i) - .5) < 1e-5);
     const upperEave = Math.min(...upperRoofCenter);
@@ -88,7 +88,7 @@ test('farm soil and crops follow the same observed terrain as the workers', asyn
   try {
     groundFarm(model, villager.position, terrain);
     const base = terrain.height(villager.position), matrix = new THREE.Matrix4();
-    const soil = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).color.getHexString() === '756144') as THREE.Mesh;
+    const soil = model.children.find(object => object instanceof THREE.Mesh && (object.material as THREE.MeshStandardMaterial).userData.surface === 'soil') as THREE.Mesh;
     const vertices = soil.geometry.getAttribute('position');
     for (let i = 0; i < vertices.count; i++) {
       const ground = terrain.height({ x: villager.position.x + vertices.getX(i), y: villager.position.y + vertices.getZ(i) });

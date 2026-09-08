@@ -1,6 +1,9 @@
 package game
 
-import "slices"
+import (
+	"fmt"
+	"slices"
+)
 
 // SetPaused is an idempotent intent. Session authorization and control revisions
 // live above this boundary; the World remains the sole owner of clock state.
@@ -27,6 +30,9 @@ func (w *World) SetSpeed(speed float64) error {
 	if !slices.Contains(gameSpeeds, speed) {
 		return rule("invalid_speed", "Choose 1×, 1.7×, 3.4×, 8×, 16×, or 32× speed.")
 	}
-	w.Speed = speed
+	if w.Speed != speed {
+		w.Speed = speed
+		w.event(0, fmt.Sprintf("Game speed set to %g×", speed))
+	}
 	return nil
 }

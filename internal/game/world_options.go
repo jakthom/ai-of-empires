@@ -49,17 +49,26 @@ func worldCatalog() WorldCatalog {
 			{"coast", "Coastal Frontier", "A shared mainland meets a broad sea, with room for land and naval economies."},
 			{"islands", "Island Crowns", "Separate home islands and a neutral island. Fishing ships explore the sea; transports carry units to new shores."},
 			{"protected", "Walled Basin", "Each kingdom begins inside a palisade with gates, with further resources beyond its walls."},
+			{"mountain_lakes", "Mountain Lakes", "High plateaus, rugged ridges and sheltered lakes. Land passes connect every home valley."},
+			{"wetlands", "Braided Wetlands", "Meandering channels divide wooded floodplains, with shallow crossings and fishing throughout."},
+			{"fjords", "Northern Fjords", "Long sea inlets cut into a mountainous mainland. Explore by land or sail between sheltered shores."},
+			{"archipelago", "Scattered Archipelago", "Irregular home islands and smaller offshore islets. Ships carry settlers between separate kingdoms."},
 		},
 		Biomes: []WorldChoice{
 			{"temperate", "Temperate", "Green meadows, mixed woodland, and cool blue water."},
 			{"desert", "Desert", "Warm sand, dry earth, and palms along turquoise shores."},
 			{"alpine", "Alpine", "Snowy ground, dark evergreens, and slate-blue water."},
 			{"tropical", "Tropical", "Lush green ground, broad canopies, and bright coastal water."},
+			{"autumn", "Autumn Woodland", "Copper and amber canopies over cool, mossy countryside."},
+			{"savanna", "Savanna", "Golden grasslands, red earth and spreading acacia trees."},
+			{"mixed", "Mixed Regions", "Explore snowy uplands, green and autumn woodland, dry grasslands, desert and tropical shores in one world."},
 		},
 		Sizes: []WorldSize{
 			{"small", "Small", "A compact world with shorter journeys.", 96},
 			{"medium", "Medium", "Room for exploration and several expanding settlements.", 128},
 			{"large", "Large", "Longer journeys and more space between regions.", 160},
+			{"huge", "Huge", "Nearly twice the area of Large, with broad frontiers to explore.", 224},
+			{"giant", "Giant", "More than three times the area of Large. Vast regions and long expeditions.", 288},
 		},
 		Resources: []WorldChoice{
 			{"scarce", "Scarce", "Natural deposits hold 70% of the standard amount. Starting stockpiles stay the same."},
@@ -79,6 +88,10 @@ func worldCatalog() WorldCatalog {
 		TreatyMinutes: []int{0, 5, 10, 20, 30},
 		Defaults:      WorldOptions{Type: "rivers", Biome: "temperate", Size: "small", Resources: "standard", Separation: "standard", Reveal: "hidden"},
 	}
+}
+
+func (w *World) islandWorld() bool {
+	return w.Config.World.Type == "islands" || w.Config.World.Type == "archipelago"
 }
 
 func normalizeWorldOptions(options WorldOptions) (WorldOptions, error) {
