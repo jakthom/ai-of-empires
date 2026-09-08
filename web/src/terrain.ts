@@ -90,6 +90,7 @@ class TerrainChunk {
 
 export class BattlefieldTerrain {
   readonly group = new THREE.Group();
+  revision = 0;
   private corners: number[][];
   private chunks = new Map<number,TerrainChunk>();
   private columns: number;
@@ -131,6 +132,7 @@ export class BattlefieldTerrain {
     this.map = map;
     changed.forEach(i => { this.corners[i] = cornerHeights(map,i); });
     geometry.forEach(id => this.rebuild(id));
+    if (geometry.size) this.revision++;
     fog.forEach(id => { if (!geometry.has(id)) this.chunks.get(id)?.updateFog(map); });
   }
 

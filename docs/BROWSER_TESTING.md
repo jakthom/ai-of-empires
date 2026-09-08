@@ -43,6 +43,8 @@ These artifacts are ignored by Git because they describe local test runs. Tests 
 
 `web/tests/e2e/terrain.spec.ts` explores through public scout orders on two- and six-settlement maps. It checks that newly revealed heights update the terrain, that picking includes exposed banks and matches the rendered triangles, and that repeated zooms between hills and valleys preserve the cursor anchor without accumulating vertical camera drift. Terrain updates rebuild only affected chunks; removed geometry is disposed.
 
+`web/tests/e2e/depth.spec.ts` checks that selection and order rings stay above slopes with depth testing enabled, foundations meet the terrain throughout construction, rectangular roofs align with their eaves, supporting walls clear the roofs, and farm beds and crops follow the ground.
+
 `web/tests/e2e/economy.spec.ts` verifies that primary-click orders result in stone and wood being gathered and delivered to the Town Center. It also interrupts farm construction, resumes it with a contextual order, and checks that the completed farm produces and delivers food.
 
 ## Chrome tools for agents

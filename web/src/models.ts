@@ -11,6 +11,8 @@ function material(color: string) {
 const cube = new THREE.BoxGeometry(1, 1, 1);
 const cylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
 const cone = new THREE.ConeGeometry(1, 1, 4);
+const roofGeometry = cone.clone().rotateY(Math.PI / 4);
+const farmBed = new THREE.BoxGeometry(1, 1, 1, 12, 1, 12);
 const pine = new THREE.ConeGeometry(1, 1, 7);
 const stone = new THREE.DodecahedronGeometry(1, 0);
 const orb = new THREE.SphereGeometry(1, 7, 5);
@@ -25,7 +27,7 @@ function shape(group: THREE.Group, geometry: THREE.BufferGeometry, color: string
 function box(g: THREE.Group, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number) { return shape(g, cube, color, x, y, z, sx, sy, sz); }
 function roof(g: THREE.Group, x: number, y: number, z: number, width: number, height: number, depth: number) {
   box(g, '#654532', x, y - height / 2, z, width, .09, depth);
-  const m = shape(g, cone, palette.roof, x, y, z, width / Math.SQRT2, height, depth / Math.SQRT2); m.rotation.y = Math.PI / 4;
+  shape(g, roofGeometry, palette.roof, x, y, z, width / Math.SQRT2, height, depth / Math.SQRT2);
 }
 function window(g: THREE.Group, x: number, y: number, z: number, side = false, size = .3) {
   box(g, palette.wood, x, y, z, side ? .085 : size + .1, size + .12, side ? size + .1 : .085);
@@ -69,7 +71,7 @@ function flag(g: THREE.Group, owner: number, x: number, y: number, z: number, sc
 function building(g: THREE.Group, e: EntityView) {
   const r = e.radius, type = e.type;
   if (type === 'farm') {
-    box(g, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
+    shape(g, farmBed, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
     for (let row = -3; row <= 3; row++) box(g,'#8c7550',0,.155,row*.29,r*1.72,.055,.12);
     const crops = new THREE.InstancedMesh(pine, material('#c6b567'), 63);
     const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
@@ -129,7 +131,7 @@ function building(g: THREE.Group, e: EntityView) {
     box(g, palette.wood, x, height * .63, -r * .82, .035, .3, .08);
   }
   if (type === 'town_center') {
-    box(g, palette.limestone, .9, 1.5, .5, 1.25, 3, 1.2);
+    box(g, palette.limestone, .9, 1.35, .5, 1.25, 2.7, 1.2);
     roof(g, .9, 3.2, .5, 1.6, 1, 1.6);
     window(g,.9,2.35,1.11,false,.38); window(g,1.535,2.35,.5,true,.34);
     for (let i = 0; i < 4; i++) box(g, palette.limestone, 0, .12 + i * .1, -1.8 + i * .2, 1.3, .2, .4);

@@ -3,8 +3,9 @@ import type { EntityView, Snapshot, Vec } from './api.generated';
 import { makeModel, ownerColor } from './models';
 import { BattlefieldTerrain } from './terrain';
 import { terrainAnchorOffset } from './camera';
+import { BuildingFoundation, GroundRing, groundFarm } from './grounding';
 
-type RenderEntity = { object: THREE.Group; animated: THREE.Object3D[]; from: THREE.Vector3; to: THREE.Vector3; at: number; signature: string; view: EntityView };
+type RenderEntity = { object: THREE.Group; foundation?: BuildingFoundation; animated: THREE.Object3D[]; from: THREE.Vector3; to: THREE.Vector3; at: number; signature: string; view: EntityView };
 // THESIS: a miniature landscape with real perspective and readable relief.
 // OWN-WORLD: limestone, timber, terracotta, sage terrain, and soft daylight.
 // STORY: hold to grab the land; hold both mouse buttons to inspect its volume.
@@ -28,12 +29,12 @@ export class WorldRenderer {
   private projectileMeshes = new Map<number, THREE.Mesh>();
   private projectileGeometry = { stone: new THREE.SphereGeometry(.12, 5, 4), arrow: new THREE.BoxGeometry(.035, .035, .4) };
   private projectileMaterial = { stone: new THREE.MeshBasicMaterial({ color: '#c2baa3' }), arrow: new THREE.MeshBasicMaterial({ color: '#604323' }) };
-  private ringGeometry = new THREE.RingGeometry(1, 1.065, 48);
   private hovered: number | null = null;
   private raycaster = new THREE.Raycaster();
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private ghost?: THREE.Group;
-  private marker?: THREE.Mesh;
+  private marker?: GroundRing;
+  private markerPoint?: Vec;
   private markerAt = 0;
   private zoom = defaultView.zoom;
   private yaw = defaultView.yaw;
@@ -143,15 +144,19 @@ export class WorldRenderer {
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
         const object = makeModel(e); this.scene.add(object);
+        if (e.type === 'farm') groundFarm(object, e.position, this.terrain);
+        const foundation = e.kind === 'building' && !['farm', 'dock'].includes(e.type) ? new BuildingFoundation(e) : undefined;
+        if (foundation) object.add(foundation);
         const pos = new THREE.Vector3(e.position.x, this.elevation(e.position), e.position.y);
         const animated: THREE.Object3D[] = [];
         object.traverse(o => { if (['leg', 'tool', 'windmill', 'flag'].includes(o.name)) animated.push(o); });
-        rendered = { object, animated, from: pos.clone(), to: pos.clone(), at: now, signature, view: e }; this.entities.set(e.id, rendered);
+        rendered = { object, foundation, animated, from: pos.clone(), to: pos.clone(), at: now, signature, view: e }; this.entities.set(e.id, rendered);
       }
-      rendered.from.copy(rendered.object.position); rendered.to.set(e.position.x, this.elevation(e.position), e.position.y);
+      if (e.kind === 'building') rendered.object.scale.y = e.type === 'farm' ? 1 : .2 + .8 * e.progress;
+      const height = rendered.foundation?.fit(e.position, this.terrain, rendered.object.scale.y) ?? this.elevation(e.position);
+      rendered.from.copy(rendered.object.position); rendered.to.set(e.position.x, height, e.position.y);
       if (rendered.at === now) rendered.from.copy(rendered.to);
       rendered.at = now; rendered.view = e;
-      if (e.kind === 'building') rendered.object.scale.y = .2 + .8 * e.progress;
     }
     for (const [id, e] of this.entities) if (!alive.has(id)) { this.removeModel(e.object); this.entities.delete(id); this.selected.delete(id); }
     this.updateRings();
@@ -173,19 +178,21 @@ export class WorldRenderer {
   private updateRings() {
     const wanted = new Set(this.selected); if (this.hovered !== null) wanted.add(this.hovered);
     for (const o of [...this.rings.children]) if (!wanted.has(o.userData.forEntity) || !this.entities.has(o.userData.forEntity)) {
-      (o as THREE.Mesh<THREE.BufferGeometry, THREE.Material>).material.dispose(); this.rings.remove(o);
+      (o as GroundRing).dispose(); this.rings.remove(o);
     }
     for (const id of wanted) {
       const e = this.entities.get(id); if (!e) continue;
       const radius = Math.max(.5, e.view.radius + .12);
-      let ring = this.rings.children.find(r => r.userData.forEntity === id) as THREE.Mesh<THREE.BufferGeometry, THREE.MeshBasicMaterial> | undefined;
-      if (!ring) { ring = new THREE.Mesh(this.ringGeometry, new THREE.MeshBasicMaterial({ side: THREE.DoubleSide, depthWrite: false })); ring.rotation.x = -Math.PI / 2; ring.userData.forEntity = id; this.rings.add(ring); }
-      ring.scale.set(radius, radius, 1); ring.material.color.set(this.hovered === id && !this.selected.has(id) ? '#e3c984' : ownerColor(e.view.owner));
+      let ring = this.rings.children.find(r => r.userData.forEntity === id) as GroundRing | undefined;
+      if (!ring) { ring = new GroundRing(); ring.userData.forEntity = id; this.rings.add(ring); }
+      ring.place({ x: e.object.position.x, y: e.object.position.z }, radius, this.terrain);
+      ring.material.color.set(this.hovered === id && !this.selected.has(id) ? '#e3c984' : ownerColor(e.view.owner));
     }
   }
   setSelection(ids: number[]) { this.selected.clear(); ids.forEach(id => this.selected.add(id)); this.updateRings(); }
   setHovered(id: number | null) { if (this.hovered === id) return; this.hovered = id; this.updateRings(); }
   resetWorld() {
+    this.clearMarker();
     this.preview(null); this.setHovered(null); this.selected.clear();
     for (const e of this.entities.values()) this.removeModel(e.object);
     this.entities.clear(); this.updateRings(); this.projectiles.clear(); this.projectileMeshes.clear();
@@ -222,15 +229,25 @@ export class WorldRenderer {
     if (this.ghost) { this.removeModel(this.ghost); this.ghost = undefined; }
     if (!entity || !point) return;
     this.ghost = makeModel(entity);
-    this.ghost.position.set(Math.floor(point.x) + .5, this.elevation(point), Math.floor(point.y) + .5);
-    this.ghost.traverse(o => { if (o instanceof THREE.Mesh) { o.material = new THREE.MeshBasicMaterial({ color: valid === false ? '#d77f66' : valid === true ? '#c2d6a0' : '#d5c79e', transparent: true, opacity: .5 }); o.userData.privateMaterial = true; } });
+    const center = { x: Math.floor(point.x) + .5, y: Math.floor(point.y) + .5 };
+    let height = this.elevation(center);
+    if (this.terrain) {
+      if (entity.type === 'farm') groundFarm(this.ghost, center, this.terrain);
+      else if (entity.kind === 'building' && entity.type !== 'dock') {
+        const foundation = new BuildingFoundation(entity); this.ghost.add(foundation);
+        height = foundation.fit(center, this.terrain);
+      }
+    }
+    this.ghost.position.set(center.x, height, center.y);
+    this.ghost.traverse(o => { if (o instanceof THREE.Mesh) { if (o.userData.privateMaterial) (o.material as THREE.Material).dispose(); o.material = new THREE.MeshBasicMaterial({ color: valid === false ? '#d77f66' : valid === true ? '#c2d6a0' : '#d5c79e', transparent: true, opacity: .5 }); o.userData.privateMaterial = true; } });
     this.scene.add(this.ghost);
   }
   orderMarker(point: Vec) {
-    if (this.marker) { this.scene.remove(this.marker); this.marker.geometry.dispose(); (this.marker.material as THREE.Material).dispose(); }
-    this.marker = new THREE.Mesh(new THREE.RingGeometry(.35, .43, 32), new THREE.MeshBasicMaterial({ color: '#fff2c0', transparent: true, side: THREE.DoubleSide }));
-    this.marker.rotation.x = -Math.PI / 2; this.marker.position.set(point.x, this.elevation(point) + .08, point.y); this.markerAt = performance.now(); this.scene.add(this.marker);
+    this.clearMarker();
+    this.marker = new GroundRing(.43 / .35, true); this.marker.material.color.set('#fff2c0');
+    this.markerPoint = point; this.marker.place(point, .35, this.terrain); this.markerAt = performance.now(); this.scene.add(this.marker);
   }
+  private clearMarker() { if (this.marker) { this.scene.remove(this.marker); this.marker.dispose(); this.marker = undefined; this.markerPoint = undefined; } }
   private frame = () => {
     this.animation = requestAnimationFrame(this.frame);
     const now = performance.now(), dt = Math.min(.05, (now - this.lastFrame) / 1000); this.lastFrame = now;
@@ -243,6 +260,7 @@ export class WorldRenderer {
     for (const e of this.entities.values()) {
       const t = THREE.MathUtils.clamp((now - e.at) / 100, 0, 1);
       e.object.position.lerpVectors(e.from, e.to, t);
+      e.object.position.y = e.view.kind === 'building' ? e.to.y : this.elevation({ x: e.object.position.x, y: e.object.position.z });
       const moving = e.from.distanceToSquared(e.to) > .0001;
       if (moving && e.view.kind === 'unit') e.object.rotation.y = Math.atan2(e.to.x - e.from.x, e.to.z - e.from.z) + Math.PI;
       e.animated.forEach(o => {
@@ -253,8 +271,12 @@ export class WorldRenderer {
         if (o.name === 'tool') o.rotation.x = ['gathering', 'constructing', 'repairing', 'attacking'].includes(e.view.state) ? Math.sin(now * .008) * .4 : 0;
       });
     }
-    this.rings.children.forEach(r => { const e = this.entities.get(r.userData.forEntity); if (e) { r.position.copy(e.object.position); r.position.y += .04; } });
-    if (this.marker) { const age = (now - this.markerAt) / 800; this.marker.scale.setScalar(1 + age); (this.marker.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 1 - age); }
+    this.rings.children.forEach(r => { const e = this.entities.get(r.userData.forEntity); if (e) (r as GroundRing).place({ x: e.object.position.x, y: e.object.position.z }, Math.max(.5, e.view.radius + .12), this.terrain); });
+    if (this.marker && this.markerPoint) {
+      const age = (now - this.markerAt) / 800;
+      if (age >= 1) this.clearMarker();
+      else { this.marker.place(this.markerPoint, .35 * (1 + age), this.terrain); this.marker.material.opacity = 1 - age; }
+    }
     if (this.running) this.renderer.render(this.scene, this.camera);
   };
   dispose() { cancelAnimationFrame(this.animation); this.resizeObserver.disconnect(); this.renderer.dispose(); }
