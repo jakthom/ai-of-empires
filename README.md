@@ -123,6 +123,8 @@ All gameplay lifecycles use [`open-ships/statemachine`](https://github.com/open-
 
 The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI](api/openapi.json) and [TypeScript wire types](web/src/api.generated.ts) are generated from Go DTOs with `go run ./cmd/contracts`. Internal aggregates never become client authority. Action labels, costs, exchange gains, availability, and refusal reasons come from the backend.
 
+The [multiplayer and portable-game design](docs/MULTIPLAYER.md) diagrams friend seats, invitations, shared pause, close/delete, and moving a saved game between hosted and LAN servers. This is a proposal; human multiplayer is not implemented yet.
+
 ## Implemented scope
 
 The `frontier-1` ruleset includes eight seeded world layouts, four visual biomes, three world sizes, initial peace periods, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
