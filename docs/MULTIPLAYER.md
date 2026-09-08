@@ -1,7 +1,6 @@
 # Multiplayer and portable games
 
-**Status: proposed design, not implemented.** Friend seats, invitations, portable
-archives and multiplayer management controls are the next implementation.
+**Status: implemented.** Private lobbies, human/AI seats, invitations, member recovery, shared controls, close/reopen/delete and portable archives are available in the game UI and `/api/v1/games`.
 
 A game has a durable identity and one authoritative Go simulation. A server is
 where it currently runs. Each human has a membership bound to a player seat;
@@ -17,15 +16,17 @@ flowchart LR
     Seats --> Invite[Create invitation for a friend seat]
     Invite --> Link[Owner shares invite link]
     Link --> Claim[Friend claims that seat]
-    Claim --> Ready[Players choose civilizations and ready up]
-    Ready --> Start[Owner starts the game]
+    Seats --> Start[Owner starts whenever ready]
+    Claim --> Ready[Optional readiness signal]
+    Claim --> World
     Start --> World[Go creates the world and starts its clock]
     World --> Rejoin[Leave and rejoin the same kingdom]
 ```
 
-Creating a game opens a saved lobby without starting the simulation. Initially
-support six total civilizations, matching the current game limit. All human
-seats must be claimed and ready before Start; changing rules clears readiness.
+Creating a game opens a saved lobby without starting the simulation. Games support six total civilizations, matching the current game limit. The owner can start with unclaimed or unready human seats; Ready is an optional
+coordination signal, and changing rules clears it. Empty human kingdoms are created
+without AI and remain available for friends to claim during play. Issuing or
+accepting a first invitation does not interrupt the clock.
 Go generates and checkpoints the world from the finalized roster before admitting
 gameplay commands. The roster and map then stay fixed. A replacement invitation
 can recover or explicitly reassign an existing seat while preserving its kingdom
@@ -117,9 +118,10 @@ pause and runtime residency have separate state owners, described below.
 | Reopen | Open an unfinished game paused; players reclaim their seats | Original IDs and progress |
 | Delete game | Freeze, disconnect everyone, revoke access and remove this host's game data | Minimal operational deletion marker only |
 
-Suggested private-game policy: any player can pause; the owner starts, resumes,
-changes speed, closes, moves or deletes. A disconnected human seat triggers a
-pause after a 15-second real-time grace period. With no connected humans, pause
+Default private-game policy: any player can pause; the owner starts, resumes,
+changes speed, closes, moves or deletes. A human who connects and subsequently disconnects triggers a
+pause after a 15-second real-time grace period. Empty seats never trigger this
+pause; Start acknowledges claimed players who are already absent. With no connected humans, pause
 immediately and checkpoint before unloading. Heartbeats detect crashes; browser
 close notifications are only a hint. Losing one tab does not disconnect a player
 who still has another authenticated connection.
@@ -129,8 +131,7 @@ an absent player; its kingdom keeps its existing orders. AI takeover requires a
 separate chosen policy. Server restart and archive import open unfinished games
 paused and add no offline time. Finished games reopen for viewing only.
 
-Pause and Resume must be explicit, idempotent operations. The current toggle is
-unsuitable: two concurrent Pause requests could resume the game. Shared control
+Pause and Resume are explicit, idempotent operations. Two concurrent Pause requests keep the game paused. The multiplayer command endpoint rejects the legacy toggle. Shared control
 requests also check a control revision so a stale Resume cannot undo a newer
 Pause. Durable close/move/delete responses distinguish pending work from success.
 
@@ -230,11 +231,9 @@ progress and command receipts since it. Zero loss of acknowledged commands would
 additionally require durable input logging/replay; periodic saves alone do not
 provide it.
 
-## Proposed API
+## API
 
-Routes below are relative to `/api/v1`. Keep current `/matches` routes as
-authenticated single-player adapters during migration; do not expose their
-current unauthenticated name-based resume on a public host.
+Routes below are relative to `/api/v1`. Legacy `/matches` routes remain authenticated single-player adapters; they refuse multiplayer credentials. The original token can upgrade a saved game through `POST /matches/{id}/adopt`. Legacy unauthenticated `/sessions` listing and name-based recovery return 401.
 
 | Intent | API | Permission |
 |---|---|---|
@@ -254,28 +253,24 @@ current unauthenticated name-based resume on a public host.
 | Import transfer/copy | `POST /game-imports` | Import permission and archive ownership proof |
 | Delete | `DELETE /games/{g}` | Owner, with explicit UI confirmation |
 
-Lifecycle-changing requests use idempotency keys. Generate TypeScript/OpenAPI
+Gameplay and shared-control requests use idempotency keys. Secret exchanges
+return new credentials once; a lost invitation response can be replaced by its
+owner, and a rejoin code can rotate a lost bearer credential again. Generate TypeScript/OpenAPI
 from Go DTOs as today; the frontend projects availability, status and failure
 reasons from the server.
 
-## Changes from today's implementation
+## Implementation and validation
 
-- World commands/views already accept player IDs, but creation marks every
-  player after player 1 as AI. Build from the finalized human/AI roster instead.
-- `internal/matches/service.go` has one token hash and invokes View, Apply, Log
-  and Placement for player 1. Replace this with membership access and scoped
-  command receipts.
-- `internal/matches/store.go` lists/resumes local games without membership
-  authentication and rotates the whole game's token. Names and IDs must become
-  lookup keys behind authorization.
-- `web/src/api.ts` calls whole-game Leave on browser close. Replace it with
-  connection departure and server presence policy.
-- Checkpoints, safe shutdown and a destructive delete endpoint already exist.
-  Add durable close/reopen semantics and owner controls; deletion must also
-  remove the new membership and invitation records.
+`internal/matches/room_*.go` owns memberships, state machines, controls, presence and persistence. `archives.go` performs bounded game-scoped exports/imports; `internal/httpapi/games.go` handles transport. `game.NewWorldForRoster` initializes human seats without AI. `web/src/multiplayer.ts` renders lobby and management state; it does not simulate kingdoms.
 
-Implement member isolation and human seats first, then lobby/invite/rejoin,
-pause and owner close/delete, then portable handoff. Validate with independent
-Chrome contexts, concurrent invite claims, disconnect/rejoin, authorization
-refusals, pause races, restart, transfer between two Go processes, import failure,
-and a queued autosave racing deletion.
+Control requests carry a unique `id` and observed `revision`. SSE snapshots include `control_revision`, so a pause visible on the battlefield is also reflected in the next Resume request. A roster revision separately invalidates readiness when rules or seats change; another player marking Ready does not invalidate a concurrent Ready request. Command receipts use `(membership_id, command_id)` within a game. Admission limits are 60 new commands per member per second and 180 per game, with 50,000 retained command receipts and 10,000 control receipts.
+
+A host-local, HttpOnly, SameSite cookie binds the browser's private library. Bearer tokens authorize one membership. Recovery rotates only that membership's bearer credential. Imports revoke source bearer credentials and pending invitations; existing member rejoin codes still recover their original seats. Secrets are never placed in request URLs or audit records. The shared audit uses the explicit `members` audience; the world journal remains fog-filtered.
+
+SSE connections and five-second browser heartbeats maintain presence. Silent connections expire after 12 seconds, followed by the 15-second absent-player grace. Losing one of several live tabs does not disconnect a seat. Browser departure hints use the connection-specific Leave route. No-human games pause and save before their runtime lease unloads. Restart reconstructs presence without advancing offline time.
+
+Archives are versioned, compressed JSON data, with an optional AES-256-GCM envelope derived from a passphrase using PBKDF2-SHA256 (600,000 iterations). They do not contain executable SQL or filesystem paths. Download unprotected data with GET, or POST `{passphrase}` to the same archive route. Import uses multipart fields `archive`, `passphrase`, `rejoin_code`, `copy` and optional `name`. Limits are 64 MB uploaded and 128 MB expanded. `POST /games/{id}/transfers/complete` accepts the destination receipt; `cancel-transfer` requires explicit confirmation that the destination is not running.
+
+Go behavioral tests cover concurrent invite claims, player/fog isolation, refusal and replay, optional readiness, immediate starts and late joins, pause races, credential rotation, close/reopen/restart, encrypted transfers, copy semantics and stale saves after deletion. Chrome tests exercise independent browser contexts, private recovery, management, and moving a game to a second Go process, then restarting that process with its saved SQLite database.
+
+This is a self-service private-game host: creating games does not require an account, and importing requires the archive owner's recovery proof. External accounts, public matchmaking, operator quotas, midgame expansion to new civilizations, automatic AI takeover and an online transfer coordinator are not implemented.

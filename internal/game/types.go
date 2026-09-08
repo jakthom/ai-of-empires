@@ -356,6 +356,8 @@ type MapView struct {
 	Fog    []int  `json:"fog"`
 }
 type Snapshot struct {
+	// Filled by the session boundary for shared control concurrency.
+	ControlRevision int              `json:"control_revision,omitempty"`
 	Version         string           `json:"version"`
 	Difficulty      Difficulty       `json:"difficulty"`
 	Settlements     int              `json:"settlements"`

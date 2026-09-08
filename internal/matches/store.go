@@ -49,7 +49,8 @@ type storedCommand struct {
 	OtherError         string
 }
 type storedMatch struct {
-	World       json.RawMessage
+	Room        *storedRoom     `json:",omitempty"`
+	World       json.RawMessage `json:",omitempty"`
 	TokenHash   [32]byte
 	Accumulator float64
 	Commands    map[string]storedCommand
@@ -81,10 +82,15 @@ func OpenService(path string) (*Service, error) {
 	if err = db.QueryRow("PRAGMA user_version").Scan(&version); err != nil {
 		return fail(err)
 	}
-	if version > 1 {
+	if version > 2 {
 		return fail(fmt.Errorf("unsupported session database version %d", version))
 	}
-	if _, err = db.Exec(`
+	schema, err := db.Begin()
+	if err != nil {
+		return fail(err)
+	}
+	schemaFail := func(err error) (*Service, error) { _ = schema.Rollback(); return fail(err) }
+	if _, err = schema.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
 		 id TEXT PRIMARY KEY, name_key TEXT NOT NULL UNIQUE,
 		 metadata BLOB NOT NULL, checkpoint BLOB NOT NULL, saved_at INTEGER NOT NULL
@@ -94,8 +100,21 @@ func OpenService(path string) (*Service, error) {
 		 event_id INTEGER NOT NULL, record BLOB NOT NULL,
 		 PRIMARY KEY(session_id,event_id)
 		);
-		PRAGMA user_version=1;
+		CREATE TABLE IF NOT EXISTS tombstones (game_id TEXT PRIMARY KEY, epoch TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS browser_members (browser_hash TEXT NOT NULL, game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, member_id TEXT NOT NULL, version INTEGER NOT NULL, PRIMARY KEY(browser_hash,game_id));
+        CREATE TABLE IF NOT EXISTS game_secrets (hash TEXT PRIMARY KEY, kind TEXT NOT NULL, game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE);
+        CREATE TABLE IF NOT EXISTS game_archives (game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, transfer_id TEXT PRIMARY KEY, payload BLOB NOT NULL);
+        CREATE TABLE IF NOT EXISTS imported_transfers (transfer_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, receipt TEXT NOT NULL);
+
 	`); err != nil {
+		return schemaFail(err)
+	}
+	if version < 2 {
+		if _, err = schema.Exec("ALTER TABLE sessions ADD COLUMN room BLOB; PRAGMA user_version=2;"); err != nil {
+			return schemaFail(err)
+		}
+	}
+	if err = schema.Commit(); err != nil {
 		return fail(err)
 	}
 	s := NewService()
@@ -104,6 +123,14 @@ func OpenService(path string) (*Service, error) {
 }
 
 func (m *Match) info() SavedGame {
+	if m.room != nil {
+		c := m.room.Config
+		info := SavedGame{World: c.World, MatchID: m.id, Name: c.Name, SavedAt: m.savedAt, Difficulty: c.Difficulty, Settlements: c.Settlements, Status: string(m.room.Session.State()), Active: m.lifecycle.State() == leaseOpen, AutosaveSeconds: int(AutosaveInterval / time.Second), SaveError: m.saveError}
+		if m.world != nil {
+			info.Time = m.world.Time
+		}
+		return info
+	}
 	return SavedGame{World: m.world.WorldOptions(), MatchID: m.id, Name: m.world.Config.Name, SavedAt: m.savedAt, Time: m.world.Time, Difficulty: m.world.Config.Difficulty, Settlements: m.world.Config.Settlements, Status: m.world.Status(), Active: m.lifecycle.State() == leaseOpen, AutosaveSeconds: int(AutosaveInterval / time.Second), SaveError: m.saveError}
 }
 func (m *Match) Info() SavedGame { m.mu.Lock(); defer m.mu.Unlock(); return m.info() }
@@ -114,7 +141,14 @@ func (m *Match) save(now time.Time) error {
 	return m.saveContext(context.Background(), now)
 }
 
-func (m *Match) saveContext(ctx context.Context, now time.Time) (result error) {
+func (m *Match) saveContext(ctx context.Context, now time.Time) error {
+	return m.checkpoint(ctx, now, nil)
+}
+
+func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserWrite) (result error) {
+	if m.room != nil && m.room.Session.State() == sessionDeleted {
+		return ErrNotFound
+	}
 	m.lastSaveAttempt = now
 	defer func() {
 		if result != nil {
@@ -124,16 +158,23 @@ func (m *Match) saveContext(ctx context.Context, now time.Time) (result error) {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if m.db == nil {
+	if m.db == nil && m.archiveCapture == nil {
 		m.savedAt = now.UTC().Format(time.RFC3339Nano)
 		m.saveError = ""
 		return nil
 	}
-	world, err := m.world.Checkpoint()
-	if err != nil {
-		return err
+	var world []byte
+	var err error
+	if m.world != nil {
+		world, err = m.world.Checkpoint()
+		if err != nil {
+			return err
+		}
 	}
 	c := storedMatch{World: world, TokenHash: m.tokenHash, Accumulator: m.accumulator, Commands: map[string]storedCommand{}}
+	if m.room != nil {
+		c.Room = m.room.stored()
+	}
 	for id, cmd := range m.commands {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -160,25 +201,83 @@ func (m *Match) saveContext(ctx context.Context, now time.Time) (result error) {
 	if err != nil {
 		return err
 	}
+	var archive []byte
+	if m.archiveCapture != nil {
+		archive, err = m.capture(c)
+		if err != nil {
+			return err
+		}
+	}
+	if m.db == nil {
+		if m.archives == nil {
+			m.archives = map[string][]byte{}
+		}
+		m.archives[m.archiveCapture.TransferID] = archive
+		m.archiveCapture = nil
+		m.savedAt = info.SavedAt
+		m.saveError = ""
+		return nil
+	}
 	tx, err := m.db.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
+	var deleted int
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM tombstones WHERE game_id=?", m.id).Scan(&deleted); err != nil {
+		return err
+	}
+	if deleted != 0 {
+		return ErrNotFound
+	}
+	nameKey := strings.ToLower(info.Name)
+	if m.room != nil {
+		nameKey = m.id
+	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO sessions(id,name_key,metadata,checkpoint,saved_at) VALUES(?,?,?,?,?)
-	 ON CONFLICT(id) DO UPDATE SET name_key=excluded.name_key, metadata=excluded.metadata, checkpoint=excluded.checkpoint, saved_at=excluded.saved_at`, m.id, strings.ToLower(m.world.Config.Name), metadata, data, now.UnixNano())
+	 ON CONFLICT(id) DO UPDATE SET name_key=excluded.name_key, metadata=excluded.metadata, checkpoint=excluded.checkpoint, saved_at=excluded.saved_at`, m.id, nameKey, metadata, data, now.UnixNano())
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed: sessions.name_key") {
 			return ErrNameExists
 		}
 		return err
 	}
+	if c.Room != nil {
+		roomData, err := json.Marshal(c.Room)
+		if err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, "UPDATE sessions SET room=? WHERE id=?", roomData, m.id); err != nil {
+			return err
+		}
+		if _, err = tx.ExecContext(ctx, "DELETE FROM game_secrets WHERE game_id=?", m.id); err != nil {
+			return err
+		}
+		for _, seat := range c.Room.Seats {
+			if seat.State == seatClaimed {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", seat.RejoinHash), "rejoin", m.id); err != nil {
+					return err
+				}
+			}
+		}
+		for _, invite := range c.Room.Invites {
+			if invite.State == inviteIssued {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", invite.Hash), "invite", m.id); err != nil {
+					return err
+				}
+			}
+		}
+	}
 	stmt, err := tx.PrepareContext(ctx, "INSERT INTO events(session_id,event_id,record) VALUES(?,?,?)")
 	if err != nil {
 		return err
 	}
 	defer stmt.Close()
-	for _, record := range m.world.JournalSince(m.savedCursor) {
+	var records []game.JournalRecord
+	if m.world != nil {
+		records = m.world.JournalSince(m.savedCursor)
+	}
+	for _, record := range records {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -190,10 +289,31 @@ func (m *Match) saveContext(ctx context.Context, now time.Time) (result error) {
 			return err
 		}
 	}
+	if m.archiveCapture != nil {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO game_archives(game_id,transfer_id,payload) VALUES(?,?,?)", m.id, m.archiveCapture.TransferID, archive); err != nil {
+			return err
+		}
+	}
+	if m.importReceipt != nil {
+		v := m.importReceipt
+		if _, err = tx.ExecContext(ctx, "INSERT INTO imported_transfers(transfer_id,game_id,receipt) VALUES(?,?,?)", v.ID, v.GameID, v.Receipt); err != nil {
+			return err
+		}
+	}
+	if browser != nil {
+		b := browser.Binding
+		if _, err = tx.ExecContext(ctx, `INSERT INTO browser_members(browser_hash,game_id,member_id,version) VALUES(?,?,?,?) ON CONFLICT(browser_hash,game_id) DO UPDATE SET member_id=excluded.member_id,version=excluded.version`, browser.Hash, b.GameID, b.MemberID, b.Version); err != nil {
+			return err
+		}
+	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	m.savedAt, m.savedCursor, m.saveError = info.SavedAt, m.world.NextEvent, ""
+	m.archiveCapture = nil
+	m.savedAt, m.saveError = info.SavedAt, ""
+	if m.world != nil {
+		m.savedCursor = m.world.NextEvent
+	}
 	return nil
 }
 
@@ -251,11 +371,24 @@ func (s *Service) load(id string) (*Match, error) {
 	if rowErr != nil {
 		return nil, rowErr
 	}
-	world, err := game.Restore(c.World, records)
+	var world *game.World
+	if checkpointHasWorld(c.World) {
+		world, err = game.Restore(c.World, records)
+		if err != nil {
+			return nil, err
+		}
+	}
+	room, err := restoreRoom(c.Room)
 	if err != nil {
 		return nil, err
 	}
-	m := &Match{id: id, db: s.db, world: world, tokenHash: c.TokenHash, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen), accumulator: c.Accumulator, savedAt: info.SavedAt, savedCursor: world.NextEvent}
+	if world == nil && room == nil {
+		return nil, errors.New("missing world")
+	}
+	if room != nil && world != nil {
+		_ = world.SetPaused(true)
+	}
+	m := &Match{room: room, id: id, db: s.db, world: world, tokenHash: c.TokenHash, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen), accumulator: c.Accumulator, savedAt: info.SavedAt, savedCursor: infoCursor(world)}
 	for id, cmd := range c.Commands {
 		var err error
 		if cmd.Error != nil {
@@ -340,7 +473,7 @@ func (s *Service) Resume(identifier string) (Session, error) {
 		}
 	} else {
 		for key, m := range s.matches {
-			if key == identifier || strings.EqualFold(m.world.Config.Name, identifier) {
+			if m.room == nil && (key == identifier || strings.EqualFold(m.world.Config.Name, identifier)) {
 				id = key
 				break
 			}
@@ -355,6 +488,9 @@ func (s *Service) Resume(identifier string) (Session, error) {
 	token, err := randomID(32)
 	if err != nil {
 		return Session{}, err
+	}
+	if m.room != nil {
+		return Session{}, ErrUnauthorized
 	}
 	previous := m.tokenHash
 	m.tokenHash = tokenHash(token)
@@ -456,4 +592,15 @@ func (m *Match) saveOnShutdown(ctx context.Context) error {
 		case <-timer.C:
 		}
 	}
+}
+
+func infoCursor(w *game.World) int {
+	if w == nil {
+		return 0
+	}
+	return w.NextEvent
+}
+
+func checkpointHasWorld(data json.RawMessage) bool {
+	return len(data) > 0 && strings.TrimSpace(string(data)) != "null"
 }

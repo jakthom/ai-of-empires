@@ -34,6 +34,7 @@ type Server struct {
 
 func New(service *matches.Service, assets fs.FS) *Server {
 	s := &Server{matches: service, mux: http.NewServeMux(), assets: assets}
+	s.gameRoutes()
 	s.mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, Health{"ok", game.RulesVersion}) })
 	s.mux.HandleFunc("GET /api/v1/catalog", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, game.GetCatalog()) })
 	s.mux.HandleFunc("GET /api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, OpenAPI()) })
@@ -116,7 +117,7 @@ func domainError(w http.ResponseWriter, err error) {
 	switch {
 	case errors.As(err, &rule):
 		status := 422
-		if rule.Code == "idempotency_conflict" {
+		if rule.Code == "idempotency_conflict" || rule.Code == "stale_revision" || rule.Code == "game_exists" {
 			status = 409
 		}
 		if rule.Code == "rate_limited" {
@@ -130,6 +131,8 @@ func domainError(w http.ResponseWriter, err error) {
 		writeError(w, 404, "match_not_found", "No saved game has that name or session ID.")
 	case errors.Is(err, matches.ErrNameExists):
 		writeError(w, 409, "name_exists", "A game with that name already exists. Choose another name or resume it.")
+	case errors.Is(err, matches.ErrForbidden):
+		writeError(w, 403, "forbidden", "This action is not allowed for your membership.")
 	case errors.Is(err, matches.ErrUnauthorized):
 		writeError(w, 401, "unauthorized", "A valid match token is required.")
 	case errors.Is(err, matches.ErrCapacity):
@@ -202,33 +205,10 @@ func (s *Server) close(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) sessions(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
-	if len([]rune(query)) > 200 {
-		writeError(w, 422, "invalid_query", "Search with up to 200 characters.")
-		return
-	}
-	result, err := s.matches.List(query)
-	if err != nil {
-		domainError(w, err)
-		return
-	}
-	respond(w, 200, result)
+	writeError(w, 401, "membership_required", "Use your private game library or a rejoin code. Names and IDs do not grant access.")
 }
 func (s *Server) resume(w http.ResponseWriter, r *http.Request) {
-	var request matches.ResumeRequest
-	if !decode(w, r, &request) {
-		return
-	}
-	if strings.TrimSpace(request.Identifier) == "" || len([]rune(request.Identifier)) > 80 {
-		writeError(w, 422, "invalid_identifier", "Enter a game name or session ID.")
-		return
-	}
-	result, err := s.matches.Resume(request.Identifier)
-	if err != nil {
-		domainError(w, err)
-		return
-	}
-	respond(w, 200, result)
+	writeError(w, 401, "membership_required", "Use your private rejoin code to recover a game.")
 }
 func (s *Server) sessionInfo(w http.ResponseWriter, r *http.Request) {
 	if m := s.authorize(w, r); m != nil {
@@ -347,7 +327,7 @@ func (s *Server) static(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Build the UI with: npm --prefix web ci && npm --prefix web run build", 503)
 		return
 	}
-	if r.URL.Path != "/" {
+	if r.URL.Path != "/" && r.URL.Path != "/join" && r.URL.Path != "/game" {
 		http.FileServerFS(s.assets).ServeHTTP(w, r)
 		return
 	}

@@ -46,11 +46,7 @@ func (w *World) apply(player int, c Command) error {
 		}
 		return fire(w.match, event, &matchContext{World: w})
 	case "speed":
-		if !slices.Contains(gameSpeeds, c.Value) {
-			return rule("invalid_speed", "Choose 1×, 1.7×, 3.4×, 8×, 16×, or 32× speed.")
-		}
-		w.Speed = c.Value
-		return nil
+		return w.SetSpeed(c.Value)
 	case "resign":
 		if err := fire(p.lifecycle, ResignPlayer, &playerContext{World: w, Player: p}); err != nil {
 			return err

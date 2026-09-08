@@ -52,6 +52,11 @@ type cachedCommand struct {
 	err     error
 }
 type Match struct {
+	activeRequests  int
+	archiveCapture  *archiveMeta
+	archives        map[string][]byte
+	importReceipt   *importedTransfer
+	room            *room
 	id              string
 	db              *sql.DB
 	savedAt         string
@@ -69,6 +74,9 @@ type Match struct {
 	accumulator     float64
 }
 type Service struct {
+	imported  map[string]importedTransfer
+	browsers  map[string]map[string]browserBinding
+	deleted   map[string]bool
 	mu        sync.Mutex
 	matches   map[string]*Match
 	db        *sql.DB
@@ -78,7 +86,7 @@ type Service struct {
 }
 
 func NewService() *Service {
-	return &Service{matches: map[string]*Match{}, stopping: make(chan struct{}), lifecycle: statemachine.NewInstance(serviceMachine, serviceServing)}
+	return &Service{imported: map[string]importedTransfer{}, browsers: map[string]map[string]browserBinding{}, deleted: map[string]bool{}, matches: map[string]*Match{}, stopping: make(chan struct{}), lifecycle: statemachine.NewInstance(serviceMachine, serviceServing)}
 }
 
 // Stopping broadcasts the start of shutdown to transports and long-lived
@@ -124,7 +132,7 @@ func (s *Service) Create(cfg game.Config) (Session, error) {
 		cfg.Name = "Kingdom " + id[:8]
 	}
 	for _, m := range s.matches {
-		if strings.EqualFold(m.world.Config.Name, cfg.Name) {
+		if m.room == nil && strings.EqualFold(m.world.Config.Name, cfg.Name) {
 			return Session{}, ErrNameExists
 		}
 	}
@@ -166,6 +174,9 @@ func (s *Service) authorized(id, token string, load bool) (*Match, error) {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
+	if m.room != nil {
+		return nil, ErrUnauthorized
+	}
 	hash := tokenHash(token)
 	if subtle.ConstantTimeCompare(hash[:], m.tokenHash[:]) != 1 {
 		return nil, ErrUnauthorized
@@ -280,6 +291,14 @@ func (s *Service) Run(ctx context.Context) {
 					break
 				}
 				m.mu.Lock()
+				if m.room != nil {
+					unload := m.pulseRoom(ctx, now)
+					m.mu.Unlock()
+					if unload {
+						delete(s.matches, id)
+					}
+					continue
+				}
 				// Save before closing a durable lease; failed writes keep the
 				// only authoritative copy alive and are retried next interval.
 				expiring := leaseExpired(nil, &leaseContext{m, now}) == nil

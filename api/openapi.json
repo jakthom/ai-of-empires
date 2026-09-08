@@ -42,6 +42,69 @@
         ],
         "type": "object"
       },
+      "ArchivePassword": {
+        "additionalProperties": false,
+        "properties": {
+          "passphrase": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "passphrase"
+        ],
+        "type": "object"
+      },
+      "AuditEvent": {
+        "additionalProperties": false,
+        "properties": {
+          "action": {
+            "type": "string"
+          },
+          "actor": {
+            "type": "string"
+          },
+          "actor_name": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string"
+          },
+          "audience": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "audience",
+          "actor_name",
+          "id",
+          "at",
+          "actor",
+          "action",
+          "message"
+        ],
+        "type": "object"
+      },
+      "AuditPage": {
+        "additionalProperties": false,
+        "properties": {
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/AuditEvent"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "events"
+        ],
+        "type": "object"
+      },
       "Catalog": {
         "additionalProperties": false,
         "properties": {
@@ -138,6 +201,26 @@
         ],
         "type": "object"
       },
+      "ClaimInvite": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "secret",
+          "name"
+        ],
+        "type": "object"
+      },
       "Command": {
         "additionalProperties": false,
         "properties": {
@@ -178,6 +261,26 @@
         ],
         "type": "object"
       },
+      "CompleteTransfer": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "receipt": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "receipt"
+        ],
+        "type": "object"
+      },
       "Config": {
         "additionalProperties": false,
         "properties": {
@@ -208,6 +311,42 @@
           "civilization",
           "difficulty",
           "mode"
+        ],
+        "type": "object"
+      },
+      "ConnectionInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "epoch": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "epoch"
+        ],
+        "type": "object"
+      },
+      "CreateGame": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/Config"
+          },
+          "friends": {
+            "type": "integer"
+          },
+          "player_name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "config",
+          "friends",
+          "player_name"
         ],
         "type": "object"
       },
@@ -566,6 +705,120 @@
         ],
         "type": "object"
       },
+      "GameControl": {
+        "additionalProperties": false,
+        "properties": {
+          "confirm": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "revision"
+        ],
+        "type": "object"
+      },
+      "GameInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "can_start": {
+            "type": "boolean"
+          },
+          "config": {
+            "$ref": "#/components/schemas/Config"
+          },
+          "epoch": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "match_status": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "runtime": {
+            "type": "string"
+          },
+          "save_error": {
+            "type": "string"
+          },
+          "saved_at": {
+            "type": "string"
+          },
+          "seats": {
+            "items": {
+              "$ref": "#/components/schemas/SeatView"
+            },
+            "type": "array"
+          },
+          "start_reason": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          },
+          "transfer_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "name",
+          "config",
+          "status",
+          "match_status",
+          "runtime",
+          "epoch",
+          "revision",
+          "seats",
+          "owner",
+          "player_id",
+          "time",
+          "saved_at",
+          "can_start",
+          "start_reason"
+        ],
+        "type": "object"
+      },
+      "GameLibrary": {
+        "additionalProperties": false,
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/GameInfo"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "games"
+        ],
+        "type": "object"
+      },
       "Health": {
         "additionalProperties": false,
         "properties": {
@@ -607,6 +860,92 @@
           "type",
           "activity",
           "present"
+        ],
+        "type": "object"
+      },
+      "ImportResult": {
+        "additionalProperties": false,
+        "properties": {
+          "already_imported": {
+            "type": "boolean"
+          },
+          "completion_receipt": {
+            "type": "string"
+          },
+          "session": {
+            "$ref": "#/components/schemas/MemberSession"
+          }
+        },
+        "required": [
+          "session",
+          "already_imported"
+        ],
+        "type": "object"
+      },
+      "Invitation": {
+        "additionalProperties": false,
+        "properties": {
+          "expires_at": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "game_name": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seat_id": {
+            "type": "string"
+          },
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "game_id",
+          "game_name",
+          "seat_id",
+          "name",
+          "expires_at"
+        ],
+        "type": "object"
+      },
+      "InviteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "replace": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "replace"
+        ],
+        "type": "object"
+      },
+      "InviteSecret": {
+        "additionalProperties": false,
+        "properties": {
+          "secret": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "secret"
         ],
         "type": "object"
       },
@@ -657,6 +996,45 @@
           "biome",
           "tiles",
           "fog"
+        ],
+        "type": "object"
+      },
+      "MemberSession": {
+        "additionalProperties": false,
+        "properties": {
+          "epoch": {
+            "type": "string"
+          },
+          "match_id": {
+            "type": "string"
+          },
+          "membership_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "rejoin_code": {
+            "type": "string"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id",
+          "token",
+          "player_id",
+          "name",
+          "membership_id",
+          "epoch",
+          "owner"
         ],
         "type": "object"
       },
@@ -818,6 +1196,26 @@
         ],
         "type": "object"
       },
+      "ReadyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "ready"
+        ],
+        "type": "object"
+      },
       "Receipt": {
         "additionalProperties": false,
         "properties": {
@@ -835,6 +1233,18 @@
           "command_id",
           "tick",
           "accepted"
+        ],
+        "type": "object"
+      },
+      "RejoinRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code"
         ],
         "type": "object"
       },
@@ -887,6 +1297,26 @@
         "required": [
           "code",
           "message"
+        ],
+        "type": "object"
+      },
+      "RulesChange": {
+        "additionalProperties": false,
+        "properties": {
+          "config": {
+            "$ref": "#/components/schemas/Config"
+          },
+          "id": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "config"
         ],
         "type": "object"
       },
@@ -956,6 +1386,91 @@
         ],
         "type": "object"
       },
+      "SeatChange": {
+        "additionalProperties": false,
+        "properties": {
+          "civilization": {
+            "type": "string"
+          },
+          "controller": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "name",
+          "civilization",
+          "controller"
+        ],
+        "type": "object"
+      },
+      "SeatView": {
+        "additionalProperties": false,
+        "properties": {
+          "civilization": {
+            "type": "string"
+          },
+          "connected": {
+            "type": "boolean"
+          },
+          "controller": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "invite_expires_at": {
+            "type": "string"
+          },
+          "invite_id": {
+            "type": "string"
+          },
+          "membership_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "ready": {
+            "type": "boolean"
+          },
+          "status": {
+            "type": "string"
+          },
+          "yours": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "player_id",
+          "name",
+          "civilization",
+          "controller",
+          "status",
+          "ready",
+          "connected",
+          "owner",
+          "yours"
+        ],
+        "type": "object"
+      },
       "Session": {
         "additionalProperties": false,
         "properties": {
@@ -988,6 +1503,9 @@
               "$ref": "#/components/schemas/Action"
             },
             "type": "array"
+          },
+          "control_revision": {
+            "type": "integer"
           },
           "difficulty": {
             "$ref": "#/components/schemas/Difficulty"
@@ -1162,6 +1680,54 @@
         ],
         "type": "object"
       },
+      "TransferInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "download_path": {
+            "type": "string"
+          },
+          "game_id": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "game_id",
+          "kind",
+          "status",
+          "download_path"
+        ],
+        "type": "object"
+      },
+      "TransferRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "revision": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "revision",
+          "kind"
+        ],
+        "type": "object"
+      },
       "Vec": {
         "additionalProperties": false,
         "properties": {
@@ -1313,6 +1879,11 @@
       }
     },
     "securitySchemes": {
+      "browserMembership": {
+        "in": "cookie",
+        "name": "aoe_browser",
+        "type": "apiKey"
+      },
       "matchToken": {
         "scheme": "bearer",
         "type": "http"
@@ -1372,6 +1943,2627 @@
         "summary": "Read display metadata and ruleset catalog"
       }
     },
+    "/game-imports": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "properties": {
+                  "archive": {
+                    "format": "binary",
+                    "type": "string"
+                  },
+                  "copy": {
+                    "type": "boolean"
+                  },
+                  "name": {
+                    "maxLength": 80,
+                    "type": "string"
+                  },
+                  "passphrase": {
+                    "maxLength": 256,
+                    "type": "string"
+                  },
+                  "rejoin_code": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "archive",
+                  "rejoin_code"
+                ],
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Import a move or copy after proving archive ownership"
+      }
+    },
+    "/games": {
+      "get": {
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameLibrary"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "List only games bound to this browser's memberships"
+      },
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateGame"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSession"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Create a saved private lobby and owner membership"
+      }
+    },
+    "/games/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Owner-confirmed permanent deletion with an autosave fence"
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read the lobby, roster, controls and save status"
+      }
+    },
+    "/games/{id}/audit": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditPage"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read shared session lifecycle events after an audit ID"
+      }
+    },
+    "/games/{id}/cancel-close": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: cancel-close"
+      }
+    },
+    "/games/{id}/cancel-transfer": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: cancel-transfer"
+      }
+    },
+    "/games/{id}/close": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: close"
+      }
+    },
+    "/games/{id}/commands": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Submit an intention as your authenticated player"
+      }
+    },
+    "/games/{id}/connections": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectionInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Open a browser connection without resuming play"
+      }
+    },
+    "/games/{id}/connections/{connection}/heartbeat": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Update this member's browser connection: heartbeat"
+      }
+    },
+    "/games/{id}/connections/{connection}/leave": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Update this member's browser connection: leave"
+      }
+    },
+    "/games/{id}/entities/{entity}/history": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Case-insensitive search of all retained authorized events; all words must match. Identity forms Villager 3, #3, or a lone 3 match the exact entity ID. Other numbers search event text.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Combine a catalog event category with search and pagination. Cursors and availability refer to matching events.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "enum": [
+                "",
+                "orders",
+                "activity",
+                "economy",
+                "combat",
+                "production",
+                "world"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read an entity's observable history"
+      }
+    },
+    "/games/{id}/events": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE snapshot frames; fresh authenticated state on reconnect"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Stream your fog-filtered world; requires a live connection"
+      }
+    },
+    "/games/{id}/invites/{invite}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "invite",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Revoke a pending invitation"
+      }
+    },
+    "/games/{id}/log": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Case-insensitive search of all retained authorized events; all words must match. Identity forms Villager 3, #3, or a lone 3 match the exact entity ID. Other numbers search event text.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Combine a catalog event category with search and pagination. Cursors and availability refer to matching events.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "enum": [
+                "",
+                "orders",
+                "activity",
+                "economy",
+                "combat",
+                "production",
+                "world"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read the journal visible to your kingdom"
+      }
+    },
+    "/games/{id}/pause": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: pause"
+      }
+    },
+    "/games/{id}/placement": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Placement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Validate placement as your authenticated player"
+      }
+    },
+    "/games/{id}/reopen": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: reopen"
+      }
+    },
+    "/games/{id}/resume": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: resume"
+      }
+    },
+    "/games/{id}/rules": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RulesChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Update lobby settings and clear readiness"
+      }
+    },
+    "/games/{id}/save": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Commit a checkpoint, journal and receipts"
+      }
+    },
+    "/games/{id}/seats": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeatChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Add a human or AI seat in the lobby"
+      }
+    },
+    "/games/{id}/seats/{seat}": {
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "seat",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SeatChange"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Configure a lobby seat"
+      }
+    },
+    "/games/{id}/seats/{seat}/invites": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "seat",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Issue a private, single-use seat invitation"
+      }
+    },
+    "/games/{id}/seats/{seat}/ready": {
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "seat",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReadyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Set your readiness for the current roster"
+      }
+    },
+    "/games/{id}/session": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSession"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Recover this browser's bound member session"
+      }
+    },
+    "/games/{id}/snapshot": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read this member's authorized world view"
+      }
+    },
+    "/games/{id}/speed": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: speed"
+      }
+    },
+    "/games/{id}/start": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GameControl"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Explicit shared game control: start"
+      }
+    },
+    "/games/{id}/transfers": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TransferRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TransferInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Freeze and save a game-scoped portable archive"
+      }
+    },
+    "/games/{id}/transfers/complete": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteTransfer"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GameInfo"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Retire the source using a destination completion receipt"
+      }
+    },
+    "/games/{id}/transfers/{transfer}/archive": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transfer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Portable .aoegame archive"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Download a saved archive; POST supports passphrase protection"
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "transfer",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ArchivePassword"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/octet-stream": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Portable .aoegame archive"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Download a saved archive; POST supports passphrase protection"
+      }
+    },
     "/health": {
       "get": {
         "responses": {
@@ -1416,6 +4608,118 @@
           }
         },
         "summary": "Check server health"
+      }
+    },
+    "/invites/claim": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ClaimInvite"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSession"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Atomically claim a human seat"
+      }
+    },
+    "/invites/inspect": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InviteSecret"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Invitation"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Preview an invitation without claiming it"
       }
     },
     "/matches": {
@@ -1585,6 +4889,67 @@
           }
         ],
         "summary": "Read your fog-filtered snapshot"
+      }
+    },
+    "/matches/{id}/adopt": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSession"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Upgrade an existing game using its original bearer token"
       }
     },
     "/matches/{id}/commands": {
@@ -2214,6 +5579,62 @@
         "summary": "Read game name and last successful autosave"
       }
     },
+    "/memberships/rejoin": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RejoinRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MemberSession"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Recover a membership with its private rejoin code"
+      }
+    },
     "/sessions": {
       "get": {
         "parameters": [
@@ -2268,7 +5689,7 @@
             "description": "Structured error"
           }
         },
-        "summary": "List up to 100 local saved games, newest save first"
+        "summary": "Retired: use the authenticated /games library"
       }
     },
     "/sessions/resume": {
@@ -2324,7 +5745,7 @@
             "description": "Structured error"
           }
         },
-        "summary": "Resume a local game by exact name or ID; rotates its bearer token"
+        "summary": "Retired: use a private membership rejoin code"
       }
     }
   },

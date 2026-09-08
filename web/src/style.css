@@ -335,3 +335,38 @@ dialog .world-note { font-size: 12px; line-height: 1.6; color: var(--muted); mar
 #menu-dialog #save-game { margin-bottom: 24px; }
 .building-tooltip { position: fixed; z-index: 12; pointer-events: none; max-width: min(260px, 80vw); padding: 9px 12px; background: #202b23; border: 1px solid #a8996b; color: #f0ead8; border-radius: 3px; font-size: 13px; line-height: 1.5; }
 .building-tooltip span { display: block; color: #c6cdb8; font-size: 12px; }
+
+/* Multiplayer extends the campaign console: kingdom rows first, recovery and
+   portability in disclosures, and one explicit confirmation area. */
+.room-heading { display:flex; align-items:flex-start; justify-content:space-between; gap:24px; }
+.room-heading h2 { overflow-wrap:anywhere; margin-top:8px; }
+.room-status { color:var(--accent); font-size:13px; }
+#room-panel .room-world { margin-bottom:18px; }
+#room-panel details, .membership-recovery details { border-top:1px solid var(--line); padding:16px 0; }
+#room-panel summary, .membership-recovery summary { cursor:pointer; color:var(--accent); font-size:13px; }
+#room-panel details p, .membership-recovery details p { margin:12px 0; }
+#room-panel details label + label, .membership-recovery label + label { margin-top:12px; }
+.seat-roster { border-top:1px solid var(--line); }
+.seat-row { display:grid; grid-template-columns:36px minmax(0,1fr) auto; gap:16px; padding:18px 0; border-bottom:1px solid var(--line); align-items:start; }
+.seat-banner { color:#81b5df; background:#34483b; font-size:26px; text-align:center; padding:6px 0; clip-path:polygon(0 0,100% 0,100% 75%,50% 100%,0 75%); }
+.seat-banner[data-player="2"] { color:#e29d86; }.seat-banner[data-player="3"] { color:#c3a4e6; }.seat-banner[data-player="4"] { color:#e6c678; }.seat-banner[data-player="5"] { color:#8ccbbb; }.seat-banner[data-player="6"] { color:#e9b376; }
+.seat-identity strong { font-size:15px; overflow-wrap:anywhere; }
+.seat-identity > span { display:block; color:var(--muted); font-size:12px; margin-top:6px; line-height:1.6; }
+#room-panel .seat-identity details { border:0; padding:10px 0 0; }
+.seat-actions { display:flex; gap:8px; flex-direction:column; }.seat-actions button { padding:9px 12px; }
+.seat-invite { grid-column:2 / -1; display:grid; grid-template-columns:minmax(0,1fr) auto; gap:8px 12px; align-items:end; }
+.seat-invite span { color:var(--muted); font-size:12px; }.seat-invite button { padding:12px; }
+.room-primary, .room-actions, .room-owner-actions { display:flex; flex-wrap:wrap; gap:12px; }
+#room-panel .room-primary .primary { flex:1; width:auto; min-width:160px; }
+.room-confirm { padding:16px; background:#303b30; margin:14px 0; border:1px solid #8b966d; }
+.room-confirm button { margin:0 12px 0 0; padding:10px 14px; }.room-confirm p { margin-bottom:12px; }
+.room-actions button, .room-owner-actions > button { padding:10px 14px; }.room-owner-actions { align-items:center; margin-top:24px; }
+.room-owner-actions .danger { margin-top:0; }#room-panel .room-policy { font-size:12px; margin:18px 0 0; }
+.room-audit { padding-left:20px; font-size:12px; color:var(--muted); line-height:1.8; }
+.membership-recovery { margin-top:24px; }.check-label { display:flex; align-items:center; gap:10px; }.check-label input { width:18px; min-height:18px; margin:0; }
+#player-name { margin-bottom:16px; }.saved-game-actions { display:flex; flex-wrap:wrap; gap:8px; flex:0 0 auto !important; }
+@media(max-width:550px) {
+ .room-heading { gap:12px; flex-direction:column; }.room-heading h2 { margin-bottom:0; }.room-heading > button { align-self:flex-end; }
+ .seat-row { grid-template-columns:28px minmax(0,1fr); gap:12px; }.seat-actions { grid-column:2; flex-direction:row; flex-wrap:wrap; }.seat-invite { grid-template-columns:1fr; }
+ .room-primary { flex-direction:column; gap:0; }.saved-game { flex-wrap:wrap; }.saved-game-actions { width:100%; }
+}

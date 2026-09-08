@@ -54,7 +54,7 @@ test('shows backend activity and a worker history that survives removal and relo
   await expect(page.locator('#log-status')).toContainText('Logging');
   await expect(page.locator('#event-entries')).toContainText('Logging');
   await expect.poll(async () => {
-    const response = await request.get(`/api/v1/matches/${session.match_id}/entities/${workerID}/history`, { headers: { Authorization: `Bearer ${session.token}` } });
+    const response = await request.get(`/api/v1/games/${session.match_id}/entities/${workerID}/history`, { headers: { Authorization: `Bearer ${session.token}` } });
     const history = await response.json() as EventPage;
     return history.events.some(e => e.kind === 'delivery' && e.resource === 'wood');
   }, { timeout: 16_000 }).toBe(true);

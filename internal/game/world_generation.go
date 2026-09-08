@@ -11,22 +11,34 @@ import (
 // NewWorld is the validated creation boundary. New with an omitted World keeps
 // the original layout for simulation fixtures; all HTTP creation uses this path.
 func NewWorld(cfg Config) (*World, error) {
+	return NewWorldForRoster(cfg, nil)
+}
+
+// Kingdom describes the finalized seats. Controllers are supplied by the
+// authenticated session service, never by gameplay commands.
+type Kingdom struct {
+	Name         string `json:"name"`
+	Civilization string `json:"civilization"`
+	Human        bool   `json:"human"`
+}
+
+func NormalizeConfig(cfg Config) (Config, error) {
 	options, err := normalizeWorldOptions(cfg.World)
 	if err != nil {
-		return nil, err
+		return cfg, err
 	}
 	cfg.World = options
 	if cfg.Settlements == 0 {
 		cfg.Settlements = 2
 	}
 	if cfg.Settlements < 1 || cfg.Settlements > 6 {
-		return nil, rule("invalid_settlements", "Choose between one and six settlements.")
+		return cfg, rule("invalid_settlements", "Choose between one and six settlements.")
 	}
 	if cfg.Seed == 0 {
 		cfg.Seed = 4817
 	}
 	if cfg.Seed < 1 || cfg.Seed > 999999999 {
-		return nil, rule("invalid_seed", "Use a seed between 1 and 999999999.")
+		return cfg, rule("invalid_seed", "Use a seed between 1 and 999999999.")
 	}
 	if !ValidCivilization(cfg.Civilization) {
 		cfg.Civilization = "britons"
@@ -37,6 +49,26 @@ func NewWorld(cfg Config) (*World, error) {
 	if cfg.Mode == "" {
 		cfg.Mode = "skirmish"
 	}
+	if cfg.Mode != "skirmish" && cfg.Mode != "sandbox" {
+		return cfg, rule("invalid_mode", "Choose skirmish or sandbox.")
+	}
+	return cfg, nil
+}
+
+func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
+	cfg, err := NormalizeConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	if roster != nil && len(roster) != cfg.Settlements {
+		return nil, rule("invalid_roster", "Every kingdom needs a seat.")
+	}
+	for _, seat := range roster {
+		if !ValidCivilization(seat.Civilization) {
+			return nil, rule("invalid_civilization", "Choose a civilization from the catalog.")
+		}
+	}
+	options := cfg.World
 	size := worldSize(options)
 	w := &World{Config: cfg, Generation: 1, Width: size, Height: size, Entities: map[int]*Entity{}, Players: map[int]*Player{}, Speed: 1.7, match: statemachine.NewInstance(matchMachine, MatchRunning), NextID: 1, rng: uint64(cfg.Seed), Projectiles: []Projectile{}}
 	rng := rand.New(rand.NewPCG(uint64(cfg.Seed), 0x776f726c64))
@@ -58,6 +90,9 @@ func NewWorld(cfg Config) (*World, error) {
 			civ = civilizations[i%len(civilizations)].ID
 		}
 		p := &Player{ID: id, Start: start, Name: names[i], Civilization: civ, Resources: Resources{Food: 200, Wood: 200, Gold: 100, Stone: 200}, Technologies: map[string]bool{}, AI: id > 1, Explored: make([]bool, len(w.Tiles)), Visible: make([]bool, len(w.Tiles)), Memory: map[int]EntityView{}, lifecycle: statemachine.NewInstance(playerMachine, PlayerCompeting), strategy: statemachine.NewInstance(aiMachine, aiDeveloping), Temperament: initialTemperament(cfg, id)}
+		if roster != nil {
+			p.Name, p.Civilization, p.AI = roster[i].Name, roster[i].Civilization, !roster[i].Human
+		}
 		if cfg.Mode == "sandbox" {
 			p.Resources = Resources{Food: 2000, Wood: 2000, Gold: 1500, Stone: 1500}
 		}

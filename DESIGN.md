@@ -69,3 +69,11 @@ Building hover adds a brass ground ring and a small opaque label with the backen
 - Keep the world dominant and combat readable.
 - Use UI language about the player's task, not implementation details.
 - Do not show predicted resource totals, combat outcomes, or hidden units.
+
+## Private campaigns
+
+Game creation includes a human friend-seat count alongside total settlements and opens a saved lobby. The lobby inherits the campaign dialog: a serif game name and world summary lead into compact kingdom rows, heraldic player colors, connection/readiness text and native editing controls. Optional Ready and owner-only Start sit below the roster with backend availability text. The owner can start with empty friend seats or unready players; the lobby explains that friends can join their reserved kingdoms later. Invitations belong to individual seats; consumed, revoked, replaced and expired links disappear. A join preview requires explicit confirmation before claiming.
+
+Players & game management is available in the match menu and beside every game in the private library. Its disclosures expose personal rejoin codes, member-only game addresses, world settings before Start, immutable shared activity, and portable archives. Close, replacement invitations, moving and deletion use an inline confirmation that names the consequences and preserves keyboard focus. Delete names the game and its local saves/history. Close failures retain a frozen game with Retry and Cancel.
+
+Live roster updates preserve open disclosures, drafts, confirmations and focus. Copy/download feedback lives inside the dialog, including keyboard-copy instructions when a LAN browser cannot use the clipboard API. Recovery and archive import remain in Saved games; completion receipts belong to the imported game. At phone widths, seat actions and invitation fields stack beneath their kingdom name without horizontal scrolling. Leaving remains available after request failures, and server-owned permission changes disable resume/speed controls for guests.

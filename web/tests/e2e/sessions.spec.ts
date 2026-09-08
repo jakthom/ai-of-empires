@@ -23,7 +23,7 @@ for (const width of [390, 800]) {
     await game.start('sandbox', 'peaceful', 4, `A long evening campaign ${width} ${info.project.name} ${Date.now()}`);
     await page.getByRole('button', { name: 'Match menu', exact: true }).click();
     await expect(page.getByRole('button', { name: 'Save now', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+    await page.getByRole('button', { name: 'Leave game', exact: true }).click();
     await expect(page.locator('#saved-games-panel')).toBeVisible();
     const name = page.locator('#saved-games-list .saved-game strong').filter({ hasText: `A long evening campaign ${width}` });
     await expect(name).toHaveCount(1);
@@ -54,7 +54,7 @@ test('saves a named game and resumes its queues and history by name and ID', asy
   await page.getByRole('button', { name: 'Save now', exact: true }).click();
   expect((await saving).status()).toBe(200);
   await expect(page.locator('#save-status')).toContainText('Saved');
-  await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+  await page.getByRole('button', { name: 'Leave game', exact: true }).click();
   await expect(page.locator('#saved-games-panel')).toBeVisible();
   await page.getByLabel('Game name or session ID', { exact: true }).fill(name);
   await expect(page.locator('#saved-games-list .saved-game')).toHaveCount(1);
@@ -65,7 +65,7 @@ test('saves a named game and resumes its queues and history by name and ID', asy
   const after = await game.snapshot();
   expect(after).toEqual(before);
   await page.getByRole('button', { name: 'Match menu', exact: true }).click();
-  await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+  await page.getByRole('button', { name: 'Leave game', exact: true }).click();
   await page.getByLabel('Game name or session ID', { exact: true }).fill(seat.match_id);
   await page.getByRole('button', { name: 'Resume by name or ID', exact: true }).click();
   await expect(page.locator('#start-dialog')).toBeHidden();
@@ -78,7 +78,7 @@ test('closes the page and reconnects from browser storage with the same checkpoi
   const before = await game.snapshot(), context = page.context();
   await page.close();
   const reopened = await context.newPage();
-  const read = reopened.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/matches/${seat.match_id}`);
+  const read = reopened.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/games/${seat.match_id}/snapshot`);
   await reopened.goto('/'); expect((await read).status()).toBe(200);
   await expect(reopened.locator('#start-dialog')).toBeHidden();
   await expect(reopened.locator('#paused')).toBeVisible();
@@ -90,10 +90,12 @@ test('reconnects the battlefield after browser back navigation', async ({ page, 
   const seat = await game.start();
   const before = await game.snapshot();
   await page.goto('about:blank');
-  const restored = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/matches/${seat.match_id}`);
+  const restored = page.waitForResponse(r => new URL(r.url()).pathname === `/api/v1/games/${seat.match_id}/snapshot`);
   await page.goBack(); expect((await restored).status()).toBe(200);
   await expect(page.locator('#connection')).toBeHidden();
   await expect(page.locator('#start-dialog')).toBeHidden();
+  await expect(page.locator('#paused')).toBeVisible();
+  await game.command('pause', () => page.getByRole('button',{name:'Resume battle',exact:true}).click());
   await expect.poll(async () => (await game.snapshot()).tick).toBeGreaterThan(before.tick);
   await game.command('pause', () => page.getByRole('button', { name: 'Pause match', exact: true }).click());
   await expect(page.locator('#paused')).toBeVisible();
@@ -105,11 +107,11 @@ test('reports periodic autosaves and keeps the game open when saving fails', asy
   const initial = await page.locator('#save-status').textContent();
   await expect.poll(() => page.locator('#save-status').textContent(), { timeout: 15_000 }).not.toBe(initial);
   await page.route('**/leave', route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: { code: 'save_failed', message: 'Save failed. Try again.' } }) }), { times: 1 });
-  await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+  await page.getByRole('button', { name: 'Leave game', exact: true }).click();
   await expect(page.locator('#menu-dialog')).toBeVisible(); await expect(page.locator('#start-dialog')).toBeHidden();
   await expect(page.locator('#menu-dialog #save-error')).toContainText('Save failed');
   await expect(page.locator('#notice')).toContainText('Save failed');
-  await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+  await page.getByRole('button', { name: 'Leave game', exact: true }).click();
   await expect(page.locator('#saved-games-panel')).toBeVisible();
   await page.getByLabel('Game name or session ID', { exact: true }).fill('missing kingdom');
   await page.getByRole('button', { name: 'Resume by name or ID', exact: true }).click();

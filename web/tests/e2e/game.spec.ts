@@ -18,7 +18,7 @@ test('renders the Three.js world and reconnects to the same Go match', async ({ 
   await page.getByRole('button', { name: 'Pause match', exact: true }).click();
   await expect(page.locator('#paused')).toBeVisible();
   await page.screenshot({ path: info.outputPath('battlefield-paused.png') });
-  const read = page.waitForResponse(r => r.request().method() === 'GET' && new URL(r.url()).pathname === `/api/v1/matches/${session.match_id}`);
+  const read = page.waitForResponse(r => r.request().method() === 'GET' && new URL(r.url()).pathname === `/api/v1/games/${session.match_id}/snapshot`);
   await page.reload();
   expect((await read).status()).toBe(200);
   await expect(page.locator('#start-dialog')).toBeHidden();

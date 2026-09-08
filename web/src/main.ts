@@ -8,6 +8,7 @@ FORM: The user's pinned Age of Empires reference governs the composition.
 */
 import './style.css';
 import { APIError, GameAPI } from './api';
+import { MultiplayerUI } from './multiplayer';
 import { WorldRenderer } from './world';
 import { EventLog } from './journal';
 import { ownerColor } from './models';
@@ -44,14 +45,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <dialog id="start-dialog"><nav class="lobby-tabs" aria-label="Campaign setup"><button type="button" id="new-game-tab" aria-pressed="true">New game</button><button type="button" id="saved-games-tab" aria-pressed="false">Saved games</button></nav><form id="start-form">
     <div class="creation-heading"><div class="dialog-brand">${crown}<span>AI of Empires</span></div><h2>Make your mark on history.</h2><p>Choose a kingdom and the world it will call home.</p></div>
     <div class="creation-columns">
-      <fieldset><legend>Your kingdom</legend><label class="game-name-label">Game name<input id="game-name" maxlength="80" placeholder="Name this campaign (optional)" autocomplete="off"></label><label>Your civilization<select id="civilization" name="civilization"></select></label><p id="civilization-bonus" class="bonus"></p><div class="form-row"><label>Difficulty<select id="difficulty" aria-describedby="difficulty-description"></select></label><label>Opening<select id="game-mode"><option value="skirmish">Standard economy</option><option value="sandbox">Abundant resources</option></select></label></div><p id="difficulty-description" class="bonus" aria-live="polite"></p><label>Settlements<select id="settlements" aria-describedby="settlements-hint"></select></label><p id="settlements-hint" class="bonus">Includes your kingdom. Each starts with 3 villagers and a scout.</p></fieldset>
+      <fieldset><legend>Your kingdom</legend><label class="game-name-label">Game name<input id="game-name" maxlength="80" placeholder="Name this campaign (optional)" autocomplete="off"></label><label>Your kingdom name<input id="player-name" maxlength="40" placeholder="Your name or kingdom (optional)" autocomplete="nickname"></label><label>Your civilization<select id="civilization" name="civilization"></select></label><p id="civilization-bonus" class="bonus"></p><div class="form-row"><label>Difficulty<select id="difficulty" aria-describedby="difficulty-description"></select></label><label>Opening<select id="game-mode"><option value="skirmish">Standard economy</option><option value="sandbox">Abundant resources</option></select></label></div><p id="difficulty-description" class="bonus" aria-live="polite"></p><label>Settlements<select id="settlements" aria-describedby="settlements-hint"></select></label><p id="settlements-hint" class="bonus">Includes your kingdom. Each starts with 3 villagers and a scout.</p><label>Friend seats<select id="friend-seats"></select></label><p class="bonus">Reserve human seats for friends. The remaining kingdoms use AI.</p></fieldset>
       <fieldset class="world-settings"><legend>Your world</legend><label>World type<select id="world-type" aria-describedby="world-description"></select></label><p id="world-description" class="bonus" aria-live="polite"></p><label>Biome<select id="world-biome" aria-describedby="biome-description"></select></label><p id="biome-description" class="bonus" aria-live="polite"></p><label>World size<select id="world-size" aria-describedby="size-description"></select></label><p id="size-description" class="bonus" aria-live="polite"></p><p class="world-note">Every settlement receives the same starting supplies. Biomes change the scenery; terrain shapes the journey.</p></fieldset>
     </div>
     <details class="advanced-world"><summary>Advanced world options <span>Resources, distance, visibility, peace &amp; seed</span></summary><div class="advanced-grid"><div><label>Natural resources<select id="world-resources" aria-describedby="resources-description"></select></label><span id="resources-description" class="field-hint"></span></div><div><label>Starting separation<select id="world-separation" aria-describedby="separation-description"></select></label><span id="separation-description" class="field-hint"></span></div><div><label>Map reveal<select id="world-reveal" aria-describedby="reveal-description"></select></label><span id="reveal-description" class="field-hint"></span></div><div><label>Initial peace period<select id="world-treaty" aria-describedby="treaty-description"></select></label><span id="treaty-description" class="field-hint">Game minutes. Blocks attacks and conversions for every kingdom.</span></div><div><label>Map seed<input id="seed" type="number" value="4817" min="1" max="999999999" required></label><span class="field-hint">The same seed and settings recreate the same world.</span></div></div></details>
     <p class="form-error" id="start-error" role="alert"></p><button id="start" class="primary" type="submit">Begin your reign <span>→</span></button><small>Mouse &amp; trackpad controls · Autosaves every 10 seconds</small>
-  </form><section id="saved-games-panel" hidden><h2>Return to your kingdom.</h2><p>Resume by game name or session ID. Games rest here until you return.</p><form id="resume-form"><label>Game name or session ID<input id="session-search" type="search" maxlength="200" autocomplete="off" placeholder="Find a saved game"></label><button id="resume-game" class="secondary" type="submit">Resume by name or ID</button></form><p id="sessions-error" class="form-error" role="alert"></p><p id="sessions-status" role="status"></p><div id="saved-games-list"></div></section></dialog>
+  </form><section id="saved-games-panel" hidden><h2>Return to your kingdom.</h2><p>Your private game library. Find a game by name or ID; use your rejoin code when changing browsers.</p><form id="resume-form"><label>Game name or session ID<input id="session-search" type="search" maxlength="200" autocomplete="off" placeholder="Find a saved game"></label><button id="resume-game" class="secondary" type="submit">Resume by name or ID</button></form><p id="sessions-error" class="form-error" role="alert"></p><p id="sessions-status" role="status"></p><div id="saved-games-list"></div></section></dialog>
   <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="Close controls">×</button><div class="eyebrow">FIELD MANUAL</div><h2>Command your kingdom</h2><dl><dt>Click / Shift-drag</dt><dd>Click to select a unit. Shift-click adds or removes a unit; Shift-drag selects a group, replacing your previous selection.</dd><dt>Pan the world</dt><dd>Click to select. Hold the left mouse button briefly, then move to pan. Shift-drag selects a group.</dd><dt>Rotate the perspective</dt><dd>Hold both the left and right mouse buttons. Move left or right to rotate, and up or down to tilt. Release either button to stop. On a trackpad, use Shift + arrow keys to rotate and tilt. Reset view (R) restores the starting angle and zoom.</dd><dt>Give order / Q</dt><dd>Select your units, choose Give order (or press Q), then click a resource, enemy, building, or destination. With a building selected, click the ground to set its rally point.</dd><dt>Quick orders</dt><dd>Option/Alt-click, Mac Control-click, or right-click gives the same order directly. Two-finger secondary click works too, if enabled on your trackpad.</dd><dt>Build</dt><dd>Select villagers, open Build, choose a building, then click its site.</dd><dt>Fishing</dt><dd>Build a Dock on an explored shore and train a Fishing Ship. Select the ship, choose Fish, then click a fish shoal. Catches become Food when delivered to a Dock. Shoals are finite and disappear when depleted.</dd><dt>Market exchanges</dt><dd>In Feudal Age, build a Market and open its Trade tab to buy or sell food, wood, or stone for gold. Each button shows the price and what you receive. Train a Trade Cart and choose Trade route to trade with an explored neutral Market on connected land.</dd><dt>Reseed farm</dt><dd>Select a depleted Farm and choose Reseed farm. For 60 wood, an assigned farmer or the nearest idle villager rebuilds it and resumes farming. Assigned farmers also reseed automatically while wood is available.</dd><dt>Shift + order</dt><dd>Queue the order after the current task. Keep Shift held to place several orders.</dd><dt>Cmd/Ctrl + 1–9</dt><dd>Save a control group. Press its number to recall it.</dd><dt>H / . / A / S</dt><dd>Find your Town Center, select idle villagers, attack move, or stop.</dd><dt>Pan view / P</dt><dd>Turn on Pan view, then click and drag the battlefield. Click it again or press Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also move the camera.</dd><dt>Zoom / pause</dt><dd>Scroll or pinch to zoom around the ground under your cursor. The + / − buttons zoom around the center of the view. Space pauses the match.</dd><dt>Cancel / Escape</dt><dd>Leave any targeting mode. Right-click also cancels building placement.</dd><dt>Military stances</dt><dd>Return fire is the default: units respond to actual attacks on themselves or nearby friends, with limited pursuit. Hold position returns fire without pursuit. Hold fire disables automatic attacks. Aggressive and Attack move can start conflicts with passing kingdoms.</dd><dt>Kingdom relationships</dt><dd>Open the kingdom panel above the world to see who is at peace with you and whether they favor building, defense, or expansion.</dd><dt>Remove units</dt><dd>Choose Delete, then Confirm removal. Delete or the Mac Delete/Backspace key also confirms.</dd></dl><p>Villagers carry resources to a drop-off. Houses raise population capacity. Two distinct buildings from your current age unlock the next age at your Town Center.</p><button class="primary" data-close="help-dialog">Return to the realm</button></dialog>
-  <dialog id="menu-dialog"><button class="dialog-close" data-close="menu-dialog" aria-label="Close menu">×</button><div class="eyebrow">YOUR CAMPAIGN</div><h2>A moment to plan</h2><p>Autosaved every 10 seconds. Save and leave to stop the clock and return to this campaign later.</p><p id="session-name" class="session-name"></p><p id="session-world" class="bonus"></p><label>Session ID<input id="session-id" readonly></label><p id="save-status" class="bonus" role="status"></p><p id="save-error" class="form-error" role="alert"></p><button id="save-game" class="secondary">Save now</button><label>Game speed<select id="game-speed"></select></label><button id="menu-pause" class="primary">Pause / resume</button><button id="new-match" class="secondary">Start a new match</button><button id="saved-matches" class="secondary">Save and leave</button><button id="resign" class="text-button danger">Resign this battle</button></dialog>
+  <dialog id="menu-dialog"><button class="dialog-close" data-close="menu-dialog" aria-label="Close menu">×</button><div class="eyebrow">YOUR CAMPAIGN</div><h2>A moment to plan</h2><p>Autosaved every 10 seconds. Leaving reserves your kingdom; the shared clock follows the game’s pause policy.</p><p id="session-name" class="session-name"></p><p id="session-world" class="bonus"></p><label>Session ID<input id="session-id" readonly></label><p id="save-status" class="bonus" role="status"></p><p id="save-error" class="form-error" role="alert"></p><button id="save-game" class="secondary">Save now</button><label>Game speed<select id="game-speed"></select></label><button id="menu-pause" class="primary">Pause / resume</button><button id="new-match" class="secondary">Start a new match</button><button id="saved-matches" class="secondary">Leave game</button><button id="resign" class="text-button danger">Resign this battle</button></dialog>
   <dialog id="result-dialog"><div class="dialog-brand">${crown}</div><div class="eyebrow">THE CHRONICLE IS WRITTEN</div><h2 id="result-title">Victory</h2><p id="result-copy"></p><button id="play-again" class="primary">Begin another chapter →</button></dialog>
 `;
 
@@ -65,6 +66,8 @@ const journal = new EventLog(api, el('event-tray'), 'tray', locateEvent);
 const entityHistory = new EventLog(api, el('entity-history-panel'), 'panel');
 let historyTarget: number | undefined;
 let world: WorldRenderer;
+let loadedGameID = '';
+const multiplayer = new MultiplayerUI(api, enterWorld, () => resetMatch(true), showNotice);
 // Input modes only describe the next gesture; Go owns every gameplay lifecycle.
 type InputMode = { kind: 'order' | 'pan' } | { kind: 'target'; action: Action } | { kind: 'delete'; entityIds: number[] };
 let catalog: Catalog, snapshot: Snapshot | null = null, selection: number[] = [], tab = 'orders', actionSignature = '', queueSignature = '', activeMode: InputMode | null = null;
@@ -90,7 +93,7 @@ function canOrder() {
 }
 async function send(command: Omit<Command, 'id'>) {
   if (!connectionReady) { showNotice('Waiting for the server connection.'); return false; }
-  try { await api.command(command); return true; } catch (error) { showNotice(error instanceof Error ? error.message : 'The order could not be completed.'); return false; }
+  try { if (api.session?.membership_id && (command.kind === 'pause' || command.kind === 'speed')) { await api.control(command.kind === 'pause' ? snapshot?.paused ? 'resume' : 'pause' : 'speed', command.kind === 'speed' ? {value:command.value} : {}); } else await api.command(command); return true; } catch (error) { showNotice(error instanceof Error ? error.message : 'The order could not be completed.'); return false; }
 }
 function startTargeting(action: Action) {
   setMode({ kind: 'target', action }, `${action.label}: click ${action.kind === 'build' ? 'a building site' : 'a target'} · Esc to cancel`); world.canvas.focus();
@@ -203,6 +206,7 @@ function minimap() {
 }
 function receive(next: Snapshot) {
   snapshot = next; world.update(next);
+  if(api.room && next.control_revision!==undefined && next.control_revision>=api.room.revision){api.room.revision=next.control_revision;api.room.match_status=next.status;}
   const tooltip = document.getElementById('building-tooltip');
   if (tooltip && !tooltip.hidden) {
     const entity = next.entities.find(e => e.id === Number(tooltip.dataset.entity));
@@ -219,6 +223,11 @@ function receive(next: Snapshot) {
   el('speed').title = `Game speed: ${next.speed}×. Click to cycle up to ${catalog.speeds.at(-1)}×; choose any speed in the match menu.`;
   text('idle-count', String(next.player.idle)); text('unit-count', `${next.player.workers} settlers · ${next.player.military} military`); text('civilization-label', catalog.civilizations.find(c => c.id === next.player.civilization)?.name || 'Your kingdom');
   el('paused').hidden = !next.paused; el('pause').setAttribute('aria-label', next.paused ? 'Resume match' : 'Pause match'); text('pause', next.paused ? '▶' : 'Ⅱ');
+  const owner = !api.session?.membership_id || !!api.session.owner;
+  el<HTMLButtonElement>('pause').disabled = next.paused && !owner; el<HTMLButtonElement>('resume').disabled = !owner;
+  el<HTMLButtonElement>('speed').disabled = !owner; el<HTMLSelectElement>('game-speed').disabled = !owner;
+  el<HTMLButtonElement>('menu-pause').disabled = next.paused && !owner;
+  text('resume', owner ? 'Resume battle' : 'Waiting for the owner to resume');
   const standing = next.opponents.filter(o => !o.defeated), conflicts = standing.filter(o => o.relation === 'hostile').length;
   text('rival-name', next.opponents.length === 1 ? next.opponents[0].name : next.opponents.length ? `${next.opponents.length} other kingdoms` : 'Solo settlement');
   text('rival-status', next.opponents.length === 1 ? `${standing.length ? conflicts ? 'In conflict' : 'At peace' : 'Defeated'} · ${next.opponents[0].temperament}` : next.opponents.length ? `${standing.length - conflicts} at peace · ${conflicts} in conflict` : 'Build at your own pace');
@@ -235,6 +244,7 @@ function receive(next: Snapshot) {
 function connection(state: string) {
   connectionReady = state === 'connected'; el('connection').hidden = connectionReady;
   if (!connectionReady) text('connection', state === 'expired' ? 'This session is no longer connected. Open Saved games from the menu to resume.' : 'Reconnecting to your kingdom…');
+  if(state==='expired'&&api.session?.membership_id)void multiplayer.show();
   refreshSelection();
 }
 
@@ -436,11 +446,12 @@ async function resetMatch(saved = false) {
   try { await api.close(); }
   catch (error) {
     if (error instanceof APIError && [401, 404].includes(error.status)) api.forget();
-    else { api.subscribe(receive, connection); const message = error instanceof Error ? error.message : 'Save failed. Try again before leaving.'; text('save-error', message); showNotice(message); return; }
+    else { if(snapshot)api.subscribe(receive, connection); const message = error instanceof Error ? error.message : 'Save failed. Try again before leaving.'; text('save-error', message); const roomError=document.getElementById('room-error');if(roomError)roomError.textContent=message;showNotice(message);return; }
   }
+  multiplayer.hide();
   journal.reset(); entityHistory.reset(); historyTarget = undefined;
   document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close());
-  selection = []; groups.clear(); world.resetWorld(); resultShown = false; connectionReady = false; snapshot = null; cancelMode(); setTab('orders');
+  selection = []; groups.clear(); world.resetWorld(); resultShown = false; connectionReady = false; snapshot = null; loadedGameID = ''; cancelMode(); setTab('orders');
   setLobbyTab(saved); el<HTMLDialogElement>('start-dialog').showModal();
 }
 document.querySelectorAll<HTMLButtonElement>('[data-close]').forEach(b => b.onclick = () => el<HTMLDialogElement>(b.dataset.close!).close());
@@ -475,11 +486,13 @@ async function loadSession() {
   el<HTMLButtonElement>('startup-retry').disabled = true;
   try {
     catalog = await api.catalog();
-    initializeWorldSetup(catalog.worlds);
+    initializeWorldSetup(catalog.worlds); multiplayer.configure(catalog);
     el<HTMLSelectElement>('game-speed').replaceChildren(...catalog.speeds.map(speed => new Option(`${speed}×`, String(speed))));
     journal.setFilters(catalog.log_filters);
     el<HTMLSelectElement>('settlements').replaceChildren(...catalog.settlement_counts.map(n => new Option(n === 1 ? '1 · Solo' : `${n} · You + ${n - 1} other${n === 2 ? '' : 's'}`, String(n))));
     el<HTMLSelectElement>('settlements').value = '2';
+    const friends = () => { const f=el<HTMLSelectElement>('friend-seats'),previous=f.value;f.replaceChildren(...Array.from({length:Number(el<HTMLSelectElement>('settlements').value)},(_,i)=>new Option(i===0?'None · play with AI':`${i} friend${i===1?'':'s'}`,String(i))));f.value=Number(previous)<f.options.length?previous:'0';if(!f.value)f.value='0'; };
+    el('settlements').onchange=friends; friends();
     const difficulty = el<HTMLSelectElement>('difficulty');
     difficulty.replaceChildren(...catalog.difficulties.map(option => new Option(option.name, option.id)));
     difficulty.value = 'normal';
@@ -489,8 +502,9 @@ async function loadSession() {
     el<HTMLSelectElement>('civilization').innerHTML = catalog.civilizations.map(c => `<option value="${escape(c.id)}">${escape(c.name)} · ${escape(c.description)}</option>`).join('');
     const updateBonus = () => text('civilization-bonus', catalog.civilizations.find(c => c.id === el<HTMLSelectElement>('civilization').value)?.bonus ?? '');
     el('civilization').onchange = updateBonus; updateBonus();
+    if (await multiplayer.handleLocation()) return;
     if (api.restore()) {
-      try { receive(await api.snapshot()); api.subscribe(receive, connection); home(); void refreshSaveStatus(); return; }
+      try { await api.adoptLegacy(); await multiplayer.continueSession(); return; }
       catch (error) { if (error instanceof APIError && [401, 404].includes(error.status)) api.forget(); else throw error; }
     }
     el<HTMLDialogElement>('start-dialog').showModal();
@@ -507,8 +521,8 @@ el<HTMLInputElement>('seed').addEventListener('input', () => text('start-error',
 el<HTMLFormElement>('start-form').onsubmit = async e => {
   e.preventDefault(); el<HTMLButtonElement>('start').disabled = true; text('start-error', '');
   try {
-    await api.create({ civilization: el<HTMLSelectElement>('civilization').value, difficulty: el<HTMLSelectElement>('difficulty').value, mode: el<HTMLSelectElement>('game-mode').value, seed: Number(el<HTMLInputElement>('seed').value) || 4817, name: el<HTMLInputElement>('game-name').value, settlements: Number(el<HTMLSelectElement>('settlements').value), world: readWorldOptions() });
-    receive(await api.snapshot()); api.subscribe(receive, connection); home(); void refreshSaveStatus(); el<HTMLDialogElement>('start-dialog').close();
+    await api.create({ civilization: el<HTMLSelectElement>('civilization').value, difficulty: el<HTMLSelectElement>('difficulty').value, mode: el<HTMLSelectElement>('game-mode').value, seed: Number(el<HTMLInputElement>('seed').value) || 4817, name: el<HTMLInputElement>('game-name').value, settlements: Number(el<HTMLSelectElement>('settlements').value), world: readWorldOptions() }, Number(el<HTMLSelectElement>('friend-seats').value), el<HTMLInputElement>('player-name').value);
+    await multiplayer.show();
   } catch (error) { text('start-error', error instanceof Error ? error.message : 'Could not start the match.'); }
   finally { el<HTMLButtonElement>('start').disabled = false; }
 };
@@ -524,6 +538,7 @@ async function refreshSaveStatus() {
   catch { if (api.session?.match_id === id) text('save-status', 'Save status unavailable. Reconnect, then try Save now.'); }
 }
 function setLobbyTab(saved: boolean) {
+  multiplayer.hide();
   el('start-form').hidden = saved; el('saved-games-panel').hidden = !saved;
   el('new-game-tab').setAttribute('aria-pressed', String(!saved)); el('saved-games-tab').setAttribute('aria-pressed', String(saved));
   if (saved) { void loadSavedGames(); el<HTMLInputElement>('session-search').focus(); }
@@ -538,7 +553,9 @@ async function loadSavedGames() {
       const copy = document.createElement('div'), name = document.createElement('strong'), details = document.createElement('span');
       name.textContent = game.name; details.textContent = `${worldDescription(catalog.worlds, game.world)} · ${time(game.time)} played · ${game.settlements} settlements · ${catalog.difficulties.find(d => d.id === game.difficulty)?.name ?? game.difficulty} · Saved ${new Date(game.saved_at).toLocaleString()}`;
       copy.append(name, details); const button = document.createElement('button'); button.textContent = 'Resume'; button.setAttribute('aria-label', `Resume ${game.name}`); button.disabled = resuming;
-      button.onclick = () => void resumeGame(game.match_id); row.append(copy, button); return row;
+      button.onclick = () => void resumeGame(game.match_id);
+      const manage=document.createElement('button');manage.textContent='Manage';manage.setAttribute('aria-label',`Manage ${game.name}`);manage.onclick=()=>void multiplayer.show(game.match_id);
+      const controls=document.createElement('div');controls.className='saved-game-actions';controls.append(button,manage);row.append(copy,controls);return row;
     }));
     text('sessions-status', result.games.length ? `${result.games.length} saved game${result.games.length === 1 ? '' : 's'}${result.games.length === 100 ? ' shown — narrow your search for more' : ''}` : el<HTMLInputElement>('session-search').value ? 'No games match this search. Try another name or session ID.' : 'No saved games yet. Begin a new campaign to create one.');
   } catch (error) { if (version === listVersion) { text('sessions-status', ''); text('sessions-error', error instanceof Error ? error.message : 'Could not load saved games. Try again.'); } }
@@ -547,9 +564,7 @@ async function resumeGame(identifier: string) {
   if (resuming) return; resuming = true; text('sessions-error', ''); text('sessions-status', 'Resuming your kingdom…');
   el<HTMLButtonElement>('resume-game').disabled = true; el('saved-games-list').querySelectorAll('button').forEach(b => b.disabled = true);
   try {
-    await api.resume(identifier); world.resetWorld(); journal.reset(); entityHistory.reset();
-    receive(await api.snapshot()); api.subscribe(receive, connection); home(); void refreshSaveStatus();
-    el<HTMLDialogElement>('start-dialog').close();
+    await api.resume(identifier); await multiplayer.continueSession();
   } catch (error) { text('sessions-status', ''); text('sessions-error', error instanceof Error ? error.message : 'Could not resume. Try again.'); }
   finally { resuming = false; el<HTMLButtonElement>('resume-game').disabled = false; el('saved-games-list').querySelectorAll('button').forEach(b => b.disabled = false); }
 }
@@ -566,4 +581,11 @@ window.addEventListener('pageshow', event => {
   journal.reset(); entityHistory.reset(); world.resetWorld(); selection = []; groups.clear(); snapshot = null; resultShown = false; connectionReady = false; historyTarget = undefined; cancelMode();
   void loadSession();
 });
+async function enterWorld() {
+  const changed=loadedGameID!==api.session?.match_id;
+  if(changed){world.resetWorld();journal.reset();entityHistory.reset();selection=[];groups.clear();resultShown=false;historyTarget=undefined;}
+  await api.ensureConnection(); receive(await api.snapshot()); api.subscribe(receive,connection);
+  if(changed)home(); loadedGameID=api.session!.match_id;
+  void refreshSaveStatus();el<HTMLDialogElement>('start-dialog').close();
+}
 void boot();

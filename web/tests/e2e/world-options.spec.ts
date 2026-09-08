@@ -41,7 +41,7 @@ for (const [type, name, biome] of [
     if (type === 'protected') expect(before.entities.filter(e => e.owner === 1 && e.type === 'gate')).toHaveLength(4);
     await page.getByRole('button', { name: 'Match menu', exact: true }).click();
     await expect(page.locator('#session-world')).toContainText(name);
-    await page.getByRole('button', { name: 'Save and leave', exact: true }).click();
+    await page.getByRole('button', { name: 'Leave game', exact: true }).click();
     await expect(page.locator('#saved-games-list')).toContainText(name);
     await page.getByRole('button', { name: `Resume ${seat.name}`, exact: true }).click();
     await expect(page.locator('#start-dialog')).toBeHidden();

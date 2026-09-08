@@ -13,7 +13,7 @@ import (
 // WireModels is the single source for OpenAPI schemas and browser DTO types.
 // Simulation aggregates and state-machine instances must never be registered.
 func WireModels() []reflect.Type {
-	return []reflect.Type{reflect.TypeFor[game.Config](), reflect.TypeFor[game.Command](), reflect.TypeFor[game.Snapshot](), reflect.TypeFor[game.EventPage](), reflect.TypeFor[game.Catalog](), reflect.TypeFor[matches.Session](), reflect.TypeFor[matches.SavedGames](), reflect.TypeFor[matches.ResumeRequest](), reflect.TypeFor[matches.Receipt](), reflect.TypeFor[matches.Placement](), reflect.TypeFor[matches.PlacementResult](), reflect.TypeFor[ErrorBody](), reflect.TypeFor[Health]()}
+	return []reflect.Type{reflect.TypeFor[game.Config](), reflect.TypeFor[game.Command](), reflect.TypeFor[game.Snapshot](), reflect.TypeFor[game.EventPage](), reflect.TypeFor[game.Catalog](), reflect.TypeFor[matches.Session](), reflect.TypeFor[matches.SavedGames](), reflect.TypeFor[matches.ResumeRequest](), reflect.TypeFor[matches.Receipt](), reflect.TypeFor[matches.Placement](), reflect.TypeFor[matches.PlacementResult](), reflect.TypeFor[ErrorBody](), reflect.TypeFor[Health](), reflect.TypeFor[matches.CreateGame](), reflect.TypeFor[matches.MemberSession](), reflect.TypeFor[matches.GameLibrary](), reflect.TypeFor[matches.GameControl](), reflect.TypeFor[matches.SeatChange](), reflect.TypeFor[matches.ReadyRequest](), reflect.TypeFor[matches.RulesChange](), reflect.TypeFor[matches.InviteRequest](), reflect.TypeFor[matches.InviteSecret](), reflect.TypeFor[matches.ClaimInvite](), reflect.TypeFor[matches.RejoinRequest](), reflect.TypeFor[matches.Invitation](), reflect.TypeFor[matches.ConnectionInfo](), reflect.TypeFor[matches.AuditPage](), reflect.TypeFor[matches.TransferRequest](), reflect.TypeFor[matches.TransferInfo](), reflect.TypeFor[matches.ArchivePassword](), reflect.TypeFor[matches.ImportResult](), reflect.TypeFor[matches.CompleteTransfer]()}
 }
 func schemaTypes() map[string]reflect.Type {
 	types := map[string]reflect.Type{}
@@ -112,12 +112,55 @@ func OpenAPI() map[string]any {
 		}
 		paths[path].(map[string]any)[method] = operation
 	}
+
+	add("post", "/games", "Create a saved private lobby and owner membership", "CreateGame", "MemberSession", 201, false)
+	add("get", "/games", "List only games bound to this browser's memberships", "", "GameLibrary", 200, false)
+	add("get", "/games/{id}", "Read the lobby, roster, controls and save status", "", "GameInfo", 200, true)
+	add("get", "/games/{id}/session", "Recover this browser's bound member session", "", "MemberSession", 200, true)
+	add("get", "/games/{id}/snapshot", "Read this member's authorized world view", "", "Snapshot", 200, true)
+	add("patch", "/games/{id}/rules", "Update lobby settings and clear readiness", "RulesChange", "GameInfo", 200, true)
+	add("post", "/games/{id}/seats", "Add a human or AI seat in the lobby", "SeatChange", "GameInfo", 200, true)
+	add("patch", "/games/{id}/seats/{seat}", "Configure a lobby seat", "SeatChange", "GameInfo", 200, true)
+	add("put", "/games/{id}/seats/{seat}/ready", "Set your readiness for the current roster", "ReadyRequest", "GameInfo", 200, true)
+	add("post", "/games/{id}/seats/{seat}/invites", "Issue a private, single-use seat invitation", "InviteRequest", "Invitation", 200, true)
+	add("delete", "/games/{id}/invites/{invite}", "Revoke a pending invitation", "GameControl", "GameInfo", 200, true)
+	add("post", "/invites/inspect", "Preview an invitation without claiming it", "InviteSecret", "Invitation", 200, false)
+	add("post", "/invites/claim", "Atomically claim a human seat", "ClaimInvite", "MemberSession", 200, false)
+	add("post", "/memberships/rejoin", "Recover a membership with its private rejoin code", "RejoinRequest", "MemberSession", 200, false)
+	for _, action := range []string{"start", "pause", "resume", "speed", "close", "reopen", "cancel-close", "cancel-transfer"} {
+		add("post", "/games/{id}/"+action, "Explicit shared game control: "+action, "GameControl", "GameInfo", 200, true)
+	}
+	add("post", "/games/{id}/save", "Commit a checkpoint, journal and receipts", "", "GameInfo", 200, true)
+	add("delete", "/games/{id}", "Owner-confirmed permanent deletion with an autosave fence", "GameControl", "", 204, true)
+	add("post", "/games/{id}/commands", "Submit an intention as your authenticated player", "Command", "Receipt", 200, true)
+	add("post", "/games/{id}/placement", "Validate placement as your authenticated player", "Placement", "PlacementResult", 200, true)
+	add("get", "/games/{id}/events", "Stream your fog-filtered world; requires a live connection", "", "Snapshot", 200, true)
+	add("get", "/games/{id}/log", "Read the journal visible to your kingdom", "", "EventPage", 200, true)
+	add("get", "/games/{id}/entities/{entity}/history", "Read an entity's observable history", "", "EventPage", 200, true)
+	add("get", "/games/{id}/audit", "Read shared session lifecycle events after an audit ID", "", "AuditPage", 200, true)
+	add("post", "/games/{id}/connections", "Open a browser connection without resuming play", "", "ConnectionInfo", 201, true)
+	for _, action := range []string{"heartbeat", "leave"} {
+		add("post", "/games/{id}/connections/{connection}/"+action, "Update this member's browser connection: "+action, "", "", 204, true)
+	}
+	add("post", "/games/{id}/transfers", "Freeze and save a game-scoped portable archive", "TransferRequest", "TransferInfo", 200, true)
+	add("post", "/games/{id}/transfers/complete", "Retire the source using a destination completion receipt", "CompleteTransfer", "GameInfo", 200, true)
+	for _, method := range []string{"get", "post"} {
+		input := ""
+		if method == "post" {
+			input = "ArchivePassword"
+		}
+		add(method, "/games/{id}/transfers/{transfer}/archive", "Download a saved archive; POST supports passphrase protection", input, "", 200, true)
+		paths["/games/{id}/transfers/{transfer}/archive"].(map[string]any)[method].(map[string]any)["responses"].(map[string]any)["200"] = map[string]any{"description": "Portable .aoegame archive", "content": map[string]any{"application/octet-stream": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}
+	}
+	add("post", "/game-imports", "Import a move or copy after proving archive ownership", "", "ImportResult", 201, false)
+	paths["/game-imports"].(map[string]any)["post"].(map[string]any)["requestBody"] = map[string]any{"required": true, "content": map[string]any{"multipart/form-data": map[string]any{"schema": map[string]any{"type": "object", "required": []string{"archive", "rejoin_code"}, "properties": map[string]any{"archive": map[string]any{"type": "string", "format": "binary"}, "passphrase": map[string]any{"type": "string", "maxLength": 256}, "rejoin_code": map[string]any{"type": "string"}, "copy": map[string]any{"type": "boolean"}, "name": map[string]any{"type": "string", "maxLength": 80}}}}}}
 	add("get", "/health", "Check server health", "", "Health", 200, false)
 	add("get", "/catalog", "Read display metadata and ruleset catalog", "", "Catalog", 200, false)
+	add("post", "/matches/{id}/adopt", "Upgrade an existing game using its original bearer token", "", "MemberSession", 200, true)
 	add("post", "/matches", "Create a single-player match against server AI", "Config", "Session", 201, false)
-	add("get", "/sessions", "List up to 100 local saved games, newest save first", "", "SavedGames", 200, false)
+	add("get", "/sessions", "Retired: use the authenticated /games library", "", "SavedGames", 200, false)
 	paths["/sessions"].(map[string]any)["get"].(map[string]any)["parameters"] = []any{map[string]any{"name": "q", "in": "query", "description": "Case-insensitive substring of a game name or session ID", "schema": map[string]any{"type": "string", "maxLength": 200}}}
-	add("post", "/sessions/resume", "Resume a local game by exact name or ID; rotates its bearer token", "ResumeRequest", "Session", 200, false)
+	add("post", "/sessions/resume", "Retired: use a private membership rejoin code", "ResumeRequest", "Session", 200, false)
 	add("get", "/matches/{id}/session", "Read game name and last successful autosave", "", "SavedGame", 200, true)
 	add("post", "/matches/{id}/save", "Atomically checkpoint the simulation, receipts and history", "", "SavedGame", 200, true)
 	add("post", "/matches/{id}/leave", "Checkpoint and unload a session until it is resumed", "", "SavedGame", 200, true)
@@ -156,7 +199,48 @@ func OpenAPI() map[string]any {
 	}
 	op := paths["/matches/{id}/events"].(map[string]any)["get"].(map[string]any)
 	op["responses"].(map[string]any)["200"] = map[string]any{"description": "SSE event `snapshot`, id = simulation tick; JSON data conforms to Snapshot. Bearer auth through fetch streaming.", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
-	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "AI of Empires API", "version": "1.0.0", "description": "Go-authoritative RTS. Commands are intent; snapshots are authorized presentation state."}, "servers": []any{map[string]any{"url": "/api/v1"}}, "paths": paths, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"matchToken": map[string]any{"type": "http", "scheme": "bearer"}}}}
+
+	for path, raw := range paths {
+		if !strings.HasPrefix(path, "/games") {
+			continue
+		}
+		for method, operation := range raw.(map[string]any) {
+			op := operation.(map[string]any)
+			if _, ok := op["security"]; ok || (path == "/games" && method == "get") {
+				op["security"] = []any{map[string]any{"matchToken": []string{}}, map[string]any{"browserMembership": []string{}}}
+			}
+			parameters, _ := op["parameters"].([]any)
+			if path == "/games/{id}/log" || strings.HasSuffix(path, "/history") {
+				for _, raw := range paths["/matches/{id}/log"].(map[string]any)["get"].(map[string]any)["parameters"].([]any) {
+					p := raw.(map[string]any)
+					if p["in"] == "query" {
+						parameters = append(parameters, p)
+					}
+				}
+			}
+			if path == "/games/{id}/audit" {
+				parameters = append(parameters, map[string]any{"name": "after", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 0}})
+			}
+			if path == "/games" && method == "get" {
+				parameters = append(parameters, map[string]any{"name": "q", "in": "query", "schema": map[string]any{"type": "string", "maxLength": 200}})
+			}
+			for _, name := range []string{"seat", "invite", "connection", "transfer", "entity"} {
+				if strings.Contains(path, "{"+name+"}") {
+					parameters = append(parameters, map[string]any{"name": name, "in": "path", "required": true, "schema": map[string]any{"type": "string"}})
+				}
+			}
+			if path == "/games/{id}/events" {
+				parameters = append(parameters, map[string]any{"name": "connection", "in": "query", "required": true, "schema": map[string]any{"type": "string"}})
+				op["responses"].(map[string]any)["200"] = map[string]any{"description": "SSE snapshot frames; fresh authenticated state on reconnect", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
+			}
+			if len(parameters) > 0 {
+				op["parameters"] = parameters
+			} else {
+				delete(op, "parameters")
+			}
+		}
+	}
+	return map[string]any{"openapi": "3.1.0", "info": map[string]any{"title": "AI of Empires API", "version": "1.0.0", "description": "Go-authoritative RTS. Commands are intent; snapshots are authorized presentation state."}, "servers": []any{map[string]any{"url": "/api/v1"}}, "paths": paths, "components": map[string]any{"schemas": schemas, "securitySchemes": map[string]any{"browserMembership": map[string]any{"type": "apiKey", "in": "cookie", "name": "aoe_browser"}, "matchToken": map[string]any{"type": "http", "scheme": "bearer"}}}}
 }
 func tsType(t reflect.Type) string {
 	switch t.Kind() {

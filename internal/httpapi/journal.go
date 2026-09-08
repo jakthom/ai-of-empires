@@ -3,15 +3,27 @@ package httpapi
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"unicode/utf8"
 
 	"crowns/internal/game"
 )
 
 func (s *Server) journal(w http.ResponseWriter, r *http.Request) {
-	m := s.authorize(w, r)
-	if m == nil {
-		return
+	var readLog func(game.LogQuery) (game.EventPage, error)
+	if strings.HasPrefix(r.URL.Path, "/api/v1/games/") {
+		a := s.gameAccess(w, r)
+		if a == nil {
+			return
+		}
+		defer a.Release()
+		readLog = a.Log
+	} else {
+		m := s.authorize(w, r)
+		if m == nil {
+			return
+		}
+		readLog = m.Log
 	}
 	query := game.LogQuery{Limit: 100}
 	values := r.URL.Query()
@@ -73,7 +85,7 @@ func (s *Server) journal(w http.ResponseWriter, r *http.Request) {
 		}
 		query.EntityID = id
 	}
-	page, err := m.Log(query)
+	page, err := readLog(query)
 	if err != nil {
 		domainError(w, err)
 		return

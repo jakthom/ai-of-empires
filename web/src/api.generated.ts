@@ -12,6 +12,24 @@ export interface Action {
   reason?: string;
 }
 
+export interface ArchivePassword {
+  passphrase: string;
+}
+
+export interface AuditEvent {
+  audience: string;
+  actor_name: string;
+  id: number;
+  at: string;
+  actor: string;
+  action: string;
+  message: string;
+}
+
+export interface AuditPage {
+  events: AuditEvent[];
+}
+
 export interface Catalog {
   rules_version: string;
   definitions: Definition[];
@@ -32,6 +50,12 @@ export interface Civilization {
   bonus: string;
 }
 
+export interface ClaimInvite {
+  id: string;
+  secret: string;
+  name: string;
+}
+
 export interface Command {
   id: string;
   kind: string;
@@ -44,6 +68,12 @@ export interface Command {
   value?: number;
 }
 
+export interface CompleteTransfer {
+  id: string;
+  revision: number;
+  receipt: string;
+}
+
 export interface Config {
   name?: string;
   settlements?: number;
@@ -52,6 +82,17 @@ export interface Config {
   difficulty: string;
   mode: string;
   world?: WorldOptions;
+}
+
+export interface ConnectionInfo {
+  id: string;
+  epoch: string;
+}
+
+export interface CreateGame {
+  config: Config;
+  friends: number;
+  player_name: string;
 }
 
 export interface Definition {
@@ -151,6 +192,37 @@ export interface EventPage {
   entity?: HistoryEntity;
 }
 
+export interface GameControl {
+  id: string;
+  revision: number;
+  value?: number;
+  confirm?: boolean;
+}
+
+export interface GameInfo {
+  game_id: string;
+  name: string;
+  config: Config;
+  status: string;
+  match_status: string;
+  runtime: string;
+  epoch: string;
+  revision: number;
+  seats: SeatView[];
+  owner: boolean;
+  player_id: number;
+  time: number;
+  saved_at: string;
+  save_error?: string;
+  can_start: boolean;
+  start_reason: string;
+  transfer_id?: string;
+}
+
+export interface GameLibrary {
+  games: GameInfo[];
+}
+
 export interface Health {
   status: string;
   rules_version: string;
@@ -164,6 +236,32 @@ export interface HistoryEntity {
   present: boolean;
 }
 
+export interface ImportResult {
+  session: MemberSession;
+  completion_receipt?: string;
+  already_imported: boolean;
+}
+
+export interface Invitation {
+  id: string;
+  game_id: string;
+  game_name: string;
+  seat_id: string;
+  name: string;
+  expires_at: string;
+  secret?: string;
+}
+
+export interface InviteRequest {
+  id: string;
+  revision: number;
+  replace: boolean;
+}
+
+export interface InviteSecret {
+  secret: string;
+}
+
 export interface LogFilter {
   id: string;
   name: string;
@@ -175,6 +273,17 @@ export interface MapView {
   biome: string;
   tiles: Tile[];
   fog: number[];
+}
+
+export interface MemberSession {
+  match_id: string;
+  token: string;
+  player_id: number;
+  name: string;
+  membership_id: string;
+  rejoin_code?: string;
+  epoch: string;
+  owner: boolean;
 }
 
 export interface OpponentView {
@@ -221,10 +330,20 @@ export interface ProjectileView {
   kind: string;
 }
 
+export interface ReadyRequest {
+  id: string;
+  revision: number;
+  ready: boolean;
+}
+
 export interface Receipt {
   command_id: string;
   tick: number;
   accepted: boolean;
+}
+
+export interface RejoinRequest {
+  code: string;
 }
 
 export interface Resources {
@@ -241,6 +360,12 @@ export interface ResumeRequest {
 export interface RuleError {
   code: string;
   message: string;
+}
+
+export interface RulesChange {
+  id: string;
+  revision: number;
+  config: Config;
 }
 
 export interface SavedGame {
@@ -261,6 +386,30 @@ export interface SavedGames {
   games: SavedGame[];
 }
 
+export interface SeatChange {
+  id: string;
+  revision: number;
+  name: string;
+  civilization: string;
+  controller: string;
+}
+
+export interface SeatView {
+  id: string;
+  player_id: number;
+  membership_id?: string;
+  name: string;
+  civilization: string;
+  controller: string;
+  status: string;
+  ready: boolean;
+  connected: boolean;
+  owner: boolean;
+  yours: boolean;
+  invite_id?: string;
+  invite_expires_at?: string;
+}
+
 export interface Session {
   match_id: string;
   token: string;
@@ -269,6 +418,7 @@ export interface Session {
 }
 
 export interface Snapshot {
+  control_revision?: number;
   version: string;
   difficulty: Difficulty;
   settlements: number;
@@ -312,6 +462,20 @@ export interface Technology {
 export interface Tile {
   terrain: string;
   elevation: number;
+}
+
+export interface TransferInfo {
+  id: string;
+  game_id: string;
+  kind: string;
+  status: string;
+  download_path: string;
+}
+
+export interface TransferRequest {
+  id: string;
+  revision: number;
+  kind: string;
 }
 
 export interface Vec {

@@ -43,7 +43,7 @@ For frontend development, keep the Go server running and run `npm --prefix web r
 
 ## Play
 
-Choose a civilization, optional game name, and **1–6 settlements including yours**. One settlement is solo play; additional settlements are competing AI kingdoms. Each starts with one Town Center, three villagers, and one scout. Choose world size independently of settlement count. Sandbox begins with extra resources; peaceful difficulty disables the opponents' AI.
+Choose a civilization, optional game name, and **1–6 settlements including yours**. One settlement is solo play. Choose how many additional seats to reserve for friends; the rest use AI. Creation opens a saved private lobby. The owner can start immediately, even with unclaimed friend seats or players who have not marked Ready. Ready is an optional coordination signal. Unclaimed human kingdoms start on the map without AI and stay available for friends to join later; issuing or accepting their first invitation does not pause play. Each starts with one Town Center, three villagers, and one scout. Choose world size independently of settlement count. Sandbox begins with extra resources; peaceful difficulty disables the opponents' AI.
 
 World creation separates kingdom settings from geography, with advanced options for resources, distance, visibility, peace, and seed.
 
@@ -100,22 +100,43 @@ Military units and armed buildings default to **Return fire**. Idle defenders re
 
 ## Saved games
 
-Games autosave every **10 seconds**, on **Save now**, on **Save and leave**, and during a graceful server shutdown. Open the match menu to see the game name, session ID, and last successful save. Starting another match saves the previous one. The **Saved games** tab searches names and IDs; use a Resume button or enter the exact name or ID. Names are unique without regard to case, with an 80-character limit.
+Games autosave every **10 seconds**, on **Save now**, before **Leave game**, and during graceful shutdown. The **Saved games** tab lists only memberships bound to this browser. Search by name or session ID, then choose Resume or Manage. Names can repeat; each game has a permanent ID.
 
-Reloading or reopening the same browser restores its last session. Closing the page requests a final checkpoint; if the browser cannot send it, the server checkpoints and unloads the game after 30 seconds without requests. Use **Save and leave** to stop the clock immediately. A hidden tab still plays; use Pause for a break. Offline time is never simulated. Restarting the server resumes running games from their checkpoint when the browser reconnects; paused games stay paused. An abrupt process failure can lose progress since the last autosave.
+In the lobby, use **Invite player** to create a link for one friend seat. The friend explicitly joins; previews do not consume invitations. Links expire after 24 hours and can be revoked. Each player gets a private **rejoin code**. Save your own code from **Players & game management → Your private rejoin code** to recover the same kingdom in another browser or on another host. A game name or ID alone grants no access. Browser credentials and recovery/invite secrets are stored as hashes on the server.
 
-Version-4 checkpoints also preserve world options, generated terrain, initial peace and transport-expedition lifecycles. Versions 1–3 remain readable without regenerating their maps. Checkpoints include orders, movement, cargo, production, research, combat, fog, random state, every state-machine owner, kingdom preferences and relationships, recent attacks, AI objectives and timers, immutable history, and command receipts. SQLite commits them together. Version-1 and version-2 checkpoints migrate to peaceful relationships and return-fire defaults; old AI attack orders are recalled for reassessment, while resources, entities, queues, and history remain intact. While the server is running, failed saves keep the active game in memory, report the failure in the menu, and retry. The session library is local to this server: anyone with access to it can list and resume its games. Resuming by name or ID issues a new bearer token and disconnects older connections to that game. Keep the default loopback address for personal use.
+Any player can pause. Only the owner can start, resume, change speed, close, move or delete. Closing a tab leaves its seat owned. A player who joins and then disconnects pauses the game after a **15-second grace period**; silent crashes are first detected by a 12-second heartbeat timeout. Multiple tabs count as one connected player. Empty seats do not trigger a pause; pressing Start also acknowledges any claimed players who are currently absent. When everyone leaves, Go pauses, checkpoints and unloads the game. Rejoining never resumes automatically. The owner can explicitly continue while someone is absent; human kingdoms never become AI automatically.
+
+Open **Players & game management** from the match menu, or **Manage** beside a saved game. **Close game for everyone** freezes and saves it; **Reopen game** restores unfinished play paused. **Delete game** requires explicit confirmation and removes this host's saves, memberships, invitations and history. Exported archives and external backups remain outside that deletion. A failed close keeps the world frozen and offers Retry or Cancel.
+
+Server restart restores unfinished games **paused**, with no offline time. Checkpoints preserve orders, queues, cargo, physics, fog, RNG, AI, relationships, world options, all gameplay lifecycles, immutable journals, memberships, and command receipts. Version-1 through version-4 world checkpoints remain readable. The original browser's saved token automatically upgrades an older local game to a private owner membership without changing its world. Unauthenticated name-based recovery is retired.
 
 **Ctrl+C or SIGTERM** starts graceful shutdown. The server freezes game mutations, rejects new requests, and closes live snapshot streams. HTTP requests get **5 seconds** to drain before remaining connections are closed. Final checkpoints use a separate **15-second I/O budget**, retry transient SQLite lock contention, and finish before SQLite closes. A request authorized before shutdown cannot change a game after its final save. Repeated signals do not interrupt that save. Shutdown logs the result and exits with status **1** if draining or saving fails; a failed checkpoint leaves the previous committed save intact. Forced termination (`kill -9`) or power loss can still lose progress since the last successful checkpoint.
 
 To back up games, stop the server gracefully and copy the database, or use SQLite's online backup facility. Do not copy a live WAL database without its associated state. The SQLite format is versioned; unsupported checkpoints fail explicitly rather than starting a replacement game.
+
+## Move a game or play on a LAN
+
+1. Open **Players & game management → Move or copy this game**. Optionally enter an archive passphrase (8–256 characters). Choose **Move game**, then **Freeze and download**. The source stays frozen.
+2. On the destination server, open **Saved games → Import a game archive**. Select the `.aoegame` file, enter its passphrase if protected, and prove ownership with the owner's private rejoin code.
+3. The destination keeps the original game, kingdom and membership IDs and opens paused. Share its address; friends use their own rejoin codes. The owner explicitly resumes.
+4. Copy the destination's completion receipt back to the original host to retire it, or leave the original frozen during an offline handoff.
+
+**Copy as new game** creates an independent archive import with a new game ID and fresh player access. Archives contain private world data and histories; protected exports use AES-256-GCM with a PBKDF2-derived key. Imports are limited to 64 MB (128 MB expanded). Reimporting the same move on one host is idempotent. A deleted game's archive can only return as an explicit new copy. Offline copies cannot be globally fenced without a coordinator; cancel a move only after ensuring the destination is not running it.
+
+For a LAN, start the same executable on a reachable interface:
+
+```sh
+./bin/ai-of-empires -addr 0.0.0.0:9090 -db data/ai-of-empires.sqlite
+```
+
+Friends open `http://<your-computer-address>:9090`. No external login provider is required. For public hosting, serve the application through HTTPS. This host currently allows visitors to create private games and import archives they own; operator quotas, accounts and public matchmaking are future work. Changing hostnames or LAN IPs requires a new link and authentication on that origin.
 
 ## Architecture
 
 | Boundary | Ownership |
 |---|---|
 | `internal/game` | Fixed 50 ms simulation steps, rules, AI, state machines, player read models |
-| `internal/matches` | Serialized match access, clocks, bearer tokens, idempotent commands, SQLite checkpoints and session unloading |
+| `internal/matches` | Player memberships, lobbies, invitations, clocks, shared controls, scoped receipts, SQLite checkpoints and portable archives |
 | `internal/httpapi` | Strict JSON transport, authentication, REST commands, SSE snapshots, static serving |
 | `web/src` | Three.js geometry, camera, snapshot interpolation, selection, HUD, input |
 
@@ -123,15 +144,15 @@ All gameplay lifecycles use [`open-ships/statemachine`](https://github.com/open-
 
 The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI](api/openapi.json) and [TypeScript wire types](web/src/api.generated.ts) are generated from Go DTOs with `go run ./cmd/contracts`. Internal aggregates never become client authority. Action labels, costs, exchange gains, availability, and refusal reasons come from the backend.
 
-The [multiplayer and portable-game design](docs/MULTIPLAYER.md) diagrams friend seats, invitations, shared pause, close/delete, and moving a saved game between hosted and LAN servers. This is a proposal; human multiplayer is not implemented yet.
+The [multiplayer lifecycle and API guide](docs/MULTIPLAYER.md) diagrams the implemented friend seats, invitations, shared controls, and portable games.
 
 ## Implemented scope
 
 The `frontier-1` ruleset includes eight seeded world layouts, four visual biomes, three world sizes, initial peace periods, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
 
-This is an initial playable ruleset. Its values and civilization availability are **not verified Age of Empires parity**. [GAME_SPEC.md](GAME_SPEC.md) remains the larger product target: full civilization trees, campaigns, scenario editing, human multiplayer and matchmaking, replays, audio, formations, complete reference rules, and large-army performance certification remain future work.
+This is an initial playable ruleset. Its values and civilization availability are **not verified Age of Empires parity**. [GAME_SPEC.md](GAME_SPEC.md) remains the larger product target: full civilization trees, campaigns, scenario editing, public matchmaking, replay playback, audio, formations, complete reference rules, and large-army performance certification remain future work.
 
-Up to 16 sessions can be active at once; unloaded saved games remain in SQLite. Browser-only offline simulation is excluded by the Go authority requirement. Current deterministic checks cover checkpoint continuation and repeat runs of this Go implementation; cross-platform replay equivalence is not established, and simulation quantities currently use `float64`. Pre-persistence builds cannot export their in-memory games into the new checkpoint format.
+Up to 16 games can be loaded at once, with up to six human/AI kingdoms each; unloaded saved games remain in SQLite. Browser-only offline simulation is excluded by the Go authority requirement. Current deterministic checks cover checkpoint continuation and repeat runs of this Go implementation; cross-platform replay equivalence is not established, and simulation quantities currently use `float64`. Pre-persistence builds cannot export their in-memory games into the new checkpoint format.
 
 Slowdown fixes include respecting failed-route retry timers, spatially indexing path obstacles, caching the static catalog when projecting snapshots, reusing rings and projectile meshes, batching farm crops, and animating only moving model parts. Browser history pages remain bounded; complete immutable journals intentionally accumulate in the backend and database. See [performance measurements](docs/PERFORMANCE.md).
 
@@ -151,4 +172,4 @@ make test-e2e         # run browser tests against a fresh Go server
 make test-chrome      # run the same tests in installed Google Chrome
 ```
 
-Tests exercise actual WebGL rendering, match startup/reload, saved-game search/resume, settlement count, building hover, browser memory retention, production/refunds, primary-click gathering and rallying, Mac and mouse order gestures, camera controls, building placement, keyboard controls, compact layouts, startup recovery, and match reset. They retain screenshots, videos, and traces on failure. See [browser testing and agent setup](docs/BROWSER_TESTING.md) for interactive Chrome tools and reports.
+Tests exercise independent multiplayer browsers, starting with empty friend seats, late joins, private recovery, encrypted moves to a second Go process, server restart, failed-save recovery, actual WebGL rendering, match startup/reload, saved-game search/resume, settlement count, building hover, browser memory retention, production/refunds, primary-click gathering and rallying, Mac and mouse order gestures, camera controls, building placement, keyboard controls, compact layouts, startup recovery, and match reset. They retain screenshots, videos, and traces on failure. See [browser testing and agent setup](docs/BROWSER_TESTING.md) for interactive Chrome tools and reports.
