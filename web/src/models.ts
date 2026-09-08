@@ -1,0 +1,176 @@
+import * as THREE from 'three';
+import type { EntityView } from './api.generated';
+
+const materials = new Map<string, THREE.MeshStandardMaterial>();
+function material(color: string) {
+  let m = materials.get(color);
+  if (!m) { m = new THREE.MeshStandardMaterial({ color, roughness: .92, flatShading: true }); materials.set(color, m); }
+  return m;
+}
+const cube = new THREE.BoxGeometry(1, 1, 1);
+const cylinder = new THREE.CylinderGeometry(1, 1, 1, 8);
+const cone = new THREE.ConeGeometry(1, 1, 4);
+const pine = new THREE.ConeGeometry(1, 1, 7);
+const stone = new THREE.DodecahedronGeometry(1, 0);
+const orb = new THREE.SphereGeometry(1, 7, 5);
+const palette = { limestone: '#d6cfb4', shade: '#acaa95', roof: '#9e5843', wood: '#6e4f36', dark: '#384436', ground: '#a49870', metal: '#9ba2a0' };
+export function ownerColor(owner: number) { return ['#b29b6f', '#6198c7', '#ba6756', '#bc9bd3', '#d5b459', '#65b4a1', '#df9470'][owner] ?? '#b29b6f'; }
+
+function shape(group: THREE.Group, geometry: THREE.BufferGeometry, color: string, x: number, y: number, z: number, sx = 1, sy = 1, sz = 1) {
+  const mesh = new THREE.Mesh(geometry, material(color));
+  mesh.position.set(x, y, z); mesh.scale.set(sx, sy, sz); mesh.castShadow = true; mesh.receiveShadow = true;
+  group.add(mesh); return mesh;
+}
+function box(g: THREE.Group, color: string, x: number, y: number, z: number, sx: number, sy: number, sz: number) { return shape(g, cube, color, x, y, z, sx, sy, sz); }
+function roof(g: THREE.Group, x: number, y: number, z: number, width: number, height: number, depth: number) {
+  const m = shape(g, cone, palette.roof, x, y, z, width / Math.SQRT2, height, depth / Math.SQRT2); m.rotation.y = Math.PI / 4;
+}
+function flag(g: THREE.Group, owner: number, x: number, y: number, z: number, scale = 1) {
+  box(g, palette.wood, x, y + .8 * scale, z, .05, 1.6 * scale, .05);
+  const f = box(g, ownerColor(owner), x + .28 * scale, y + 1.3 * scale, z, .55 * scale, .35 * scale, .035);
+  f.name = 'flag';
+}
+function building(g: THREE.Group, e: EntityView) {
+  const r = e.radius, type = e.type;
+  if (type === 'farm') {
+    box(g, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
+    const crops = new THREE.InstancedMesh(pine, material('#c6b567'), 63);
+    const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
+    let index = 0;
+    for (let i = -4; i <= 4; i++) for (let j = -3; j <= 3; j++) {
+      matrix.compose(new THREE.Vector3(i * .24, .23, j * .29), rotation, new THREE.Vector3(.06, .35 + ((i + j) % 3) * .025, .06));
+      crops.setMatrixAt(index++, matrix);
+    }
+    crops.castShadow = true; crops.receiveShadow = true; g.add(crops);
+    return;
+  }
+  if (type === 'wall' || type === 'palisade' || type === 'gate') {
+    const wood = type === 'palisade';
+    box(g, wood ? palette.wood : palette.shade, 0, .6, 0, r * 1.8, 1.2, r * 1.3);
+    for (let i = -1; i <= 1; i++) box(g, wood ? palette.wood : palette.limestone, i * r * .6, 1.3, 0, r * .3, .4, r * 1.3);
+    if (type === 'gate') box(g, '#302e24', 0, .45, -.61, .8, .9, .1);
+    return;
+  }
+  box(g, palette.shade, 0, .1, 0, r * 2, .18, r * 2);
+  if (type === 'lumber_camp' || type === 'mining_camp') {
+    for (const x of [-.8, .8]) for (const z of [-.6, .6]) box(g, palette.wood, x, .55, z, .1, 1.1, .1);
+    roof(g, 0, 1.25, 0, 2.2, .65, 1.7);
+    if (type === 'lumber_camp') for (let i = 0; i < 5; i++) {
+      const log = shape(g, cylinder, '#876645', (i % 3) * .3 - .3, .25 + Math.floor(i / 3) * .22, 0, .13, 1.3, .13); log.rotation.x = Math.PI / 2;
+    } else for (let i = 0; i < 4; i++) shape(g, stone, '#aba67f', i * .27 - .4, .3, 0, .25, .3, .22);
+    return;
+  }
+  if (type === 'dock') {
+    for (let i = 0; i < 8; i++) box(g, '#9b815b', i * .4 - 1.4, .18, 0, .37, .1, 3);
+    for (const x of [-1.4, 1.4]) for (const z of [-1.3, 1.3]) shape(g, cylinder, palette.wood, x, .3, z, .09, 1, .09);
+    roof(g, 0, 1.6, .6, 2, .8, 1.6); flag(g, e.owner, 1.3, .4, -1.2); return;
+  }
+  if (type === 'castle' || type === 'tower' || type === 'wonder') {
+    const h = type === 'tower' ? 2.5 : 2.15;
+    box(g, palette.limestone, 0, h / 2, 0, r * 1.5, h, r * 1.5);
+    const corners = type === 'tower' ? [[0, 0]] : [[-r * .7, -r * .7], [-r * .7, r * .7], [r * .7, -r * .7], [r * .7, r * .7]];
+    for (const [x, z] of corners) {
+      box(g, palette.shade, x, h * .58, z, .85, h * 1.16, .85);
+      for (const dx of [-.3, .3]) for (const dz of [-.3, .3]) box(g, palette.limestone, x + dx, h * 1.22, z + dz, .23, .3, .23);
+    }
+    box(g, '#494234', 0, .55, -r * .76, .7, 1.1, .1);
+    flag(g, e.owner, 0, h + .15, 0, 1.2); return;
+  }
+  const height = type === 'town_center' ? 1.45 : type === 'house' ? .8 : 1.1;
+  box(g, palette.limestone, 0, height / 2 + .12, 0, r * 1.65, height, r * 1.55);
+  roof(g, 0, height + .57, 0, r * 1.95, .85, r * 1.85);
+  for (const x of [-r * .77, r * .77]) box(g, palette.wood, x, height / 2, -r * .79, .09, height, .09);
+  box(g, '#494032', 0, .45, -r * .79, .4, .75, .07);
+  for (const x of [-r * .45, r * .45]) {
+    box(g, '#44544d', x, height * .63, -r * .795, .25, .3, .08);
+    box(g, palette.wood, x, height * .63, -r * .82, .035, .3, .08);
+  }
+  if (type === 'town_center') {
+    box(g, palette.limestone, .9, 1.5, .5, 1.25, 3, 1.2);
+    roof(g, .9, 3.2, .5, 1.6, 1, 1.6);
+    for (let i = 0; i < 4; i++) box(g, palette.limestone, 0, .12 + i * .1, -1.8 + i * .2, 1.3, .2, .4);
+    flag(g, e.owner, .9, 3.6, .5);
+    box(g, ownerColor(e.owner), -.6, .98, -1.5, 1.9, .08, .85);
+    for (const x of [-1.45, .2]) box(g, palette.wood, x, .5, -1.8, .07, 1, .07);
+  } else if (type === 'mill') {
+    box(g, palette.shade, .4, 1.3, .2, .75, 2.5, .75);
+    roof(g, .4, 2.8, .2, 1.1, .65, 1.1);
+    const windmill = new THREE.Group(); windmill.name = 'windmill'; windmill.position.set(.4, 2.25, -.35);
+    for (let i = 0; i < 4; i++) {
+      const arm = new THREE.Group(); arm.rotation.z = i * Math.PI / 2;
+      box(arm, '#e4d8ae', .12, .65, 0, .22, 1.05, .035); box(arm, palette.wood, 0, .6, 0, .045, 1.2, .06); windmill.add(arm);
+    }
+    g.add(windmill);
+  } else if (type === 'monastery' || type === 'university') {
+    box(g, palette.limestone, -.8, 1.5, .4, .6, 2.8, .65); roof(g, -.8, 3, .4, .85, .6, .85);
+    box(g, '#b7a060', -.8, 3.55, .4, .045, .45, .045); box(g, '#b7a060', -.8, 3.6, .4, .25, .045, .045);
+  } else if (type === 'blacksmith') {
+    box(g, '#777865', .6, 1.6, .5, .35, 1.8, .4);
+    box(g, '#e19953', .4, .3, -1, .35, .2, .25);
+  } else if (type === 'market') {
+    for (let i = 0; i < 3; i++) {
+      box(g, ['#a86b4d', '#c8b96d', '#608278'][i], i - 1, .85, -1.5, .85, .08, .8);
+      box(g, palette.wood, i - 1, .3, -1.5, .75, .5, .6);
+    }
+  } else if (type !== 'house') flag(g, e.owner, -r * .8, 1.1, -r * .6, .65);
+}
+function unit(g: THREE.Group, e: EntityView) {
+  const color = ownerColor(e.owner), type = e.type;
+  if (['galley', 'fishing_ship', 'fire_ship', 'transport'].includes(type)) {
+    box(g, '#71543e', 0, .2, 0, .65, .35, 1.8);
+    const bow = shape(g, cone, '#71543e', 0, .2, -.9, .46, .5, .46); bow.rotation.x = Math.PI / 2;
+    box(g, palette.wood, 0, .9, 0, .04, 1.5, .04);
+    box(g, type === 'fire_ship' ? color : '#d9cfac', .27, 1.1, 0, .55, .8, .025); return;
+  }
+  if (['ram', 'mangonel', 'trebuchet', 'bombard_cannon', 'trade_cart'].includes(type)) {
+    box(g, palette.wood, 0, .35, 0, .8, .35, 1.2);
+    for (const x of [-.45, .45]) for (const z of [-.4, .4]) { const wheel = shape(g, cylinder, '#443c2a', x, .23, z, .23, .12, .23); wheel.rotation.z = Math.PI / 2; }
+    if (type === 'trebuchet') { box(g, palette.wood, 0, 1, 0, .12, 1.3, .12); const arm = box(g, '#9c7c4d', 0, 1.2, 0, .1, .1, 2); arm.rotation.x = e.deployed ? -.6 : 0; }
+    else if (type === 'ram') roof(g, 0, .8, 0, 1, .6, 1.6);
+    else { const arm = box(g, type === 'bombard_cannon' ? '#414b46' : palette.wood, 0, .75, -.2, .2, .2, 1.1); arm.rotation.x = -.3; }
+    flag(g, e.owner, .4, .5, .4, .35); return;
+  }
+  const mounted = ['scout', 'knight', 'camel', 'cavalry_archer', 'cataphract', 'war_elephant', 'mameluke', 'mangudai'].includes(type);
+  const baseY = mounted ? .55 : 0;
+  if (mounted) {
+    box(g, type === 'war_elephant' ? '#888b7c' : '#735a45', 0, .48, 0, .36, .42, .73);
+    box(g, '#846c51', 0, .72, -.37, .25, .38, .24);
+    for (const x of [-.13, .13]) for (const z of [-.23, .23]) box(g, '#554737', x, .18, z, .07, .35, .08);
+  }
+  if (type === 'monk') shape(g, pine, '#d6cfb4', 0, .32, 0, .27, .65, .27);
+  else box(g, color, 0, .38 + baseY, 0, .29, .36, .21);
+  shape(g, orb, '#cfb391', 0, .68 + baseY, 0, .135, .14, .13);
+  if (!['villager', 'monk'].includes(type)) shape(g, orb, palette.metal, 0, .77 + baseY, 0, .15, .08, .15);
+  for (const x of [-.09, .09]) { const leg = box(g, '#514b38', x, .14 + baseY, 0, .085, .26, .1); leg.name = 'leg'; }
+  const tool = box(g, ['villager', 'monk'].includes(type) ? '#846945' : palette.metal, .24, .46 + baseY, 0, .035, type === 'spearman' ? 1.1 : .6, .045);
+  tool.rotation.z = -.2; tool.name = 'tool';
+  if (e.relic) shape(g, orb, '#e0bf63', -.23, .5, 0, .12, .17, .12);
+}
+
+export function makeModel(e: EntityView) {
+  const g = new THREE.Group(); g.userData.entityId = e.id;
+  if (e.kind === 'building') building(g, e);
+  else if (e.kind === 'unit') unit(g, e);
+  else if (e.type === 'tree') {
+    const variation = 1 + (e.id % 7) * .045;
+    shape(g, cylinder, palette.wood, 0, .6, 0, .11, 1.2, .11);
+    for (let i = 0; i < 3; i++) shape(g, pine, ['#41533a', '#516342', '#607448'][(e.id + i) % 3], 0, 1 + i * .5, 0, (.83 - i * .19) * variation, 1.3 * variation, (.83 - i * .19) * variation);
+  } else if (e.type === 'gold' || e.type === 'stone') {
+    for (let i = 0; i < 3; i++) shape(g, stone, e.type === 'gold' ? ['#a49b67', '#c8b77d', '#dec37c'][i] : ['#a4a797', '#b7b8a7', '#92978a'][i], i * .35 - .35, .27 + (i % 2) * .14, (i % 2) * .3, .45, .43 + i * .08, .4);
+  } else if (e.type === 'berries') {
+    shape(g, orb, '#68794c', 0, .35, 0, .55, .45, .5);
+    for (let i = 0; i < 5; i++) shape(g, orb, '#985556', Math.cos(i * 2) * .35, .55, Math.sin(i * 2) * .35, .06, .06, .06);
+  } else if (e.type === 'sheep') {
+    shape(g, orb, '#e5dfc8', 0, .25, 0, .25, .22, .37); shape(g, orb, '#6c6353', 0, .28, -.3, .12, .13, .14);
+    for (const x of [-.12, .12]) for (const z of [-.17, .17]) box(g, '#6c6353', x, .07, z, .04, .16, .05);
+  } else if (e.type === 'relic') {
+    shape(g, cylinder, '#c2a154', 0, .2, 0, .15, .4, .15); shape(g, stone, '#ecd18d', 0, .55, 0, .2, .27, .2);
+  } else if (e.type === 'fish') {
+    shape(g, orb, '#a7bfad', 0, -.06, 0, .3, .025, .1);
+  }
+  if (!e.visible) g.traverse(o => { if (o instanceof THREE.Mesh) { const m = (o.material as THREE.MeshStandardMaterial).clone(); m.color.multiplyScalar(.4); o.material = m; o.userData.privateMaterial = true; } });
+  if (e.progress < 1) {
+    for (const x of [-e.radius, e.radius]) for (const z of [-e.radius, e.radius]) box(g, '#a8905b', x, 1, z, .07, 2, .07);
+  }
+  return g;
+}

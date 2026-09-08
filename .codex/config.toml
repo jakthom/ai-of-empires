@@ -1,0 +1,6 @@
+# Project-scoped, lockfile-pinned browser tools. Open Codex at the repo root.
+[mcp_servers.playwright]
+command = "npm"
+args = ["--silent", "--prefix", "web", "run", "browser:mcp"]
+startup_timeout_sec = 30
+tool_timeout_sec = 60

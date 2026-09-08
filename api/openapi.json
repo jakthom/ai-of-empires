@@ -1,0 +1,1892 @@
+{
+  "components": {
+    "schemas": {
+      "Action": {
+        "additionalProperties": false,
+        "properties": {
+          "cost": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "description": {
+            "type": "string"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "label",
+          "description",
+          "cost",
+          "duration",
+          "enabled"
+        ],
+        "type": "object"
+      },
+      "Catalog": {
+        "additionalProperties": false,
+        "properties": {
+          "ages": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "civilizations": {
+            "items": {
+              "$ref": "#/components/schemas/Civilization"
+            },
+            "type": "array"
+          },
+          "definitions": {
+            "items": {
+              "$ref": "#/components/schemas/Definition"
+            },
+            "type": "array"
+          },
+          "difficulties": {
+            "items": {
+              "$ref": "#/components/schemas/Difficulty"
+            },
+            "type": "array"
+          },
+          "log_filters": {
+            "items": {
+              "$ref": "#/components/schemas/LogFilter"
+            },
+            "type": "array"
+          },
+          "rules_version": {
+            "type": "string"
+          },
+          "settlement_counts": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "speeds": {
+            "items": {
+              "type": "number"
+            },
+            "type": "array"
+          },
+          "technologies": {
+            "items": {
+              "$ref": "#/components/schemas/Technology"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "rules_version",
+          "definitions",
+          "technologies",
+          "civilizations",
+          "ages",
+          "speeds",
+          "difficulties",
+          "log_filters",
+          "settlement_counts"
+        ],
+        "type": "object"
+      },
+      "Civilization": {
+        "additionalProperties": false,
+        "properties": {
+          "bonus": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "bonus"
+        ],
+        "type": "object"
+      },
+      "Command": {
+        "additionalProperties": false,
+        "properties": {
+          "entity_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "product": {
+            "type": "string"
+          },
+          "queue": {
+            "type": "boolean"
+          },
+          "target_id": {
+            "type": "integer"
+          },
+          "target_player": {
+            "type": "integer"
+          },
+          "value": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Config": {
+        "additionalProperties": false,
+        "properties": {
+          "civilization": {
+            "type": "string"
+          },
+          "difficulty": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "integer"
+          },
+          "settlements": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "seed",
+          "civilization",
+          "difficulty",
+          "mode"
+        ],
+        "type": "object"
+      },
+      "Definition": {
+        "additionalProperties": false,
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "armor": {
+            "type": "number"
+          },
+          "attack": {
+            "type": "number"
+          },
+          "class": {
+            "type": "string"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "description": {
+            "type": "string"
+          },
+          "drop_off": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "housing": {
+            "type": "integer"
+          },
+          "hp": {
+            "type": "number"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "min_range": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "naval": {
+            "type": "boolean"
+          },
+          "pierce_armor": {
+            "type": "number"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "prerequisite": {
+            "type": "string"
+          },
+          "producer": {
+            "type": "string"
+          },
+          "projectile": {
+            "type": "boolean"
+          },
+          "radius": {
+            "type": "number"
+          },
+          "range": {
+            "type": "number"
+          },
+          "reload": {
+            "type": "number"
+          },
+          "sight": {
+            "type": "number"
+          },
+          "speed": {
+            "type": "number"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "kind",
+          "description",
+          "cost",
+          "age",
+          "time",
+          "hp",
+          "radius",
+          "speed",
+          "attack",
+          "armor",
+          "pierce_armor",
+          "range",
+          "min_range",
+          "reload",
+          "sight",
+          "population",
+          "housing",
+          "naval",
+          "projectile"
+        ],
+        "type": "object"
+      },
+      "Difficulty": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
+      "EntityView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "type": "array"
+          },
+          "activity": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "cargo": {
+            "type": "number"
+          },
+          "cargo_type": {
+            "type": "string"
+          },
+          "container": {
+            "type": "integer"
+          },
+          "deployed": {
+            "type": "boolean"
+          },
+          "faith": {
+            "type": "number"
+          },
+          "hp": {
+            "type": "number"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "max_hp": {
+            "type": "number"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "integer"
+          },
+          "passengers": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "progress": {
+            "type": "number"
+          },
+          "radius": {
+            "type": "number"
+          },
+          "rally": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "relic": {
+            "type": "boolean"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "stance": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "tasks": {
+            "items": {
+              "$ref": "#/components/schemas/Task"
+            },
+            "type": "array"
+          },
+          "type": {
+            "type": "string"
+          },
+          "visible": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "kind",
+          "name",
+          "owner",
+          "position",
+          "hp",
+          "max_hp",
+          "radius",
+          "progress",
+          "state",
+          "activity",
+          "visible",
+          "actions",
+          "tasks",
+          "deployed",
+          "passengers",
+          "relic"
+        ],
+        "type": "object"
+      },
+      "ErrorBody": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/RuleError"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "type": "object"
+      },
+      "Event": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "command_id": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "integer"
+          },
+          "entity_name": {
+            "type": "string"
+          },
+          "entity_type": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "lifecycle": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "previous_state": {
+            "type": "string"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "state": {
+            "type": "string"
+          },
+          "target_id": {
+            "type": "integer"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "tick",
+          "time",
+          "message",
+          "kind",
+          "position"
+        ],
+        "type": "object"
+      },
+      "EventPage": {
+        "additionalProperties": false,
+        "properties": {
+          "entity": {
+            "$ref": "#/components/schemas/HistoryEntity"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          },
+          "has_newer": {
+            "type": "boolean"
+          },
+          "has_older": {
+            "type": "boolean"
+          },
+          "latest_cursor": {
+            "type": "integer"
+          },
+          "newer_cursor": {
+            "type": "integer"
+          },
+          "older_cursor": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "events",
+          "older_cursor",
+          "newer_cursor",
+          "latest_cursor",
+          "has_older",
+          "has_newer"
+        ],
+        "type": "object"
+      },
+      "Health": {
+        "additionalProperties": false,
+        "properties": {
+          "rules_version": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "rules_version"
+        ],
+        "type": "object"
+      },
+      "HistoryEntity": {
+        "additionalProperties": false,
+        "properties": {
+          "activity": {
+            "type": "string"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "present": {
+            "type": "boolean"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "type",
+          "activity",
+          "present"
+        ],
+        "type": "object"
+      },
+      "LogFilter": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "MapView": {
+        "additionalProperties": false,
+        "properties": {
+          "fog": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "tiles": {
+            "items": {
+              "$ref": "#/components/schemas/Tile"
+            },
+            "type": "array"
+          },
+          "width": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "width",
+          "height",
+          "tiles",
+          "fog"
+        ],
+        "type": "object"
+      },
+      "OpponentView": {
+        "additionalProperties": false,
+        "properties": {
+          "civilization": {
+            "type": "string"
+          },
+          "defeated": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "relation": {
+            "type": "string"
+          },
+          "temperament": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "civilization",
+          "defeated",
+          "relation",
+          "temperament"
+        ],
+        "type": "object"
+      },
+      "Placement": {
+        "additionalProperties": false,
+        "properties": {
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "product": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product",
+          "position"
+        ],
+        "type": "object"
+      },
+      "PlacementResult": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "type": "string"
+          },
+          "valid": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "valid"
+        ],
+        "type": "object"
+      },
+      "PlayerView": {
+        "additionalProperties": false,
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "age_name": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "integer"
+          },
+          "civilization": {
+            "type": "string"
+          },
+          "defeated": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "idle": {
+            "type": "integer"
+          },
+          "kills": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "military": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "resources": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "technologies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "workers": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "civilization",
+          "resources",
+          "age",
+          "age_name",
+          "population",
+          "capacity",
+          "limit",
+          "idle",
+          "workers",
+          "military",
+          "technologies",
+          "defeated",
+          "kills"
+        ],
+        "type": "object"
+      },
+      "ProjectileView": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "integer"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "position",
+          "kind"
+        ],
+        "type": "object"
+      },
+      "Receipt": {
+        "additionalProperties": false,
+        "properties": {
+          "accepted": {
+            "type": "boolean"
+          },
+          "command_id": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "command_id",
+          "tick",
+          "accepted"
+        ],
+        "type": "object"
+      },
+      "Resources": {
+        "additionalProperties": false,
+        "properties": {
+          "food": {
+            "type": "number"
+          },
+          "gold": {
+            "type": "number"
+          },
+          "stone": {
+            "type": "number"
+          },
+          "wood": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "food",
+          "wood",
+          "gold",
+          "stone"
+        ],
+        "type": "object"
+      },
+      "ResumeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "identifier": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "identifier"
+        ],
+        "type": "object"
+      },
+      "RuleError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "type": "object"
+      },
+      "SavedGame": {
+        "additionalProperties": false,
+        "properties": {
+          "active": {
+            "type": "boolean"
+          },
+          "autosave_seconds": {
+            "type": "integer"
+          },
+          "difficulty": {
+            "type": "string"
+          },
+          "match_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "save_error": {
+            "type": "string"
+          },
+          "saved_at": {
+            "type": "string"
+          },
+          "settlements": {
+            "type": "integer"
+          },
+          "status": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "match_id",
+          "name",
+          "saved_at",
+          "time",
+          "difficulty",
+          "settlements",
+          "status",
+          "active",
+          "autosave_seconds"
+        ],
+        "type": "object"
+      },
+      "SavedGames": {
+        "additionalProperties": false,
+        "properties": {
+          "games": {
+            "items": {
+              "$ref": "#/components/schemas/SavedGame"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "games"
+        ],
+        "type": "object"
+      },
+      "Session": {
+        "additionalProperties": false,
+        "properties": {
+          "match_id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "match_id",
+          "token",
+          "player_id",
+          "name"
+        ],
+        "type": "object"
+      },
+      "Snapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "build_options": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "type": "array"
+          },
+          "difficulty": {
+            "$ref": "#/components/schemas/Difficulty"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/EntityView"
+            },
+            "type": "array"
+          },
+          "event_cursor": {
+            "type": "integer"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          },
+          "map": {
+            "$ref": "#/components/schemas/MapView"
+          },
+          "opponents": {
+            "items": {
+              "$ref": "#/components/schemas/OpponentView"
+            },
+            "type": "array"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "player": {
+            "$ref": "#/components/schemas/PlayerView"
+          },
+          "projectiles": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectileView"
+            },
+            "type": "array"
+          },
+          "settlements": {
+            "type": "integer"
+          },
+          "speed": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "time": {
+            "type": "number"
+          },
+          "version": {
+            "type": "string"
+          },
+          "winner": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "version",
+          "difficulty",
+          "settlements",
+          "tick",
+          "time",
+          "speed",
+          "paused",
+          "status",
+          "winner",
+          "player",
+          "opponents",
+          "map",
+          "entities",
+          "projectiles",
+          "events",
+          "event_cursor",
+          "build_options"
+        ],
+        "type": "object"
+      },
+      "Task": {
+        "additionalProperties": false,
+        "properties": {
+          "duration": {
+            "type": "number"
+          },
+          "paid": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "product": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "product",
+          "remaining",
+          "duration",
+          "paid"
+        ],
+        "type": "object"
+      },
+      "Technology": {
+        "additionalProperties": false,
+        "properties": {
+          "age": {
+            "type": "integer"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "prerequisite": {
+            "type": "string"
+          },
+          "producer": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "producer",
+          "age",
+          "cost",
+          "time"
+        ],
+        "type": "object"
+      },
+      "Tile": {
+        "additionalProperties": false,
+        "properties": {
+          "elevation": {
+            "type": "number"
+          },
+          "terrain": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "terrain",
+          "elevation"
+        ],
+        "type": "object"
+      },
+      "Vec": {
+        "additionalProperties": false,
+        "properties": {
+          "x": {
+            "type": "number"
+          },
+          "y": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "x",
+          "y"
+        ],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "matchToken": {
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "description": "Go-authoritative RTS. Commands are intent; snapshots are authorized presentation state.",
+    "title": "AI of Empires API",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/catalog": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Catalog"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Read display metadata and ruleset catalog"
+      }
+    },
+    "/health": {
+      "get": {
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Health"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Check server health"
+      }
+    },
+    "/matches": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Config"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Create a single-player match against server AI"
+      }
+    },
+    "/matches/{id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Permanently delete a game and its saved history"
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Read your fog-filtered snapshot"
+      }
+    },
+    "/matches/{id}/commands": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Command"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Receipt"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Submit an idempotent intention; the server validates all rules"
+      }
+    },
+    "/matches/{id}/entities/{entity}/history": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "entity",
+            "required": true,
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Case-insensitive search of all retained authorized events; all words must match. Identity forms Villager 3, #3, or a lone 3 match the exact entity ID. Other numbers search event text.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Combine a catalog event category with search and pagination. Cursors and availability refer to matching events.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "enum": [
+                "",
+                "orders",
+                "activity",
+                "economy",
+                "combat",
+                "production",
+                "world"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Read immutable events visible when they occurred; ascending IDs, newest page by default"
+      }
+    },
+    "/matches/{id}/events": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE event `snapshot`, id = simulation tick; JSON data conforms to Snapshot. Bearer auth through fetch streaming."
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Stream complete fog-filtered snapshots; reconnect replaces state"
+      }
+    },
+    "/matches/{id}/leave": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedGame"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Checkpoint and unload a session until it is resumed"
+      }
+    },
+    "/matches/{id}/log": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "after",
+            "schema": {
+              "minimum": 0,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "before",
+            "schema": {
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "after and before are exclusive cursors and mutually exclusive; after=0 starts at the beginning",
+            "in": "query",
+            "name": "limit",
+            "schema": {
+              "default": 100,
+              "maximum": 200,
+              "minimum": 1,
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Case-insensitive search of all retained authorized events; all words must match. Identity forms Villager 3, #3, or a lone 3 match the exact entity ID. Other numbers search event text.",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Combine a catalog event category with search and pagination. Cursors and availability refer to matching events.",
+            "in": "query",
+            "name": "category",
+            "schema": {
+              "enum": [
+                "",
+                "orders",
+                "activity",
+                "economy",
+                "combat",
+                "production",
+                "world"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventPage"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Read immutable events visible when they occurred; ascending IDs, newest page by default"
+      }
+    },
+    "/matches/{id}/placement": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/Placement"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlacementResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Check a proposed building site on the server"
+      }
+    },
+    "/matches/{id}/save": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedGame"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Atomically checkpoint the simulation, receipts and history"
+      }
+    },
+    "/matches/{id}/session": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedGame"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          }
+        ],
+        "summary": "Read game name and last successful autosave"
+      }
+    },
+    "/sessions": {
+      "get": {
+        "parameters": [
+          {
+            "description": "Case-insensitive substring of a game name or session ID",
+            "in": "query",
+            "name": "q",
+            "schema": {
+              "maxLength": 200,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedGames"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "List up to 100 local saved games, newest save first"
+      }
+    },
+    "/sessions/resume": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Session"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "summary": "Resume a local game by exact name or ID; rotates its bearer token"
+      }
+    }
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ]
+}

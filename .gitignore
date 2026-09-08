@@ -1,0 +1,11 @@
+web/node_modules/
+web/dist/*
+!web/dist/.gitkeep
+bin/
+.DS_Store
+*.log
+coverage.out
+web/test-results/
+web/playwright-report/
+web/.browser-artifacts/
+/data/
