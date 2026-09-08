@@ -179,7 +179,8 @@ test('selects on a single click, then pans on a held second click without rotati
   await game.start();
   const minimap = page.locator('#minimap'), before = await minimap.screenshot();
   const commands = commandsFrom(page);
-  await page.mouse.click(629, 382);
+  const workerPoint = await game.point('villager');
+  await page.mouse.click(workerPoint.x, workerPoint.y);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   expect((await minimap.screenshot()).equals(before)).toBe(true);
   await page.mouse.down({ clickCount: 2 });
@@ -200,10 +201,11 @@ test('ignores click motion before the pan hold delay and highlights the pressed 
   await page.clock.pauseAt(new Date());
   const minimap = page.locator('#minimap'), before = await minimap.screenshot();
   const commands = commandsFrom(page);
-  await page.mouse.move(629, 382);
+  const workerPoint = await game.point('villager');
+  await page.mouse.move(workerPoint.x, workerPoint.y);
   await page.mouse.down();
   await page.clock.runFor(100);
-  await page.mouse.move(644, 392);
+  await page.mouse.move(workerPoint.x + 15, workerPoint.y + 10);
   await page.mouse.up();
   await page.clock.runFor(250);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
@@ -217,7 +219,8 @@ for (const firstPress of ['left', 'right'] as const) {
       await game.start();
       const minimap = page.locator('#minimap'), before = await minimap.screenshot();
       const commands = commandsFrom(page);
-      await page.mouse.move(629, 382);
+      const workerPoint = await game.point('villager');
+  await page.mouse.move(workerPoint.x, workerPoint.y);
       await page.mouse.down({ button: firstPress });
       await page.waitForTimeout(220);
       expect(commands).toEqual([]);
@@ -246,7 +249,7 @@ test('selects with a slightly unsteady click and keeps the camera still', async 
   const f = await field(page), mapBefore = await page.locator('#minimap').screenshot();
   // Visually verified first settler in the fixed opening, with two pixels of
   // trackpad motion between press and release (below the drag threshold).
-  const point = { x: f.x + f.width / 2 - f.height * .14, y: f.y + f.height * .49 };
+  const point = await game.point('villager');
   await drag(page, point, { x: point.x + 2, y: point.y + 1 }, 0);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   await expect(page.locator('#selection-count')).toHaveText('1 selected');

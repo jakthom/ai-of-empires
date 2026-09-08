@@ -23,16 +23,17 @@ const ShutdownSaveTimeout = 15 * time.Second
 var ErrNameExists = errors.New("a game with that name already exists")
 
 type SavedGame struct {
-	MatchID         string  `json:"match_id"`
-	Name            string  `json:"name"`
-	SavedAt         string  `json:"saved_at"`
-	Time            float64 `json:"time"`
-	Difficulty      string  `json:"difficulty"`
-	Settlements     int     `json:"settlements"`
-	Status          string  `json:"status"`
-	Active          bool    `json:"active"`
-	AutosaveSeconds int     `json:"autosave_seconds"`
-	SaveError       string  `json:"save_error,omitempty"`
+	World           game.WorldOptions `json:"world"`
+	MatchID         string            `json:"match_id"`
+	Name            string            `json:"name"`
+	SavedAt         string            `json:"saved_at"`
+	Time            float64           `json:"time"`
+	Difficulty      string            `json:"difficulty"`
+	Settlements     int               `json:"settlements"`
+	Status          string            `json:"status"`
+	Active          bool              `json:"active"`
+	AutosaveSeconds int               `json:"autosave_seconds"`
+	SaveError       string            `json:"save_error,omitempty"`
 }
 type SavedGames struct {
 	Games []SavedGame `json:"games"`
@@ -103,7 +104,7 @@ func OpenService(path string) (*Service, error) {
 }
 
 func (m *Match) info() SavedGame {
-	return SavedGame{MatchID: m.id, Name: m.world.Config.Name, SavedAt: m.savedAt, Time: m.world.Time, Difficulty: m.world.Config.Difficulty, Settlements: m.world.Config.Settlements, Status: m.world.Status(), Active: m.lifecycle.State() == leaseOpen, AutosaveSeconds: int(AutosaveInterval / time.Second), SaveError: m.saveError}
+	return SavedGame{World: m.world.WorldOptions(), MatchID: m.id, Name: m.world.Config.Name, SavedAt: m.savedAt, Time: m.world.Time, Difficulty: m.world.Config.Difficulty, Settlements: m.world.Config.Settlements, Status: m.world.Status(), Active: m.lifecycle.State() == leaseOpen, AutosaveSeconds: int(AutosaveInterval / time.Second), SaveError: m.saveError}
 }
 func (m *Match) Info() SavedGame { m.mu.Lock(); defer m.mu.Unlock(); return m.info() }
 

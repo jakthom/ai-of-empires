@@ -41,10 +41,12 @@ test('streams actions into a tray that resizes and collapses to one line', async
 test('shows backend activity and a worker history that survives removal and reload', async ({ page, game, request }, info) => {
   const session = await game.start();
   await game.command('speed', () => page.locator('#speed').click());
-  await page.mouse.click(629, 382);
+  const workerPoint = await game.point('villager');
+  await page.mouse.click(workerPoint.x, workerPoint.y);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   await page.getByRole('button', { name: /Give order/ }).click();
-  const order = await game.command('interact', () => page.mouse.click(651, 594));
+  const targetPoint = await game.point('tree');
+  const order = await game.command('interact', () => page.mouse.click(targetPoint.x, targetPoint.y));
   const workerID = order.request().postDataJSON().entity_ids[0] as number;
   await expect(page.locator('#selected-status')).toContainText('Logging');
   await openGlobalHistory(page, `Villager #${workerID}`);

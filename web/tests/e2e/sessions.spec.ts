@@ -4,12 +4,12 @@ import { writeFile } from 'node:fs/promises';
 test('sets up six settlements and safely changes to a solo map', async ({ page, game }, info) => {
   await game.start('skirmish', 'peaceful', 6);
   const six = await game.snapshot();
-  expect(six.settlements).toBe(6); expect(six.opponents).toHaveLength(5); expect(six.map.width).toBe(108);
+  expect(six.settlements).toBe(6); expect(six.opponents).toHaveLength(5); expect(six.map.width).toBe(96);
   await expect(page.locator('#rival-name')).toHaveText('5 other kingdoms');
   await page.getByRole('button', { name: 'Match menu', exact: true }).click();
   await page.getByRole('button', { name: 'Start a new match', exact: true }).click();
   await game.start('skirmish', 'peaceful', 1);
-  const solo = await game.snapshot(); expect(solo.opponents).toHaveLength(0); expect(solo.status).toBe('running'); expect(solo.map.width).toBe(72);
+  const solo = await game.snapshot(); expect(solo.opponents).toHaveLength(0); expect(solo.status).toBe('running'); expect(solo.map.width).toBe(96);
   await expect(page.locator('#rival-name')).toHaveText('Solo settlement');
   await page.screenshot({ path: info.outputPath('solo-settlement.png') });
 });

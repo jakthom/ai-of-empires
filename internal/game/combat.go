@@ -28,6 +28,9 @@ func combatTargetLost(_ context.Context, c *unitContext) error {
 }
 
 func (w *World) mayContinueAttack(e, target *Entity) bool {
+	if w.treatyInForce() {
+		return false
+	}
 	if target == nil || e.Order.TargetPlayer != 0 && e.Order.TargetPlayer != target.Owner {
 		return false
 	}
@@ -108,7 +111,7 @@ func (w *World) hit(target *Entity, owner int, damage float64) {
 	w.hitFrom(target, owner, 0, damage)
 }
 func (w *World) hitFrom(target *Entity, owner, source int, damage float64) {
-	if target != nil {
+	if target != nil && !(w.treatyInForce() && owner > 0 && target.Owner > 0 && owner != target.Owner) {
 		w.noteAggression(source, owner, target)
 		mustFire(target.life, DamageEntity, &entityContext{World: w, Actor: target, Amount: damage, SourceOwner: owner})
 	}
@@ -173,6 +176,9 @@ func (w *World) updateProjectiles() {
 }
 
 func (w *World) acquire(e *Entity) *Entity {
+	if w.treatyInForce() {
+		return nil
+	}
 	d := w.stats(e)
 	deliberate := e.Order.Kind == "attack_move"
 	if d.Attack <= 0 || e.Owner == 0 || e.Stance == "passive" && !deliberate {

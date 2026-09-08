@@ -1,22 +1,24 @@
 import type { Command } from '../../src/api.generated';
 import { test, expect, battlefieldKey } from './fixtures';
 
-// These canvas targets were inspected in Chrome at the seed 4817 opening.
+// Project observed resource positions into the opening camera.
 // Use actual pointer input and inspect only the UI session's public snapshots.
 for (const resource of [
-  { name: 'stone', type: 'stone', total: 'stone' as const, x: 485, y: 421 },
-  { name: 'wood', type: 'tree', total: 'wood' as const, x: 651, y: 594 },
+  { name: 'stone', type: 'stone', total: 'stone' as const },
+  { name: 'wood', type: 'tree', total: 'wood' as const },
 ]) {
   test(`gathers and delivers ${resource.name} through primary-click orders`, async ({ page, game }, info) => {
     await game.start();
     await game.command('speed', () => page.locator('#speed').click());
     await expect(page.locator('#speed')).toHaveText('3.4×');
-    await page.mouse.click(629, 382);
+    const workerPoint = await game.point('villager');
+    await page.mouse.click(workerPoint.x, workerPoint.y);
     await expect(page.locator('#selected-name')).toHaveText('Villager');
     await expect(page.locator('#selection-count')).toHaveText('1 selected');
     const before = await game.snapshot();
     await page.getByRole('button', { name: 'Give order' }).click();
-    const response = await game.command('interact', () => page.mouse.click(resource.x, resource.y));
+    const targetPoint = await game.point(resource.type);
+    const response = await game.command('interact', () => page.mouse.click(targetPoint.x, targetPoint.y));
     const intent = response.request().postDataJSON() as Command;
     const source = before.entities.find(e => e.id === intent.target_id)!;
     expect(source.type).toBe(resource.type);
@@ -30,7 +32,8 @@ for (const resource of [
 test('resumes an unfinished farm with a primary-click order and starts farming', async ({ page, game }, info) => {
   await game.start();
   await game.command('speed', () => page.locator('#speed').click());
-  await page.mouse.click(629, 382);
+  const workerPoint = await game.point('villager');
+  await page.mouse.click(workerPoint.x, workerPoint.y);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   const before = await game.snapshot();
   await page.getByRole('button', { name: 'Build', exact: true }).click();

@@ -15,6 +15,8 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 | Projectile flight | Flying, impacted | `internal/game/combat.go` |
 | Player participation | Competing, defeated | `internal/game/lifecycle.go` |
 | Civilization strategy | Developing, defending, raiding, recovering | `internal/game/ai_strategy.go` |
+| Initial peace period | Active, expired | `internal/game/treaty.go` |
+| Naval expedition | Idle, boarding, sailing, landing, returning | `internal/game/ai_naval.go` |
 | Pairwise relationship | Peaceful, hostile | `internal/game/diplomacy.go` |
 | Match | Running, paused, finished | `internal/game/lifecycle.go` |
 | Server session lease | Open, draining, closed | `internal/matches/lifecycle.go` |
@@ -113,3 +115,17 @@ error; it never acknowledges a partial checkpoint. Repeated shutdown requests
 are no-op transitions, and repeated or concurrent close calls return the original
 result without repeating saves or cleanup. Restarts construct new service and
 lease instances; these process lifecycles do not replace persisted game states.
+
+## World creation and initial peace
+
+World options are immutable creation configuration, not another lifecycle. Pure seeded generation calculates terrain and starting positions; Go validates intended connectivity. Biomes are presentation metadata. Terrain components are derived and rebuilt on restore, never an additional state owner.
+
+One world-owned treaty instance receives simulation pulses. The expiry guard reads only the game clock and configured duration; its named effect announces expiry exactly once. Combat, conversion, damage, automatic acquisition and AI opportunity checks consult this instance. Pairwise peace continues independently after expiry. Checkpoint version 4 stores the treaty and every player's naval expedition state; older versions initialize inactive treaties and idle expeditions without replaying effects or regenerating terrain.
+
+Naval expeditions own a transport, crew roster, observed destination and deadlines. The lifecycle boards, sails, unloads and returns through ordinary validated game commands. Ship loss clears reservations; threats or deadlines interrupt boarding and sailing. Crews use the existing unit garrison lifecycle. Land strategy excludes reserved crews and cannot recall landed units across an ocean. AI dock and fishing production uses normal costs, queues and finite resources. Expedition state and objectives survive checkpoint resume.
+
+## Explicit economy actions
+
+The `reseed_farm` command and automatic farmers share the existing Exhausted → Foundation `ReseedFarm` transition. A read-only plan chooses the assigned farmer or nearest idle villager on connected land; the farm effect charges wood and restores yield once, and the worker receives a normal build order. Interruption leaves a resumable foundation. Checkpoint restoration does not repeat the payment.
+
+Fishing uses the ordinary seeking, gathering, returning and natural-resource depletion lifecycles, with naval reachability and Dock delivery. Market exchanges are instantaneous validated transactions, not additional lifecycles. Snapshot actions and command execution share the quote function. Repeating trade-cart trips use Trading and ReturningTrade; loss of a reachable owned Market ends the route.

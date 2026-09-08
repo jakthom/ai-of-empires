@@ -146,7 +146,7 @@ func gatherResource(_ context.Context, c *unitContext) error {
 }
 func (w *World) dropOff(e *Entity) *Entity {
 	return w.nearest(e.Position, func(b *Entity) bool {
-		return b.Owner == e.Owner && b.life.State() == Active && slices.Contains(definitions[b.Type].DropOff, e.CargoType) && (e.Type != "fishing_ship" || b.Type == "dock")
+		return b.Owner == e.Owner && b.life.State() == Active && slices.Contains(definitions[b.Type].DropOff, e.CargoType) && (e.Type != "fishing_ship" || b.Type == "dock") && w.reachableFootprint(e, b.Position, definitions[b.Type].Radius+.7)
 	})
 }
 func dropOffReached(_ context.Context, c *unitContext) error {

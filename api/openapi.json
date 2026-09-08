@@ -16,6 +16,9 @@
           "enabled": {
             "type": "boolean"
           },
+          "gain": {
+            "$ref": "#/components/schemas/Resources"
+          },
           "kind": {
             "type": "string"
           },
@@ -92,6 +95,9 @@
               "$ref": "#/components/schemas/Technology"
             },
             "type": "array"
+          },
+          "worlds": {
+            "$ref": "#/components/schemas/WorldCatalog"
           }
         },
         "required": [
@@ -103,7 +109,8 @@
           "speeds",
           "difficulties",
           "log_filters",
-          "settlement_counts"
+          "settlement_counts",
+          "worlds"
         ],
         "type": "object"
       },
@@ -191,6 +198,9 @@
           },
           "settlements": {
             "type": "integer"
+          },
+          "world": {
+            "$ref": "#/components/schemas/WorldOptions"
           }
         },
         "required": [
@@ -619,6 +629,9 @@
       "MapView": {
         "additionalProperties": false,
         "properties": {
+          "biome": {
+            "type": "string"
+          },
           "fog": {
             "items": {
               "type": "integer"
@@ -641,6 +654,7 @@
         "required": [
           "width",
           "height",
+          "biome",
           "tiles",
           "fog"
         ],
@@ -908,9 +922,13 @@
           },
           "time": {
             "type": "number"
+          },
+          "world": {
+            "$ref": "#/components/schemas/WorldOptions"
           }
         },
         "required": [
+          "world",
           "match_id",
           "name",
           "saved_at",
@@ -1025,17 +1043,25 @@
           "time": {
             "type": "number"
           },
+          "treaty_remaining": {
+            "type": "number"
+          },
           "version": {
             "type": "string"
           },
           "winner": {
             "type": "integer"
+          },
+          "world": {
+            "$ref": "#/components/schemas/WorldOptions"
           }
         },
         "required": [
           "version",
           "difficulty",
           "settlements",
+          "world",
+          "treaty_remaining",
           "tick",
           "time",
           "speed",
@@ -1149,6 +1175,139 @@
         "required": [
           "x",
           "y"
+        ],
+        "type": "object"
+      },
+      "WorldCatalog": {
+        "additionalProperties": false,
+        "properties": {
+          "biomes": {
+            "items": {
+              "$ref": "#/components/schemas/WorldChoice"
+            },
+            "type": "array"
+          },
+          "defaults": {
+            "$ref": "#/components/schemas/WorldOptions"
+          },
+          "resources": {
+            "items": {
+              "$ref": "#/components/schemas/WorldChoice"
+            },
+            "type": "array"
+          },
+          "reveals": {
+            "items": {
+              "$ref": "#/components/schemas/WorldChoice"
+            },
+            "type": "array"
+          },
+          "separations": {
+            "items": {
+              "$ref": "#/components/schemas/WorldChoice"
+            },
+            "type": "array"
+          },
+          "sizes": {
+            "items": {
+              "$ref": "#/components/schemas/WorldSize"
+            },
+            "type": "array"
+          },
+          "treaty_minutes": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "types": {
+            "items": {
+              "$ref": "#/components/schemas/WorldChoice"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "types",
+          "biomes",
+          "sizes",
+          "resources",
+          "separations",
+          "reveals",
+          "treaty_minutes",
+          "defaults"
+        ],
+        "type": "object"
+      },
+      "WorldChoice": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "type": "object"
+      },
+      "WorldOptions": {
+        "additionalProperties": false,
+        "properties": {
+          "biome": {
+            "type": "string"
+          },
+          "resources": {
+            "type": "string"
+          },
+          "reveal": {
+            "type": "string"
+          },
+          "separation": {
+            "type": "string"
+          },
+          "size": {
+            "type": "string"
+          },
+          "treaty_minutes": {
+            "type": "integer"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
+      "WorldSize": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tiles": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "description",
+          "tiles"
         ],
         "type": "object"
       }

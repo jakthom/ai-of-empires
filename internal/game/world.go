@@ -7,6 +7,13 @@ import (
 )
 
 func New(cfg Config) *World {
+	if cfg.World != (WorldOptions{}) {
+		w, err := NewWorld(cfg)
+		if err != nil {
+			panic(err)
+		}
+		return w
+	}
 	if cfg.Settlements < 1 || cfg.Settlements > 6 {
 		cfg.Settlements = 2
 	}
@@ -64,6 +71,8 @@ func New(cfg Config) *World {
 		w.Players[id].Temperament = initialTemperament(cfg, id)
 	}
 	w.initializeRelations()
+	w.initializeTreaty()
+	w.initializeVoyages()
 	for i, pos := range starts[:cfg.Settlements] {
 		owner := i + 1
 		w.spawn("town_center", owner, pos)
@@ -126,6 +135,7 @@ func New(cfg Config) *World {
 		}
 	}
 	w.spawn("market", 0, Vec{59, 51})
+	w.rebuildRegions()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")
 	return w
@@ -161,7 +171,7 @@ func (w *World) spawnWithLife(typ string, owner int, pos Vec, initial LifeState)
 }
 func (w *World) resource(typ string, pos Vec) {
 	e := w.spawn(typ, 0, pos)
-	e.Amount = definitions[typ].HP
+	e.Amount = definitions[typ].HP * w.resourceMultiplier()
 	switch typ {
 	case "berries", "sheep", "fish":
 		e.Resource = "food"
@@ -265,6 +275,12 @@ func (w *World) cleanupEntity(e *Entity) {
 func (w *World) refreshVisibility() {
 	for _, p := range w.Players {
 		clear(p.Visible)
+		if w.Config.World.Reveal == "explored" || w.Config.World.Reveal == "all" {
+			for i := range p.Explored {
+				p.Explored[i] = true
+				p.Visible[i] = w.Config.World.Reveal == "all"
+			}
+		}
 	}
 	for _, id := range w.IDs {
 		e := w.Entities[id]

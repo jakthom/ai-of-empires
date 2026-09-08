@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { EntityView, Snapshot, Vec } from './api.generated';
 import { makeModel, ownerColor } from './models';
+import { biomePalette } from './biomes';
 import { BattlefieldTerrain } from './terrain';
 import { terrainAnchorOffset } from './camera';
 import { BuildingFoundation, GroundRing, groundFarm } from './grounding';
@@ -130,6 +131,10 @@ export class WorldRenderer {
     const previous = this.snapshot;
     this.snapshot = snapshot;
     const map = snapshot.map;
+    if (previous?.map.biome !== map.biome) {
+      const palette = biomePalette(map.biome);
+      this.renderer.setClearColor(palette.sky); this.scene.fog = new THREE.Fog(palette.sky, 65, 160);
+    }
     if (this.terrain && previous && (previous.map.width !== map.width || previous.map.height !== map.height)) {
       this.scene.remove(this.terrain.group); this.terrain.dispose(); this.terrain = undefined;
     }
@@ -139,11 +144,11 @@ export class WorldRenderer {
     for (const e of snapshot.entities) {
       if (e.container) continue;
       alive.add(e.id);
-      const signature = `${e.type}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}`;
+      const signature = `${map.biome}:${e.type}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
       let rendered = this.entities.get(e.id);
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
-        const object = makeModel(e); this.scene.add(object);
+        const object = makeModel(e, map.biome); this.scene.add(object);
         if (e.type === 'farm') groundFarm(object, e.position, this.terrain);
         const foundation = e.kind === 'building' && !['farm', 'dock'].includes(e.type) ? new BuildingFoundation(e) : undefined;
         if (foundation) object.add(foundation);

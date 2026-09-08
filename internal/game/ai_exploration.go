@@ -9,6 +9,9 @@ func (w *World) aiScout(c *aiContext) {
 	plan := &c.Player.AIPlan
 	var scout *Entity
 	for _, e := range c.Army {
+		if c.Player.voyaging(e.ID) || !w.sameRegion(e.Position, c.Home, false) {
+			continue
+		}
 		if e.ID == plan.ScoutID {
 			scout = e
 			break
@@ -35,7 +38,7 @@ func (w *World) aiScout(c *aiContext) {
 		for x := 7; x < w.Width-5; x += 12 {
 			i := y*w.Width + x
 			goal := Vec{float64(x) + .5, float64(y) + .5}
-			if plan.Surveyed[i] > w.Time || c.Player.Visible[i] || c.Player.Explored[i] && !w.land(goal) {
+			if !w.sameRegion(scout.Position, goal, false) || plan.Surveyed[i] > w.Time || c.Player.Visible[i] || c.Player.Explored[i] && !w.land(goal) {
 				continue
 			}
 			cost := scout.Position.Distance(goal) + center.Distance(goal)*.4
@@ -71,7 +74,7 @@ func (w *World) aiExpand(c *aiContext) {
 	bestScore := 0.
 	for _, id := range w.IDs {
 		e := w.Entities[id]
-		if e == nil || e.Owner != 0 || e.Amount <= 100 || e.Resource == "" || e.Type == "fish" || !w.visibleEntity(p.ID, e) {
+		if e == nil || e.Owner != 0 || e.Amount <= 100 || e.Resource == "" || e.Type == "fish" || !w.sameRegion(c.Home, e.Position, false) || !w.visibleEntity(p.ID, e) {
 			continue
 		}
 		distance := math.Inf(1)

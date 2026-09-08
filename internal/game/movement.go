@@ -21,12 +21,12 @@ func (w *World) behave(e *Entity) {
 	if e.behavior.State() == SeekingResource || e.behavior.State() == Gathering {
 		if c.Target == nil || c.Target.Amount <= 0 {
 			c.Candidate = w.nearest(e.Position, func(t *Entity) bool {
-				return validResource(e, t) && t.Resource == e.CargoType && w.visibleEntity(e.Owner, t)
+				return validResource(e, t) && t.Resource == e.CargoType && w.visibleEntity(e.Owner, t) && w.sameRegion(e.Position, t.Position, definitions[e.Type].Naval)
 			})
 		}
 	}
 	if e.behavior.State() == Trading || e.behavior.State() == ReturningTrade {
-		c.DropOff = w.nearest(e.Position, func(t *Entity) bool { return t.Type == "market" && t.Owner == e.Owner && t.life.State() == Active })
+		c.DropOff = w.tradeHome(e)
 	}
 	mustFire(e.behavior, UnitPulse, c)
 	if e.behavior.State() == Idle && len(e.Orders) > 0 {

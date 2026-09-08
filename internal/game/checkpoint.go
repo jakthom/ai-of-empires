@@ -24,9 +24,11 @@ type checkpoint struct {
 	Entities              map[int]entityStates
 	Players               map[int]PlayerState
 	Strategies            map[int]aiState
+	Voyages               map[int]voyageState
 	Relations             map[string]relationState
 	Flights               []FlightState
 	Match                 MatchState
+	Treaty                treatyState
 	AIClock, VisibleClock float64
 	RNG                   uint64
 }
@@ -50,13 +52,14 @@ func (w *World) JournalSince(after int) []JournalRecord {
 }
 
 func (w *World) Checkpoint() ([]byte, error) {
-	c := checkpoint{Version: 3, Rules: RulesVersion, World: w, Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Relations: map[string]relationState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c := checkpoint{Version: 4, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
 	for id, e := range w.Entities {
 		c.Entities[id] = entityStates{e.behavior.State(), e.life.State(), e.production.State(), e.siege.State()}
 	}
 	for id, p := range w.Players {
 		c.Players[id] = p.lifecycle.State()
 		c.Strategies[id] = p.strategy.State()
+		c.Voyages[id] = p.voyage.State()
 	}
 	for _, p := range w.Projectiles {
 		c.Flights = append(c.Flights, p.flight.State())
@@ -72,13 +75,28 @@ func Restore(data []byte, journal []JournalRecord) (*World, error) {
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
 	}
-	if (c.Version < 1 || c.Version > 3) || c.Rules != RulesVersion {
+	if (c.Version < 1 || c.Version > 4) || c.Rules != RulesVersion {
 		return nil, fmt.Errorf("unsupported checkpoint version %d / %q", c.Version, c.Rules)
 	}
 	w := c.World
 	if w == nil || w.Width < 3 || w.Height < 3 || len(w.Tiles) != w.Width*w.Height || len(w.Players) != w.Config.Settlements || w.Config.Settlements < 1 || w.Config.Settlements > 6 || len(c.Entities) != len(w.Entities) || len(c.Players) != len(w.Players) || len(c.Flights) != len(w.Projectiles) || !slices.Contains([]MatchState{MatchRunning, MatchPaused, MatchFinished}, c.Match) {
 		return nil, fmt.Errorf("invalid checkpoint structure")
 	}
+	if w.Generation > 0 {
+		options, err := normalizeWorldOptions(w.Config.World)
+		if err != nil || options != w.Config.World || w.Width != worldSize(options) || w.Height != w.Width {
+			return nil, fmt.Errorf("invalid checkpoint world options")
+		}
+	}
+	treaty := treatyExpired
+	if c.Version >= 4 {
+		treaty = c.Treaty
+		if !slices.Contains([]treatyState{treatyActive, treatyExpired}, treaty) {
+			return nil, fmt.Errorf("invalid checkpoint treaty")
+		}
+	}
+	w.peacePeriod = statemachine.NewInstance(treatyMachine, treaty)
+	w.rebuildRegions()
 	w.match = statemachine.NewInstance(matchMachine, c.Match)
 	w.aiClock, w.visibleClock, w.rng = c.AIClock, c.VisibleClock, c.RNG
 	for id, e := range w.Entities {
@@ -112,6 +130,14 @@ func Restore(data []byte, journal []JournalRecord) (*World, error) {
 			p.AIPlan = aiPlan{}
 		}
 		p.strategy = statemachine.NewInstance(aiMachine, strategy)
+		voyage := voyageIdle
+		if c.Version >= 4 {
+			voyage = c.Voyages[id]
+			if !slices.Contains(voyageStates, voyage) || !p.NavalPlan.HomeWater.Finite() || !p.NavalPlan.GoalWater.Finite() || !p.NavalPlan.GoalLand.Finite() {
+				return nil, fmt.Errorf("invalid checkpoint voyage %d", id)
+			}
+		}
+		p.voyage = statemachine.NewInstance(voyageMachine, voyage)
 		if c.Version < 3 {
 			p.Temperament = initialTemperament(w.Config, id)
 			if p.AI {

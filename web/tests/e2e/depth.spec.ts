@@ -4,12 +4,19 @@ import { BattlefieldTerrain } from '../../src/terrain';
 import { makeModel } from '../../src/models';
 import { test, expect } from './fixtures';
 
-test('selection and expanding order rings follow slopes while remaining occluded by objects', async ({ game }) => {
+test('selection and expanding order rings follow slopes while remaining occluded by objects', async ({ page, game }) => {
+  await page.goto('/');
+  await page.getByRole('combobox', { name: 'World type', exact: true }).selectOption('highlands');
+  await page.getByText('Advanced world options', { exact: false }).click();
+  await page.getByRole('combobox', { name: 'Map reveal', exact: true }).selectOption('all');
   await game.start();
   const snapshot = await game.snapshot(), terrain = new BattlefieldTerrain(snapshot.map);
   const ring = new GroundRing(), marker = new GroundRing(.43 / .35, true);
   try {
-    for (const worker of snapshot.entities.filter(entity => entity.type === 'villager' && entity.owner === 1)) {
+    const slopeIndex = snapshot.map.tiles.findIndex((t, i) => t.terrain === 'grass' && t.elevation > .5 && snapshot.map.tiles[i+1]?.terrain === 'grass');
+    expect(slopeIndex).toBeGreaterThan(-1);
+    const slope = { position: { x: slopeIndex % snapshot.map.width + .5, y: Math.floor(slopeIndex / snapshot.map.width) + .5 } };
+    for (const worker of [slope]) {
       for (const mesh of [ring, marker]) for (const radius of [.5, .8]) {
         mesh.place(worker.position, radius, terrain);
         const vertices = mesh.geometry.getAttribute('position'), heights: number[] = [];
@@ -77,7 +84,7 @@ test('farm soil and crops follow the same observed terrain as the workers', asyn
   // A rendering specimen uses a real observed footprint; it cannot place a
   // farm or change any authoritative match state.
   const villager = snapshot.entities.find(entity => entity.type === 'villager' && entity.owner === 1)!;
-  const model = makeModel({ ...villager, kind: 'building', type: 'farm', radius: 1.2, progress: 1 });
+  const model = makeModel({ ...villager, kind: 'building', type: 'farm', radius: 1.2, progress: 1, amount: 175 });
   try {
     groundFarm(model, villager.position, terrain);
     const base = terrain.height(villager.position), matrix = new THREE.Matrix4();

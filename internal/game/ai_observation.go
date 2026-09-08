@@ -42,7 +42,7 @@ func (w *World) aiObserve(player int) *aiContext {
 		}
 		d := definitions[e.Type]
 		if e.Owner == player {
-			if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" && !d.Naval && d.Attack > 0 && e.Container == 0 {
+			if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" && !d.Naval && d.Attack > 0 && e.Container == 0 && !p.voyaging(e.ID) {
 				c.Army = append(c.Army, e)
 			}
 			continue
@@ -178,7 +178,7 @@ func aiDanger(contacts []aiContact, position Vec, radius float64) float64 {
 func aiChooseOpportunity(c *aiContext) *aiOpportunity {
 	var best *aiOpportunity
 	for _, t := range c.Contacts {
-		if !c.World.aiWantsConflict(c.Player, t.Owner) {
+		if !c.World.aiWantsConflict(c.Player, t.Owner) || !c.World.sameRegion(c.Home, t.Position, false) {
 			continue
 		}
 		if other := c.World.Players[t.Owner]; other == nil || other.lifecycle.State() == PlayerDefeated {

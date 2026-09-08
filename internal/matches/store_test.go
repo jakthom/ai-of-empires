@@ -17,7 +17,7 @@ func TestSQLiteRestartResumesByTokenNameAndID(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	seat, err := s.Create(game.Config{Name: "Evening kingdom", Difficulty: "peaceful", Settlements: 3})
+	seat, err := s.Create(game.Config{Name: "Evening kingdom", Difficulty: "peaceful", Settlements: 3, World: game.WorldOptions{Type: "islands", Biome: "alpine", Size: "medium", TreatyMinutes: 10}})
 	if err != nil {
 		t.Fatal(err)
 	}

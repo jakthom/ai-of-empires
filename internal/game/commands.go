@@ -77,7 +77,7 @@ func (w *World) apply(player int, c Command) error {
 		}
 	}
 	first := es[0]
-	if slices.Contains([]string{"train", "research", "age", "cancel", "rally", "market_sell", "market_buy", "unload", "deploy"}, c.Kind) && len(es) != 1 {
+	if slices.Contains([]string{"train", "research", "age", "cancel", "rally", "market_sell", "market_buy", "reseed_farm", "unload", "deploy"}, c.Kind) && len(es) != 1 {
 		return rule("invalid_selection", "Select one unit or building for this action.")
 	}
 	switch c.Kind {
@@ -165,30 +165,9 @@ func (w *World) apply(player int, c Command) error {
 		first.Rally = &pos
 		return nil
 	case "market_sell", "market_buy":
-		if first.Type != "market" || first.Progress < 1 {
-			return rule("invalid_producer", "Select a completed market.")
-		}
-		if !slices.Contains([]string{"food", "wood", "stone"}, c.Product) {
-			return rule("invalid_resource", "Choose food, wood, or stone.")
-		}
-		cost := Resources{}
-		gain := Resources{}
-		if c.Kind == "market_sell" {
-			cost.Deposit(c.Product, 100)
-			gain.Gold = 70
-			if p.Civilization == "saracens" {
-				gain.Gold = 84
-			}
-		} else {
-			cost.Gold = 130
-			gain.Deposit(c.Product, 100)
-		}
-		if !p.Resources.CanPay(cost) {
-			return rule("insufficient_resources", "Not enough resources for this exchange.")
-		}
-		p.Resources.Add(cost.Scale(-1))
-		p.Resources.Add(gain)
-		return nil
+		return w.exchange(p, first, c.Kind, c.Product)
+	case "reseed_farm":
+		return w.reseedFarm(first)
 	case "unload":
 		if len(first.Passengers) == 0 {
 			return rule("empty_garrison", "There are no units inside.")
@@ -296,6 +275,9 @@ func (w *World) apply(player int, c Command) error {
 				return rule("deployed", "Pack the trebuchet before moving.")
 			}
 		case "attack":
+			if w.treatyInForce() {
+				return rule("peace_period", "Attacks are disabled until the initial peace period ends.")
+			}
 			if d.Attack <= 0 || target == nil || target.Owner == player || target.Owner == 0 {
 				return rule("invalid_target", "Choose an enemy for a combat unit.")
 			}
@@ -321,6 +303,9 @@ func (w *World) apply(player int, c Command) error {
 				return rule("invalid_target", "Monks heal other friendly units.")
 			}
 		case "convert":
+			if w.treatyInForce() {
+				return rule("peace_period", "Conversions are disabled until the initial peace period ends.")
+			}
 			if e.Type != "monk" || target == nil || target.Owner == 0 || target.Owner == player || target.Type == "town_center" || target.Type == "castle" || target.Type == "wonder" {
 				return rule("invalid_target", "That target cannot be converted.")
 			}
@@ -343,7 +328,13 @@ func (w *World) apply(player int, c Command) error {
 			}
 		case "trade":
 			if e.Type != "trade_cart" || target == nil || target.Type != "market" || target.Owner != 0 {
-				return rule("invalid_target", "Trade at the neutral market across the river.")
+				return rule("invalid_target", "Choose an explored neutral Market for a Trade Cart.")
+			}
+			if !w.reachableFootprint(e, target.Position, definitions[target.Type].Radius+.7) {
+				return rule("unreachable_market", "Choose a neutral Market reachable by land.")
+			}
+			if w.tradeHome(e) == nil {
+				return rule("market_required", "Build a Market on this landmass to receive trade gold.")
 			}
 		default:
 			return rule("unknown_command", "Unknown command.")

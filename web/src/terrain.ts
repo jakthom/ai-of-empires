@@ -1,11 +1,11 @@
 import * as THREE from 'three';
 import type { MapView, Vec } from './api.generated';
+import { biomePalette } from './biomes';
 
 // Relief is presentation of Go's observations, never a second terrain model
 // for movement or combat. Unknown cells acquire heights only when Go reveals them.
 export const terrainHeightScale = 4;
 const chunkSize = 8, floor = -2.8;
-const colors: Record<string, string> = { grass: '#899d60', cliff: '#8b907b', water: '#4c8584', shallows: '#8bb4a2' };
 const sides = [[0,1,-1,0,3,2],[1,2,0,1,0,3],[2,3,1,0,1,0],[3,0,0,-1,2,1]];
 type Materials = { surface: THREE.MeshStandardMaterial[]; walls: THREE.MeshStandardMaterial };
 
@@ -68,12 +68,12 @@ class TerrainChunk {
   }
 
   updateFog(map: MapView) {
-    const tint = new THREE.Color();
+    const tint = new THREE.Color(), colors = biomePalette(map.biome);
     for (const [mesh,cells,wall] of [[this.surface,this.cells,false],[this.walls,this.wallCells,true]] as const) {
       const attribute = mesh.geometry.getAttribute('color');
       cells.forEach((cell,vertex) => {
         const tile = map.tiles[cell], fog = map.fog[cell];
-        tint.set(!fog ? '#19281f' : wall ? tile.terrain === 'cliff' ? '#777a66' : '#796d50' : colors[tile.terrain] ?? colors.grass);
+        tint.set(!fog ? '#19281f' : wall ? tile.terrain === 'cliff' ? colors.cliff : colors.earth : colors[tile.terrain] ?? colors.grass);
         if (fog) tint.multiplyScalar((.98+Math.sin(cell*7.3)*.025) * (fog === 1 ? .38 : 1));
         attribute.setXYZ(vertex,tint.r,tint.g,tint.b);
       });
@@ -127,7 +127,7 @@ export class BattlefieldTerrain {
           changed.add(nz*map.width+nx); geometry.add(this.chunkAt(nx,nz));
         }
       }
-      if (map.fog[i] !== this.map.fog[i]) fog.add(this.chunkAt(x,z));
+      if (map.biome !== this.map.biome || map.fog[i] !== this.map.fog[i]) fog.add(this.chunkAt(x,z));
     });
     this.map = map;
     changed.forEach(i => { this.corners[i] = cornerHeights(map,i); });

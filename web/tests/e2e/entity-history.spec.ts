@@ -32,7 +32,8 @@ test('changing selection ignores a delayed response for the previous entity', as
   try {
     await page.getByRole('button', { name: 'History', exact: true }).click();
     await pending;
-    await page.mouse.click(629, 382);
+    const workerPoint = await game.point('villager');
+  await page.mouse.click(workerPoint.x, workerPoint.y);
     await expect(page.locator('#selected-name')).toHaveText('Villager');
     await expect(page.locator('#entity-log-title')).toContainText('Villager');
     await expect(page.locator('#entity-event-entries')).toContainText('Villager created');
@@ -47,7 +48,8 @@ test('changing selection ignores a delayed response for the previous entity', as
 
 test('retains the last selected entity history after removal', async ({ page, game }) => {
   await game.start();
-  await page.mouse.click(629, 382);
+  const workerPoint = await game.point('villager');
+  await page.mouse.click(workerPoint.x, workerPoint.y);
   await expect(page.locator('#selected-name')).toHaveText('Villager');
   await page.getByRole('button', { name: 'History', exact: true }).click();
   await expect(page.locator('#entity-event-entries')).toContainText('Villager created');

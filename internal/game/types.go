@@ -107,6 +107,7 @@ type Catalog struct {
 	Difficulties     []Difficulty   `json:"difficulties"`
 	LogFilters       []LogFilter    `json:"log_filters"`
 	SettlementCounts []int          `json:"settlement_counts"`
+	Worlds           WorldCatalog   `json:"worlds"`
 }
 
 type Tile struct {
@@ -174,6 +175,8 @@ type Player struct {
 	AI           bool
 	Temperament  aiTemperament
 	AIPlan       aiPlan
+	NavalPlan    navalPlan
+	voyage       *statemachine.Instance[voyageState, voyageEvent, *voyageContext]
 	strategy     *statemachine.Instance[aiState, aiEvent, *aiContext]
 	lifecycle    *statemachine.Instance[PlayerState, PlayerEvent, *playerContext]
 	Kills        int
@@ -225,12 +228,13 @@ type Event struct {
 	Position      Vec     `json:"position"`
 }
 type Config struct {
-	Name         string `json:"name,omitempty"`
-	Settlements  int    `json:"settlements,omitempty"`
-	Seed         int64  `json:"seed"`
-	Civilization string `json:"civilization"`
-	Difficulty   string `json:"difficulty"`
-	Mode         string `json:"mode"`
+	Name         string       `json:"name,omitempty"`
+	Settlements  int          `json:"settlements,omitempty"`
+	Seed         int64        `json:"seed"`
+	Civilization string       `json:"civilization"`
+	Difficulty   string       `json:"difficulty"`
+	Mode         string       `json:"mode"`
+	World        WorldOptions `json:"world,omitempty"`
 }
 type World struct {
 	Config       Config
@@ -254,6 +258,10 @@ type World struct {
 	aiClock      float64
 	visibleClock float64
 	rng          uint64
+	Generation   int
+	peacePeriod  *statemachine.Instance[treatyState, treatyEvent, *World]
+	landRegions  []int
+	waterRegions []int
 }
 
 // Command contains intent only; never caller-supplied HP, costs, velocities or owners.
@@ -277,14 +285,15 @@ func (e *RuleError) Error() string { return e.Message }
 func rule(code, msg string) error  { return &RuleError{code, msg} }
 
 type Action struct {
-	Kind        string    `json:"kind"`
-	Product     string    `json:"product,omitempty"`
-	Label       string    `json:"label"`
-	Description string    `json:"description"`
-	Cost        Resources `json:"cost"`
-	Duration    float64   `json:"duration"`
-	Enabled     bool      `json:"enabled"`
-	Reason      string    `json:"reason,omitempty"`
+	Kind        string     `json:"kind"`
+	Product     string     `json:"product,omitempty"`
+	Label       string     `json:"label"`
+	Description string     `json:"description"`
+	Cost        Resources  `json:"cost"`
+	Gain        *Resources `json:"gain,omitempty"`
+	Duration    float64    `json:"duration"`
+	Enabled     bool       `json:"enabled"`
+	Reason      string     `json:"reason,omitempty"`
 }
 type EntityView struct {
 	ID         int      `json:"id"`
@@ -342,25 +351,28 @@ type OpponentView struct {
 type MapView struct {
 	Width  int    `json:"width"`
 	Height int    `json:"height"`
+	Biome  string `json:"biome"`
 	Tiles  []Tile `json:"tiles"`
 	Fog    []int  `json:"fog"`
 }
 type Snapshot struct {
-	Version      string           `json:"version"`
-	Difficulty   Difficulty       `json:"difficulty"`
-	Settlements  int              `json:"settlements"`
-	Tick         int              `json:"tick"`
-	Time         float64          `json:"time"`
-	Speed        float64          `json:"speed"`
-	Paused       bool             `json:"paused"`
-	Status       string           `json:"status"`
-	Winner       int              `json:"winner"`
-	Player       PlayerView       `json:"player"`
-	Opponents    []OpponentView   `json:"opponents"`
-	Map          MapView          `json:"map"`
-	Entities     []EntityView     `json:"entities"`
-	Projectiles  []ProjectileView `json:"projectiles"`
-	Events       []Event          `json:"events"`
-	EventCursor  int              `json:"event_cursor"`
-	BuildOptions []Action         `json:"build_options"`
+	Version         string           `json:"version"`
+	Difficulty      Difficulty       `json:"difficulty"`
+	Settlements     int              `json:"settlements"`
+	World           WorldOptions     `json:"world"`
+	TreatyRemaining float64          `json:"treaty_remaining"`
+	Tick            int              `json:"tick"`
+	Time            float64          `json:"time"`
+	Speed           float64          `json:"speed"`
+	Paused          bool             `json:"paused"`
+	Status          string           `json:"status"`
+	Winner          int              `json:"winner"`
+	Player          PlayerView       `json:"player"`
+	Opponents       []OpponentView   `json:"opponents"`
+	Map             MapView          `json:"map"`
+	Entities        []EntityView     `json:"entities"`
+	Projectiles     []ProjectileView `json:"projectiles"`
+	Events          []Event          `json:"events"`
+	EventCursor     int              `json:"event_cursor"`
+	BuildOptions    []Action         `json:"build_options"`
 }

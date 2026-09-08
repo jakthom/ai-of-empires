@@ -1,9 +1,12 @@
 import { test as base, expect, type Page, type Response } from '@playwright/test';
 import type { Command, Session, Snapshot } from '../../src/api.generated';
+import * as THREE from 'three';
+import { BattlefieldTerrain } from '../../src/terrain';
 
-type Game = {
+export type Game = {
   start: (mode?: 'skirmish' | 'sandbox', difficulty?: string, settlements?: number, name?: string) => Promise<Session>;
   snapshot: () => Promise<Snapshot>;
+  point: (type: string, index?: number) => Promise<{x:number; y:number}>;
   command: (kind: string, action: () => Promise<unknown>) => Promise<Response>;
 };
 
@@ -49,6 +52,12 @@ export const test = base.extend<{ game: Game }>({
         expect(response.ok()).toBeTruthy();
         return response.json() as Promise<Snapshot>;
       },
+      async point(type, index = 0) {
+        const snapshot = await game.snapshot();
+        const entity = snapshot.entities.filter(e => e.type === type && (e.owner === 1 || e.owner === 0))[index];
+        if (!entity) throw new Error(`No observed ${type}.`);
+        return projectOpening(page, snapshot, entity.position, type === 'tree' ? 1.5 : .45);
+      },
       async command(kind, action) {
         const response = page.waitForResponse(r => {
           if (r.request().method() !== 'POST' || !r.url().endsWith('/commands')) return false;
@@ -73,6 +82,25 @@ export const test = base.extend<{ game: Game }>({
 });
 
 export { expect };
+
+// Project observed positions into the default camera, without accessing or
+// changing application state. The pointer still uses the real canvas picking.
+export async function projectOpening(page: Page, snapshot: Snapshot, point: {x:number; y:number}, height = 0) {
+  const box = await page.locator('#world canvas').boundingBox();
+  if (!box) throw new Error('No battlefield bounds.');
+  const home = snapshot.entities.find(e => e.owner === 1 && e.type === 'town_center')!.position;
+  const terrain = new BattlefieldTerrain(snapshot.map);
+  try {
+    const camera = new THREE.PerspectiveCamera(38, box.width / box.height, .1, 350);
+    const target = new THREE.Vector3(home.x, terrain.height(home), home.y);
+    const distance = 13 / Math.tan(THREE.MathUtils.degToRad(19)), tilt = Math.PI * .24;
+    const horizontal = distance * Math.cos(tilt) / Math.SQRT2;
+    camera.position.copy(target).add(new THREE.Vector3(horizontal, distance * Math.sin(tilt), horizontal));
+    camera.lookAt(target); camera.updateMatrixWorld();
+    const v = new THREE.Vector3(point.x, terrain.height(point) + height, point.y).project(camera);
+    return { x: box.x + (v.x + 1) * box.width / 2, y: box.y + (1 - v.y) * box.height / 2 };
+  } finally { terrain.dispose(); }
+}
 
 export async function battlefieldKey(page: Page, key: string) {
   await page.locator('#world canvas').focus();

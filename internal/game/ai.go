@@ -17,6 +17,7 @@ func (w *World) thinkPlayer(player int) {
 	if (p.lifecycle.State() == PlayerDefeated) || w.Config.Difficulty == "peaceful" {
 		return
 	}
+	w.aiNavy(w.aiObserve(player))
 	mustFire(p.strategy, aiAssess, w.aiObserve(player))
 }
 
@@ -29,7 +30,7 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 	}
 	tc := tcs[0]
 	for i, e := range workers {
-		if e.behavior.State() != Idle || e.Container != 0 || defending && c.Threat != nil && e.Position.Distance(c.Threat.Position) < 12 {
+		if e.behavior.State() != Idle || e.Container != 0 || p.voyaging(e.ID) || defending && c.Threat != nil && e.Position.Distance(c.Threat.Position) < 12 {
 			continue
 		}
 		res := "wood"
@@ -42,7 +43,7 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 			res = "stone"
 		}
 		target := w.nearest(e.Position, func(t *Entity) bool {
-			if !(t.Amount > 0 && t.Resource == res && w.visibleEntity(player, t) && (t.Owner == 0 || t.Owner == player) && (definitions[t.Type].Kind == "resource" || t.Type == "farm") && t.Type != "fish") {
+			if !(t.Amount > 0 && t.Resource == res && w.visibleEntity(player, t) && (t.Owner == 0 || t.Owner == player) && (definitions[t.Type].Kind == "resource" || t.Type == "farm") && t.Type != "fish" && w.sameRegion(e.Position, t.Position, false)) {
 				return false
 			}
 			if t.Type == "farm" {
@@ -115,6 +116,9 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 	if p.Temperament == aiExpansionist && policy.MilitaryPriorityAt > 0 {
 		openingBuildings = []string{"barracks", "lumber_camp", "mill"}
 	}
+	if w.Config.World.Type == "islands" {
+		openingBuildings = []string{"lumber_camp", "dock", "barracks"}
+	}
 	for _, typ := range openingBuildings {
 		if !w.hasOrBuilding(player, typ) {
 			if w.aiBuild(player, typ, tc.Position, workers) {
@@ -183,7 +187,7 @@ func (w *World) aiTrainMilitary(player, goal int) {
 	committed := 0
 	for _, e := range w.entities(player, "") {
 		d := definitions[e.Type]
-		if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" {
+		if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" && d.Attack > 0 {
 			committed++
 		}
 	}
@@ -193,7 +197,7 @@ func (w *World) aiTrainMilitary(player, goal int) {
 	for _, e := range w.entities(player, "") {
 		for i := 0; i < len(e.Tasks); {
 			task := e.Tasks[i]
-			if task.Type != "train" || definitions[task.Product].Class == "worker" || definitions[task.Product].Class == "trader" {
+			if task.Type != "train" || definitions[task.Product].Attack == 0 || definitions[task.Product].Class == "worker" || definitions[task.Product].Class == "trader" {
 				i++
 				continue
 			}
@@ -253,7 +257,7 @@ func (w *World) aiBuild(player int, typ string, center Vec, workers []*Entity) b
 	}
 	var worker *Entity
 	for _, e := range workers {
-		if e.Container == 0 && e.behavior.State() != Constructing && e.behavior.State() != Moving && (worker == nil || e.Cargo < worker.Cargo) {
+		if e.Container == 0 && (!w.Players[player].voyaging(e.ID) || w.sameRegion(center, w.Players[player].NavalPlan.GoalLand, false)) && w.sameRegion(e.Position, center, false) && e.behavior.State() != Constructing && e.behavior.State() != Moving && (worker == nil || e.Cargo < worker.Cargo) {
 			worker = e
 		}
 	}
@@ -278,7 +282,7 @@ func (w *World) aiBuild(player int, typ string, center Vec, workers []*Entity) b
 			if !clear {
 				continue
 			}
-			if w.Placement(player, typ, pos) == nil {
+			if w.sameRegion(worker.Position, pos, false) && w.Placement(player, typ, pos) == nil {
 				err := w.Apply(player, Command{Kind: "build", EntityIDs: []int{worker.ID}, Product: typ, Position: &pos})
 				return err == nil
 			}

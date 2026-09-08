@@ -21,6 +21,9 @@ func initialTemperament(cfg Config, player int) aiTemperament {
 }
 
 func (w *World) aiWantsConflict(p *Player, opponent int) bool {
+	if w.treatyInForce() {
+		return false
+	}
 	return p.Temperament == aiExpansionist || p.Temperament == aiGuarded && w.relation(p.ID, opponent) == inConflict
 }
 

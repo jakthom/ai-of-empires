@@ -13,6 +13,9 @@ func (w *World) Update() {
 	}
 	w.Tick++
 	w.Time += Step
+	if w.treatyInForce() {
+		mustFire(w.peacePeriod, treatyPulse, w)
+	}
 	w.visibleClock += Step
 	if w.visibleClock >= .2 {
 		w.refreshVisibility()

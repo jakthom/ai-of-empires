@@ -16,6 +16,10 @@ Rotate and tilt the perspective to explore raised ground, recessed rivers, and e
 
 ![A scout beside a river and ford, viewed from a lower angle that shows the depth of the banks.](docs/screenshots/perspective.png)
 
+Build a maritime economy with visible fish shoals and Fishing Ships that deliver food to Docks.
+
+![A Fishing Ship gathering food beside a tropical island settlement and its Dock.](docs/screenshots/fishing.png)
+
 ## Run
 
 Use Go 1.26 (or Go with automatic toolchain downloads enabled) and Node.js 22.12+.
@@ -39,7 +43,36 @@ For frontend development, keep the Go server running and run `npm --prefix web r
 
 ## Play
 
-Choose a civilization, optional game name, and **1–6 settlements including yours**. One settlement is solo play; additional settlements are competing AI kingdoms. Each starts with one Town Center, three villagers, and one scout. Games with three or more settlements use a larger map. Sandbox begins with extra resources; peaceful difficulty disables the opponents' AI.
+Choose a civilization, optional game name, and **1–6 settlements including yours**. One settlement is solo play; additional settlements are competing AI kingdoms. Each starts with one Town Center, three villagers, and one scout. Choose world size independently of settlement count. Sandbox begins with extra resources; peaceful difficulty disables the opponents' AI.
+
+World creation separates kingdom settings from geography, with advanced options for resources, distance, visibility, peace, and seed.
+
+![The game creation dialog with civilization, difficulty, settlement count, world type, biome, world size and advanced world options.](docs/screenshots/world-creation.png)
+
+Create a world from eight presets:
+
+| World | Geography |
+|---|---|
+| Open Plains | Open country, scattered woods and exposed resources |
+| Forest Marches | Dense woodland, clear starting areas and connecting paths |
+| Highland Relics | Hills, steep ridges, passes and central relics |
+| River Kingdoms | Winding river, shallow crossings and fishing |
+| Twin Seas | Two inland fishing lakes with land routes around them |
+| Coastal Frontier | Shared mainland beside a broad sea |
+| Island Crowns | Separate home islands and a neutral central island |
+| Walled Basin | Palisades and four owned gates around each starting settlement |
+
+Choose **Temperate, Desert, Alpine, or Tropical** scenery and **Small (96×96), Medium (128×128), or Large (160×160)** terrain. Biomes change colors and vegetation, with the same game rules. All kingdoms receive the same starting food, wood, gold, stone, deposits and population; civilization bonuses still apply.
+
+Open **Advanced world options** for natural resource abundance (70%, 100%, or 175% deposit amounts), starting separation, map reveal, seed, and an initial peace period of **0, 5, 10, 20, or 30 game minutes**. Natural abundance does not change starting stockpiles or farm yields. Terrain revealed shows geography while units and resources still require scouting; Everything visible reveals the world to every kingdom. Starting separation keeps a minimum clearance for each home economy, so crowded Small worlds limit how close starts can be.
+
+During the initial peace period, Go blocks attacks, conversions and damage between kingdoms, including automatic attacks and AI raids. The top bar shows the remaining game time. Expiry permits conflict without declaring war. World settings and the timer survive autosave and resume; existing saves retain their original terrain.
+
+River, lake, coastal and island worlds contain finite **Fish Shoals** in every biome, including fish near each kingdom’s nearest water. Build a **Dock** (150 wood) at an explored shoreline, train a **Fishing Ship** (75 wood), then select it, choose **Fish**, and click a shoal. Each standard shoal contains 400 food; natural abundance scales this amount. Ships carry catches to a reachable Dock, where they become **Food**. Depleted shoals disappear from the map. Docks and Fishing Ships are available in Dark Age.
+
+In **Feudal Age**, build a **Market** (175 wood) and open its **Trade** tab. Sell 100 food, wood, or stone for 70 gold (84 for Saracens), or spend 130 gold to buy 100 of one resource. Buttons show the exact cost and return supplied by Go, and each exchange gets an immutable receipt in the market and global logs. A **Trade Cart** can also run a repeating **Trade route** between an explored neutral Market and your own Market on connected land, earning gold per trip.
+
+In Feudal Age, train a **Transport Ship**, bring it alongside land, order units to garrison it, sail to another shore, and choose **Unload**. Active AI economies can fund docks and two fishing ships. On islands they can explore by sea and use transports for bounded raids or safe Castle Age expansion. They pay normal costs and use the same boarding and unloading rules; builder kingdoms do not launch raids. Full naval fleet strategy, naval trade and negotiated diplomacy remain future work.
 
 Choose **Peaceful practice**, **Easy**, **Standard**, **Hard**, **Extra hard**, **Expert**, or **Aggressive** when starting a match. The current difficulty stays in the top bar. Each active AI also has a seeded **Builder**, **Defensive**, or **Expansionist** preference. Builders prioritize growth and a small defensive force; defensive kingdoms may counter-raid a kingdom already attacking them; expansionists can start profitable conflicts. Higher difficulty increases their budgets and planning pressure without making every kingdom expansionist. Aggressive explicitly makes all AI expansionist, with possible raids after one game minute. Expert researches upgrades. All levels use the same starting population, resources, costs, production clock, and gathering rules as the player; civilization bonuses apply equally. The AI automatically queues villagers and assigns work, so its economy can grow more consistently than a manually managed settlement.
 
@@ -61,7 +94,7 @@ Military units and armed buildings default to **Return fire**. Idle defenders re
 - **Cmd/Ctrl + a number** assigns a control group; the number recalls it. To remove a selection, choose **Delete**, then **Confirm removal**; Delete or Mac Delete/Backspace also confirms while removal is armed.
 - Space pauses; the speed button cycles through 1×, 1.7×, 3.4×, 8×, 16×, and 32×. The match menu lets you choose a speed directly.
 - Selected entities display their current activity (farming, logging, mining, and more). Choose the **History** tab after **Research** to read that entity's immutable log in the command panel, retained even after removal. The global tray stays independent.
-- Farms automatically reseed for 60 wood while a villager remains assigned. To restart an empty farm, select a villager, choose **Give order (Q)**, then click the farm. The villager rebuilds it and resumes farming; you need 60 wood available.
+- Select a depleted **Farm**, then choose **Reseed farm** in Orders. It costs **60 wood**, assigns an existing farmer or the nearest idle villager on connected land, and rebuilds the farm before farming resumes. The action explains missing wood or workers. Assigned farmers also reseed automatically while wood is available; selecting a villager and ordering it onto an empty farm still works. Empty fields visibly lose their crops.
 - **Event log** at the bottom expands the live kingdom chronicle. Drag its top edge to resize down to one line; with the edge focused, use arrows to resize or Home to collapse. **Older / Newer** browse history and **Follow live** returns to new events.
 - Search the full retained log by activity, message, resource, or exact identity (for example, **villager 3** or **#3**). Combine search with the event category selector. **Locate** centers the camera on that entity and opens its History tab; for entities no longer visible it visits the event's recorded location. Entity names filter the tray to their history. **Clear** or **All events** removes the filters.
 
@@ -71,7 +104,7 @@ Games autosave every **10 seconds**, on **Save now**, on **Save and leave**, and
 
 Reloading or reopening the same browser restores its last session. Closing the page requests a final checkpoint; if the browser cannot send it, the server checkpoints and unloads the game after 30 seconds without requests. Use **Save and leave** to stop the clock immediately. A hidden tab still plays; use Pause for a break. Offline time is never simulated. Restarting the server resumes running games from their checkpoint when the browser reconnects; paused games stay paused. An abrupt process failure can lose progress since the last autosave.
 
-Checkpoints include orders, movement, cargo, production, research, combat, fog, random state, every state-machine owner, kingdom preferences and relationships, recent attacks, AI objectives and timers, immutable history, and command receipts. SQLite commits them together. Version-1 and version-2 checkpoints migrate to peaceful relationships and return-fire defaults; old AI attack orders are recalled for reassessment, while resources, entities, queues, and history remain intact. While the server is running, failed saves keep the active game in memory, report the failure in the menu, and retry. The session library is local to this server: anyone with access to it can list and resume its games. Resuming by name or ID issues a new bearer token and disconnects older connections to that game. Keep the default loopback address for personal use.
+Version-4 checkpoints also preserve world options, generated terrain, initial peace and transport-expedition lifecycles. Versions 1–3 remain readable without regenerating their maps. Checkpoints include orders, movement, cargo, production, research, combat, fog, random state, every state-machine owner, kingdom preferences and relationships, recent attacks, AI objectives and timers, immutable history, and command receipts. SQLite commits them together. Version-1 and version-2 checkpoints migrate to peaceful relationships and return-fire defaults; old AI attack orders are recalled for reassessment, while resources, entities, queues, and history remain intact. While the server is running, failed saves keep the active game in memory, report the failure in the menu, and retry. The session library is local to this server: anyone with access to it can list and resume its games. Resuming by name or ID issues a new bearer token and disconnects older connections to that game. Keep the default loopback address for personal use.
 
 **Ctrl+C or SIGTERM** starts graceful shutdown. The server freezes game mutations, rejects new requests, and closes live snapshot streams. HTTP requests get **5 seconds** to drain before remaining connections are closed. Final checkpoints use a separate **15-second I/O budget**, retry transient SQLite lock contention, and finish before SQLite closes. A request authorized before shutdown cannot change a game after its final save. Repeated signals do not interrupt that save. Shutdown logs the result and exits with status **1** if draining or saving fails; a failed checkpoint leaves the previous committed save intact. Forced termination (`kill -9`) or power loss can still lose progress since the last successful checkpoint.
 
@@ -88,11 +121,11 @@ To back up games, stop the server gracefully and copy the database, or use SQLit
 
 All gameplay lifecycles use [`open-ships/statemachine`](https://github.com/open-ships/statemachine), with one `Instance` owning each state. Guards observe; transition effects mutate; the tick loop emits events. See [the lifecycle design](docs/STATE_MACHINES.md).
 
-The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI](api/openapi.json) and [TypeScript wire types](web/src/api.generated.ts) are generated from Go DTOs with `go run ./cmd/contracts`. Internal aggregates never become client authority. Action labels, costs, availability, and refusal reasons come from the backend.
+The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI](api/openapi.json) and [TypeScript wire types](web/src/api.generated.ts) are generated from Go DTOs with `go run ./cmd/contracts`. Internal aggregates never become client authority. Action labels, costs, exchange gains, availability, and refusal reasons come from the backend.
 
 ## Implemented scope
 
-The `frontier-1` ruleset includes a seeded river map, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
+The `frontier-1` ruleset includes eight seeded world layouts, four visual biomes, three world sizes, initial peace periods, four ages, construction and repair, resource cargo and drop-off, farms, research and production queues, population limits, combat and projectiles, monks and relics, garrisoning, trade, siege deployment, ships, fog of war, server AI, and conquest/wonder victory. Thirteen civilization choices have simplified bonuses and unique units. All visual models are original procedural geometry. A perspective camera, continuous terrain with exposed banks and cliffs, soft directional shadows, and buildings detailed on multiple sides give the battlefield depth. Terrain relief is visually amplified from the server’s elevation data; movement, terrain rules, and height advantages remain in Go.
 
 This is an initial playable ruleset. Its values and civilization availability are **not verified Age of Empires parity**. [GAME_SPEC.md](GAME_SPEC.md) remains the larger product target: full civilization trees, campaigns, scenario editing, human multiplayer and matchmaking, replays, audio, formations, complete reference rules, and large-army performance certification remain future work.
 

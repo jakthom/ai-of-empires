@@ -27,16 +27,32 @@ Go serves the UI and `/api/v1` from the same origin. Requests carry intentions. 
 Create a session using `Content-Type: application/json`:
 
 ```json
-{"name":"Evening kingdom","settlements":4,"civilization":"britons","difficulty":"normal","mode":"skirmish","seed":4817}
+{
+  "name": "Evening kingdom", "settlements": 4,
+  "civilization": "britons", "difficulty": "normal", "mode": "skirmish", "seed": 4817,
+  "world": {
+    "type": "islands", "biome": "tropical", "size": "medium",
+    "resources": "standard", "separation": "far", "reveal": "hidden",
+    "treaty_minutes": 10
+  }
+}
 ```
 
 The `201` response contains `match_id`, `name`, `token`, and `player_id`. Match routes require `Authorization: Bearer <token>`. Tokens belong to a single match and are never put in URL query strings. Civilization IDs come from the catalog. Difficulties are `peaceful`, `easy`, `normal`, `hard`, `extra_hard`, `expert`, and `aggressive`; modes are `skirmish` and `sandbox`.
+
+## World creation
+
+`Catalog.worlds` is the source for world types, biomes, sizes (including tile counts), resource levels, starting separations, reveal modes, allowed treaty minutes, descriptions and defaults. `Config.world` is optional; omitted fields receive the catalog defaults. Unknown values return a structured 422 rule error. The seed is 1–999999999; omitted/zero defaults to 4817. `settlements` stays independent of size.
+
+`Snapshot.world` and `SavedGame.world` contain the normalized creation settings. `Snapshot.map.biome` tells the renderer which scenery to use. `Snapshot.treaty_remaining` is the authoritative remaining time in game seconds. Do not run a client treaty clock or infer hostility from expiry. Attack and conversion commands during the initial peace period return `422 peace_period`; movement, economic work, and non-attacking attack-move travel remain available.
+
+Go generates and validates terrain before publishing a session. Biomes do not affect rules. Natural resource abundance scales finite deposit amounts, not starting stockpiles, entity health, or farms. Hidden maps use normal visibility; explored maps expose terrain but retain entity fog; full reveal gives every kingdom full visibility. Terrain components route scouts, gathering and transport plans; they contain no foreign entity information. Older games retain their tiles and omit the new world type in their metadata (the UI labels them Original world).
 
 ## Durable sessions
 
 `Config.settlements` is the total number of kingdoms including the human player; choose from `Catalog.settlement_counts` (1–6). Omitted or zero defaults to 2. One is solo play. `Snapshot.settlements`, `opponents`, and map dimensions reflect the choice. The backend creates equal starting populations and resources. `Config.name` is optional; an empty name becomes a unique `Kingdom …` name. Names are trimmed, limited to 80 characters, and unique by their lowercase value. A duplicate returns `409 name_exists`.
 
-`GET /sessions?q=evening` returns `{games: SavedGame[]}`. `q` is a case-insensitive name or ID substring, up to 200 characters; the result contains up to 100 games, newest saved first. Metadata contains `match_id`, `name`, `saved_at` (UTC RFC3339), simulation `time`, `difficulty`, `settlements`, `status`, `active`, `autosave_seconds`, and optional `save_error`. It contains no bearer tokens or private world state.
+`GET /sessions?q=evening` returns `{games: SavedGame[]}`. `q` is a case-insensitive name or ID substring, up to 200 characters; the result contains up to 100 games, newest saved first. Metadata contains `match_id`, `name`, `saved_at` (UTC RFC3339), simulation `time`, `difficulty`, `settlements`, `world`, `status`, `active`, `autosave_seconds`, and optional `save_error`. It contains no bearer tokens or private world state.
 
 `POST /sessions/resume` accepts `{"identifier":"Evening kingdom"}` or a full session ID. It returns `Session` and rotates the game's bearer token atomically with its checkpoint; prior tokens become unauthorized. These library routes intentionally have no account authentication: this is a local server and every caller with server access can resume its saved games. The default address is loopback. All match-scoped routes still require the match's bearer token and expose only that player's read models.
 
@@ -72,11 +88,18 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | `deploy`, `unload` | One eligible entity in `entity_ids` |
 | `stop`, `delete` | `entity_ids` |
 | `stance` | `entity_ids`, `product`: `defensive` (default), `stand_ground`, `passive`, or `aggressive` |
+| `reseed_farm` | One owned, depleted farm in `entity_ids`; pays 60 wood and assigns its farmer or the nearest idle villager on connected land |
 | `market_buy`, `market_sell` | One market in `entity_ids`, `product`: `food`, `wood`, or `stone` |
 | `pause`, `resign` | No entity selection |
 | `speed` | `value`: 1, 1.7, 3.4, 8, 16, or 32; supported values also come from `catalog.speeds` |
 
 `interact` resolves the appropriate action on the server. To resume work on an existing foundation, use `interact` with its `target_id`; `build` creates a new site. Solid buildings cannot be placed on units. `pause` toggles pause/resume and `deploy` toggles deployment/packing when its lifecycle permits it. Faster speeds run more fixed 50 ms simulation steps; they never increase the physics delta. Attainable wall-clock speed depends on server capacity.
+
+`reseed_farm` fires the farm lifecycle from Exhausted to Foundation, charges once, and assigns construction through the villager lifecycle. Repeating it on the new foundation is refused. It reports `farm_not_depleted`, `insufficient_resources`, or `no_available_villager` when appropriate. Existing `interact` orders on depleted farms and automatic reseeding continue to use the same lifecycle.
+
+For market exchange actions, optional `gain` has the same resource-object shape as `cost`. Render both from the snapshot; clients must not calculate exchange rates. The server validates and executes the same quote and appends an `exchange` event, included by the `economy` log filter. `trade` orders require an explored neutral Market and a completed owned Market on connected land.
+
+Fishing uses `gather` or `interact` with a Fishing Ship and a Fish Shoal target. Fish have `resource: "food"`; cargo contributes to the Food stockpile only after delivery at a reachable Dock. Depletion removes the shoal through its lifecycle. Cargo, orders, remaining fish and reseeding progress are checkpointed normally.
 
 `attack_move` optionally accepts `target_player`, the ID of another kingdom. It restricts proactive target acquisition to that kingdom; actual attackers from elsewhere can still provoke return fire. Omitted/zero means all other kingdoms, as an explicit offensive order. Other order kinds, one's own kingdom, and nonexistent IDs reject nonzero `target_player`. The server derives attack provenance and pursuit anchors; clients cannot supply them. `defensive` returns fire with limited pursuit, `stand_ground` returns fire without pursuit, `passive` suppresses automatic response, and `aggressive` enables unsolicited proximity attacks. Explicit attacks override automatic firing preferences.
 

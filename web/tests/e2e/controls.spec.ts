@@ -22,14 +22,15 @@ for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 640 
     await page.setViewportSize(viewport);
     await game.start();
     const field = await battlefield(page);
-    // Visually verified opening at seed 4817: three settlers left of the Town
-    // Center and berry bushes above it. Shift-drag keeps the camera fixed.
+    // Project the observed opening; generated homes no longer have fixed screen targets.
+    // Shift-drag keeps the camera fixed.
     // The initial Town Center selection is replaced by the box selection.
     await expect(page.locator('#selected-name')).toHaveText('Town Center');
+    const workers = await Promise.all([0,1,2].map(i => game.point('villager', i)));
     await page.keyboard.down('Shift');
-    await page.mouse.move(field.x + field.width / 2 - field.height * .169, field.y + field.height * .46);
+    await page.mouse.move(Math.min(...workers.map(p => p.x)) - 10, Math.min(...workers.map(p => p.y)) - 10);
     await page.mouse.down();
-    await page.mouse.move(field.x + field.width / 2 - field.height * .069, field.y + field.height * .56, { steps: 5 });
+    await page.mouse.move(Math.max(...workers.map(p => p.x)) + 10, Math.max(...workers.map(p => p.y)) + 16, { steps: 5 });
     await page.mouse.up();
     await page.keyboard.up('Shift');
     await expect(page.locator('#selection-count')).toHaveText('3 selected');
@@ -37,7 +38,8 @@ for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 640 
     await page.getByRole('button', { name: 'Give order' }).click();
     await expect(page.locator('#give-order')).toHaveAttribute('aria-pressed', 'true');
     await page.screenshot({ path: info.outputPath('primary-order-targeting.png') });
-    const response = await game.command('interact', () => field.canvas.click({ position: { x: field.width / 2 - field.height * .0225, y: field.height * .33 } }));
+    const target = await game.point('berries', 4);
+    const response = await game.command('interact', () => page.mouse.click(target.x, target.y));
     const intent = response.request().postDataJSON() as Command;
     const resource = before.entities.find(e => e.id === intent.target_id)!;
     expect(resource.resource).toBe('food');

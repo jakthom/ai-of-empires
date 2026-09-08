@@ -6,6 +6,7 @@ export interface Action {
   label: string;
   description: string;
   cost: Resources;
+  gain?: Resources;
   duration: number;
   enabled: boolean;
   reason?: string;
@@ -21,6 +22,7 @@ export interface Catalog {
   difficulties: Difficulty[];
   log_filters: LogFilter[];
   settlement_counts: number[];
+  worlds: WorldCatalog;
 }
 
 export interface Civilization {
@@ -49,6 +51,7 @@ export interface Config {
   civilization: string;
   difficulty: string;
   mode: string;
+  world?: WorldOptions;
 }
 
 export interface Definition {
@@ -169,6 +172,7 @@ export interface LogFilter {
 export interface MapView {
   width: number;
   height: number;
+  biome: string;
   tiles: Tile[];
   fog: number[];
 }
@@ -240,6 +244,7 @@ export interface RuleError {
 }
 
 export interface SavedGame {
+  world: WorldOptions;
   match_id: string;
   name: string;
   saved_at: string;
@@ -267,6 +272,8 @@ export interface Snapshot {
   version: string;
   difficulty: Difficulty;
   settlements: number;
+  world: WorldOptions;
+  treaty_remaining: number;
   tick: number;
   time: number;
   speed: number;
@@ -310,5 +317,39 @@ export interface Tile {
 export interface Vec {
   x: number;
   y: number;
+}
+
+export interface WorldCatalog {
+  types: WorldChoice[];
+  biomes: WorldChoice[];
+  sizes: WorldSize[];
+  resources: WorldChoice[];
+  separations: WorldChoice[];
+  reveals: WorldChoice[];
+  treaty_minutes: number[];
+  defaults: WorldOptions;
+}
+
+export interface WorldChoice {
+  id: string;
+  name: string;
+  description: string;
+}
+
+export interface WorldOptions {
+  type?: string;
+  biome?: string;
+  size?: string;
+  resources?: string;
+  separation?: string;
+  reveal?: string;
+  treaty_minutes?: number;
+}
+
+export interface WorldSize {
+  id: string;
+  name: string;
+  description: string;
+  tiles: number;
 }
 

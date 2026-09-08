@@ -82,6 +82,9 @@ func validHealingTarget(_ context.Context, c *unitContext) error {
 	return nil
 }
 func validConversionTarget(_ context.Context, c *unitContext) error {
+	if c.World.treatyInForce() {
+		return rule("peace_period", "Conversions are disabled during the initial peace period.")
+	}
 	if err := validMonkTarget(c); err != nil {
 		return err
 	}

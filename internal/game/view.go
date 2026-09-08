@@ -2,6 +2,7 @@ package game
 
 import (
 	"context"
+	"fmt"
 	"sort"
 )
 
@@ -15,10 +16,11 @@ func (w *World) View(player int) Snapshot {
 		Version: RulesVersion, Tick: w.Tick, Time: w.Time, Speed: w.Speed, Paused: w.match.State() == MatchPaused,
 		Difficulty:  difficultyPolicy(w.Config.Difficulty).Difficulty,
 		Settlements: w.Config.Settlements,
-		Status:      string(w.match.State()), Winner: w.Winner,
+		World:       w.WorldOptions(), TreatyRemaining: w.TreatyRemaining(),
+		Status: string(w.match.State()), Winner: w.Winner,
 		Player:    PlayerView{ID: p.ID, Name: p.Name, Civilization: p.Civilization, Resources: p.Resources, Age: p.Age, AgeName: Ages[p.Age], Population: n, Capacity: capacity, Limit: 200, Technologies: sortedKeys(p.Technologies), Defeated: (p.lifecycle.State() == PlayerDefeated), Kills: p.Kills},
 		Opponents: []OpponentView{}, Entities: []EntityView{}, Projectiles: []ProjectileView{}, Events: []Event{}, BuildOptions: []Action{},
-		Map: MapView{Width: w.Width, Height: w.Height, Tiles: make([]Tile, len(w.Tiles)), Fog: make([]int, len(w.Tiles))},
+		Map: MapView{Width: w.Width, Height: w.Height, Biome: w.WorldOptions().Biome, Tiles: make([]Tile, len(w.Tiles)), Fog: make([]int, len(w.Tiles))},
 	}
 	for id := 1; id <= w.Config.Settlements; id++ {
 		if id != player {
@@ -138,22 +140,34 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 		}
 		if e.Type == "market" {
 			for _, resource := range []string{"food", "wood", "stone"} {
-				cost := Resources{}
-				cost.Deposit(resource, 100)
-				var err error
-				if !p.Resources.CanPay(cost) {
-					err = rule("insufficient_resources", "Not enough "+resource+".")
+				for _, offer := range []struct{ kind, label string }{{"market_sell", "Sell "}, {"market_buy", "Buy "}} {
+					q, err := w.quoteExchange(p, e, offer.kind, resource)
+					a := action(offer.kind, resource, offer.label+resource, q.Description, q.Cost, 0, err)
+					a.Gain = &q.Gain
+					v.Actions = append(v.Actions, a)
 				}
-				v.Actions = append(v.Actions, action("market_sell", resource, "Sell "+resource, "Exchange 100 resources for gold.", cost, 0, err))
-				err = nil
-				if p.Resources.Gold < 130 {
-					err = rule("insufficient_resources", "Not enough gold.")
-				}
-				v.Actions = append(v.Actions, action("market_buy", resource, "Buy "+resource, "Buy 100 resources for 130 gold.", Resources{Gold: 130}, 0, err))
 			}
 		}
 	}
+	if e.Type == "farm" {
+		worker, err := w.farmReseeder(e)
+		description := "Pay 60 wood to reseed this depleted farm. An assigned farmer or the nearest idle villager rebuilds it, then resumes farming."
+		if worker != nil {
+			description = fmt.Sprintf("Pay 60 wood. Villager #%d will reseed this farm and resume farming.", worker.ID)
+		}
+		v.Actions = append(v.Actions, action("reseed_farm", "", "Reseed farm", description, Resources{Wood: 60}, definitions["farm"].Time, err))
+	}
 	if d.Kind == "unit" && e.Container == 0 {
+		if e.Type == "fishing_ship" {
+			v.Actions = append(v.Actions, action("gather", "", "Fish", "Choose a fish shoal. This ship brings its catch to your nearest reachable Dock as food.", Resources{}, 0, nil))
+		}
+		if e.Type == "trade_cart" {
+			var err error
+			if w.tradeHome(e) == nil {
+				err = rule("market_required", "Build a Market on this landmass to receive trade gold.")
+			}
+			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Choose an explored neutral Market. This cart returns gold to your Market after each trip.", Resources{}, 0, err))
+		}
 		if e.Type == "villager" {
 			for _, building := range defs {
 				if building.Kind == "building" {
@@ -173,7 +187,11 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 			}
 		}
 		if e.Type == "monk" {
-			v.Actions = append(v.Actions, action("convert", "", "Convert", "Choose an enemy unit.", Resources{}, 0, nil), action("heal", "", "Heal", "Choose a friendly unit.", Resources{}, 0, nil))
+			var conversionError error
+			if w.treatyInForce() {
+				conversionError = rule("peace_period", "Conversions are disabled until the initial peace period ends.")
+			}
+			v.Actions = append(v.Actions, action("convert", "", "Convert", "Choose an enemy unit.", Resources{}, 0, conversionError), action("heal", "", "Heal", "Choose a friendly unit.", Resources{}, 0, nil))
 		}
 		if e.Type == "trebuchet" {
 			label := "Deploy"

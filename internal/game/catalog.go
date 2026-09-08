@@ -218,6 +218,7 @@ func GetCatalog() Catalog {
 	}
 	c.LogFilters = append([]LogFilter{}, logFilters...)
 	c.SettlementCounts = []int{1, 2, 3, 4, 5, 6}
+	c.Worlds = worldCatalog()
 	defs, techs := orderedCatalog()
 	for _, d := range defs {
 		d.DropOff = append([]string(nil), d.DropOff...)

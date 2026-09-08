@@ -192,7 +192,7 @@ func aiRecover(_ context.Context, c *aiContext) error {
 func aiRally(c *aiContext, force bool) {
 	goal := aiAway(c.World, c.Home, Vec{float64(c.World.Width) / 2, float64(c.World.Height) / 2}, 4)
 	for _, e := range c.Army {
-		if slices.Contains(c.Player.AIPlan.Army, e.ID) {
+		if slices.Contains(c.Player.AIPlan.Army, e.ID) || c.Player.voyaging(e.ID) || !c.World.sameRegion(e.Position, c.Home, false) {
 			continue
 		}
 		if !force && e.ID == c.Player.AIPlan.ScoutID && c.Player.AIPlan.ScoutGoal != nil {

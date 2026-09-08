@@ -424,7 +424,7 @@ Peaceful coexistence is a valid outcome for independent settlements. The current
 
 ### 12.1 Launch map catalog
 
-Create eight original map scripts covering these layouts:
+The current skirmish implementation provides these eight original layouts. Ranked validation and the larger launch defaults below remain release targets:
 
 1. **Open Plains:** open land, distributed woods and exposed secondary resources.
 2. **Walled Basin:** enclosed starting settlements and a contested outer economy.
@@ -435,7 +435,9 @@ Create eight original map scripts covering these layouts:
 7. **Coastal Frontier:** continuous mainland with a significant shared coast.
 8. **Highland Relics:** elevation, constrained approaches, and contested relics.
 
-Map scripts choose logical size by player count: target 120×120 for 1v1, 168×168 for four players, 220×220 for six, and 240×240 for eight. These sizes are product defaults and may be tuned with performance and balance evidence. Custom size can be independent from player count.
+Current creation options offer independent 96×96, 128×128 and 160×160 maps for 1–6 settlements, four visual biomes, deposit abundance, starting separation, map reveal, seed and an initial peace period. Land/sea connectivity, symmetric starting resources and checkpoint preservation have automated coverage; the 10,000-seed ranked suite below is not yet implemented.
+
+The longer-term launch target chooses logical size by player count: target 120×120 for 1v1, 168×168 for four players, 220×220 for six, and 240×240 for eight. These sizes are product defaults and may be tuned with performance and balance evidence. Custom size can be independent from player count.
 
 ### 12.2 Fairness and determinism
 

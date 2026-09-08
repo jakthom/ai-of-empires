@@ -128,7 +128,11 @@ func (s *Service) Create(cfg game.Config) (Session, error) {
 			return Session{}, ErrNameExists
 		}
 	}
-	m := &Match{id: id, db: s.db, world: game.New(cfg), tokenHash: tokenHash(token), commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
+	world, err := game.NewWorld(cfg)
+	if err != nil {
+		return Session{}, err
+	}
+	m := &Match{id: id, db: s.db, world: world, tokenHash: tokenHash(token), commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
 	if err := m.save(time.Now()); err != nil {
 		return Session{}, err
 	}

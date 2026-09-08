@@ -301,6 +301,29 @@ button.log-entity:hover { color: #f2dcaa; text-decoration-color: currentColor; }
 #start-dialog .dialog-brand { margin-bottom: 20px; }
 .game-name-label { margin-bottom: 16px; }
 .setup-world { margin-top: 16px; }
+#start-dialog { width: min(900px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 28px 36px; }
+dialog input::placeholder { color: #b4bea8; opacity: 1; }
+.creation-heading h2 { font-size: clamp(26px, 3.5vw, 36px); text-wrap: balance; }
+.creation-heading p { margin-bottom: 24px; }
+.creation-columns { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+.creation-columns fieldset { border: 0; min-width: 0; padding: 0; margin: 0; }
+.creation-columns legend { font-family: Palatino, Georgia, serif; font-size: 22px; color: var(--text); padding: 0 0 18px; }
+.world-settings { border-left: 1px solid var(--line) !important; padding-left: 32px !important; }
+dialog .world-note { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 20px 0; }
+.advanced-world { border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 16px 0; }
+.advanced-world summary { cursor: pointer; color: var(--accent); font-size: 13px; }
+.advanced-world summary span { color: var(--muted); font-size: 12px; margin-left: 12px; }
+.advanced-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; padding-top: 22px; }
+.field-hint { display: block; font-size: 12px; line-height: 1.6; color: var(--muted); margin-top: 8px; }
+#treaty-clock { display: inline-block; margin-left: 8px; color: var(--accent); white-space: nowrap; }
+@media (max-width: 650px) {
+  #start-dialog { padding: 22px; }
+  .creation-columns { grid-template-columns: 1fr; gap: 20px; }
+  .world-settings { border-left: 0 !important; border-top: 1px solid var(--line) !important; padding-left: 0 !important; padding-top: 20px !important; }
+  .advanced-grid { grid-template-columns: 1fr 1fr; }
+  .advanced-world summary span { display: block; margin: 8px 0 0 15px; line-height: 1.5; }
+}
+@media (max-width: 390px) { .advanced-grid, .creation-columns .form-row { grid-template-columns: 1fr; } }
 .saved-game { display: flex; align-items: center; gap: 18px; padding: 18px 0; border-bottom: 1px solid var(--line); }
 .saved-game > div { flex: 1; min-width: 0; }
 .saved-game strong { display: block; font-size: 15px; overflow-wrap: anywhere; }

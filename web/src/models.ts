@@ -16,6 +16,7 @@ const farmBed = new THREE.BoxGeometry(1, 1, 1, 12, 1, 12);
 const pine = new THREE.ConeGeometry(1, 1, 7);
 const stone = new THREE.DodecahedronGeometry(1, 0);
 const orb = new THREE.SphereGeometry(1, 7, 5);
+const ripple = new THREE.TorusGeometry(1, .035, 3, 20, Math.PI * 1.45);
 const palette = { limestone: '#d6cfb4', shade: '#acaa95', roof: '#9e5843', wood: '#6e4f36', dark: '#384436', ground: '#a49870', metal: '#9ba2a0' };
 export function ownerColor(owner: number) { return ['#b29b6f', '#6198c7', '#ba6756', '#bc9bd3', '#d5b459', '#65b4a1', '#df9470'][owner] ?? '#b29b6f'; }
 
@@ -73,6 +74,7 @@ function building(g: THREE.Group, e: EntityView) {
   if (type === 'farm') {
     shape(g, farmBed, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
     for (let row = -3; row <= 3; row++) box(g,'#8c7550',0,.155,row*.29,r*1.72,.055,.12);
+    if ((e.amount ?? 0) <= 0) return;
     const crops = new THREE.InstancedMesh(pine, material('#c6b567'), 63);
     const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
     let index = 0;
@@ -209,14 +211,29 @@ function unit(g: THREE.Group, e: EntityView) {
   if (e.relic) shape(g, orb, '#e0bf63', -.23, .5, 0, .12, .17, .12);
 }
 
-export function makeModel(e: EntityView) {
+export function makeModel(e: EntityView, biome = 'temperate') {
   const g = new THREE.Group(); g.userData.entityId = e.id;
   if (e.kind === 'building') building(g, e);
   else if (e.kind === 'unit') unit(g, e);
   else if (e.type === 'tree') {
     const variation = 1 + (e.id % 7) * .045;
     shape(g, cylinder, palette.wood, 0, .7, 0, .12, 1.4, .12);
-    if (e.id % 4 === 0) {
+    if (biome === 'desert' || biome === 'tropical') {
+      if (biome === 'tropical') {
+        for (let i = 0; i < 3; i++) shape(g, stone, ['#477a45','#5f8c49','#79a154'][i], Math.sin(i*2.4)*.4, 1.6+i*.2, Math.cos(i*2.4)*.3, .88*variation, .6, .85*variation);
+      } else {
+        for (let i = 0; i < 6; i++) {
+          const a = i*Math.PI/3;
+          const leaf = shape(g, orb, i%2 ? '#748547' : '#526f43', Math.cos(a)*.46, 1.52, Math.sin(a)*.46, .66, .11, .19);
+          leaf.rotation.y = -a; leaf.rotation.z = -.22;
+        }
+      }
+    } else if (biome === 'alpine') {
+      for (let i = 0; i < 3; i++) {
+        shape(g, pine, '#42635b', 0, 1.1+i*.55, 0, (.83-i*.19)*variation, 1.4*variation, (.83-i*.19)*variation);
+        shape(g, pine, '#d9e0d9', 0, 1.38+i*.55, 0, (.58-i*.13)*variation, .9*variation, (.58-i*.13)*variation);
+      }
+    } else if (e.id % 4 === 0) {
       for (let i = 0; i < 3; i++) shape(g,stone,['#71834d','#879457','#9aa160'][i],Math.sin(i*2.4)*.32,1.45+i*.25,Math.cos(i*2.4)*.27,.69*variation,.74*variation,.65*variation);
     } else for (let i = 0; i < 3; i++) shape(g, pine, ['#415d3e', '#536f43', '#688149'][(e.id + i) % 3], 0, 1.1 + i * .55, 0, (.83 - i * .19) * variation, 1.4 * variation, (.83 - i * .19) * variation);
   } else if (e.type === 'gold' || e.type === 'stone') {
@@ -230,7 +247,16 @@ export function makeModel(e: EntityView) {
   } else if (e.type === 'relic') {
     shape(g, cylinder, '#c2a154', 0, .2, 0, .15, .4, .15); shape(g, stone, '#ecd18d', 0, .55, 0, .2, .27, .2);
   } else if (e.type === 'fish') {
-    shape(g, orb, '#a7bfad', 0, -.06, 0, .3, .025, .1);
+    // The water is opaque: surface silhouettes and ripples make shoals legible
+    // while preserving terrain depth testing and normal canvas picking.
+    for (let i = 0; i < 3; i++) {
+      const x = (i - 1) * .25, z = (i % 2) * .29 - .14;
+      shape(g, orb, '#d8e3cf', x, .065, z, .085, .035, .21);
+      const tail = shape(g, cone, '#afc7b6', x, .065, z + .22, .115, .17, .035);
+      tail.rotation.x = Math.PI / 2;
+    }
+    const ring = shape(g, ripple, '#9bbcac', 0, .03, 0, .64, .52, .64);
+    ring.rotation.x = -Math.PI / 2;
   }
   if (e.progress < 1) {
     for (const x of [-e.radius, e.radius]) for (const z of [-e.radius, e.radius]) box(g, '#a8905b', x, 1, z, .07, 2, .07);
