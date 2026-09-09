@@ -122,16 +122,16 @@ func (m *Match) issueCredentials(p *seat, newMember bool) (MemberSession, error)
 }
 func hashEqual(a, b [32]byte) bool { return subtle.ConstantTimeCompare(a[:], b[:]) == 1 }
 func (s *Service) Access(id, token, browser string) (*Access, error) {
-	return s.access(id, token, browser, false)
+	return s.access(id, token, browser, false, "")
 }
 
 // RequestAccess retains residency until the HTTP handler releases it. Durable
 // close and transfer still reject gameplay immediately, but their unloaded
 // checkpoints cannot invalidate a newly authorized Reopen or archive download.
 func (s *Service) RequestAccess(id, token, browser string) (*Access, error) {
-	return s.access(id, token, browser, true)
+	return s.access(id, token, browser, true, "")
 }
-func (s *Service) access(id, token, browser string, hold bool) (*Access, error) {
+func (s *Service) access(id, token, browser string, hold bool, agentMember string) (*Access, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.lifecycle.State() != serviceServing {
@@ -151,6 +151,9 @@ func (s *Service) access(id, token, browser string, hold bool) (*Access, error) 
 		allowed := token != "" && hashEqual(p.TokenHash, tokenHash(token))
 		if token == "" {
 			allowed = b.MemberID == p.MemberID && b.Version == p.CredentialVersion
+		}
+		if agentMember != "" {
+			allowed = p.MemberID == agentMember && hashEqual(tokenHash(token), tokenHash(agentToken(id, c.Epoch, p.MemberID, p.CredentialVersion, p.TokenHash)))
 		}
 		if allowed {
 			found = p.MemberID

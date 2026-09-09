@@ -106,6 +106,9 @@ func (j *eventJournal) filtered(player int, query LogQuery, source []int) []int 
 }
 
 func matchesLog(event Event, words []string, category string) bool {
+	// Search must use the same public projection as the result. Otherwise a
+	// matching cursor could disclose private activity in an old discovery.
+	event = observedEvent(event)
 	if category != "" && logCategories[event.Kind] != category {
 		return false
 	}

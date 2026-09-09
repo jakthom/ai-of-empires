@@ -212,6 +212,7 @@ func init() {
 
 func GetCatalog() Catalog {
 	c := Catalog{RulesVersion: RulesVersion, Civilizations: civilizations, Ages: Ages, Definitions: []Definition{}, Technologies: []Technology{}}
+	c.Commands = PlayerCommands()
 	c.Speeds = append([]float64{}, gameSpeeds...)
 	for _, policy := range aiPolicies {
 		c.Difficulties = append(c.Difficulties, policy.Difficulty)

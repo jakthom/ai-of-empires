@@ -8,6 +8,8 @@ Go serves the UI and `/api/v1` from the same origin. Requests carry intentions. 
 
 The endpoint table and lifecycle diagrams are in [MULTIPLAYER.md](MULTIPLAYER.md#api). The complete generated contract is [OpenAPI](../api/openapi.json).
 
+Each player membership also has its own [MCP endpoint](MCP.md). Authenticated `GET /games/{id}/agent` discovers your URL; `POST` on the same route returns a restricted MCP token. That token only authorizes your membership's `/games/{id}/memberships/{member}/mcp` endpoint and cannot access ordinary REST routes. `Catalog.commands` lists all implemented multiplayer intentions and their fields.
+
 Create a saved private lobby with `POST /api/v1/games` and `Content-Type: application/json`:
 
 ```json
@@ -110,6 +112,8 @@ Owned entities also include `stance`; foreign stances remain private. Each `oppo
 `Catalog.difficulties` supplies `{id, name, description}` for `peaceful`, `easy`, `normal`, `hard`, `extra_hard`, `expert`, and `aggressive`. Use these options when creating a match. `Snapshot.difficulty` supplies the current match's metadata, including after reconnect. Difficulty is fixed at creation. It changes Go's economic, production, research, and attack priorities; it does not grant extra starting resources or population.
 
 Enemy units outside sight are omitted. Explored static objects can appear as last-known observations. Opponent economy and internal world state are not exposed. A snapshot read does not advance the simulation or RNG.
+
+Foreign activity labels contain only public observation information. Seeing a building does not disclose what it trains or researches; seeing a moving unit does not disclose its future intention, cargo or private timers. The same projection applies to MCP, SSE, snapshots and old fog memories. Discovery-history read models similarly omit private activity captured by older versions while leaving stored journal entries unchanged.
 
 Without a format parameter, SSE retains the original `event: snapshot`, `id: <tick>` contract, about every 100 ms. The UI requests `?format=delta-v1` (plus its `connection` ID for `/games`), which sends `event: frame` about every 50 ms. JSON data follows the generated `SnapshotFrame` schema:
 

@@ -42,6 +42,126 @@
         ],
         "type": "object"
       },
+      "AgentConnectionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "connection_id": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "connection_id"
+        ],
+        "type": "object"
+      },
+      "AgentConnectionResult": {
+        "additionalProperties": false,
+        "properties": {
+          "ok": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "type": "object"
+      },
+      "AgentEndpoint": {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "mcp_url": {
+            "type": "string"
+          },
+          "membership_id": {
+            "type": "string"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "token": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "game_id",
+          "membership_id",
+          "player_id",
+          "mcp_url"
+        ],
+        "type": "object"
+      },
+      "AgentGame": {
+        "additionalProperties": false,
+        "properties": {
+          "game_id": {
+            "type": "string"
+          },
+          "match_status": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "boolean"
+          },
+          "player_id": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "seat_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "game_id",
+          "name",
+          "player_id",
+          "seat_id",
+          "owner",
+          "status",
+          "match_status",
+          "revision",
+          "time"
+        ],
+        "type": "object"
+      },
+      "AgentLogRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "after": {
+            "type": "integer"
+          },
+          "before": {
+            "type": "integer"
+          },
+          "category": {
+            "type": "string"
+          },
+          "entity_id": {
+            "type": "integer"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "q": {
+            "type": "string"
+          }
+        },
+        "required": [],
+        "type": "object"
+      },
       "ArchivePassword": {
         "additionalProperties": false,
         "properties": {
@@ -120,6 +240,12 @@
             },
             "type": "array"
           },
+          "commands": {
+            "items": {
+              "$ref": "#/components/schemas/CommandInfo"
+            },
+            "type": "array"
+          },
           "definitions": {
             "items": {
               "$ref": "#/components/schemas/Definition"
@@ -164,6 +290,7 @@
           }
         },
         "required": [
+          "commands",
           "rules_version",
           "definitions",
           "technologies",
@@ -261,6 +388,29 @@
         "required": [
           "id",
           "kind"
+        ],
+        "type": "object"
+      },
+      "CommandInfo": {
+        "additionalProperties": false,
+        "properties": {
+          "description": {
+            "type": "string"
+          },
+          "fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "kind": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "description",
+          "fields"
         ],
         "type": "object"
       },
@@ -1005,6 +1155,80 @@
         ],
         "type": "object"
       },
+      "MapRegion": {
+        "additionalProperties": false,
+        "properties": {
+          "fog": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "height": {
+            "type": "integer"
+          },
+          "map_height": {
+            "type": "integer"
+          },
+          "map_width": {
+            "type": "integer"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "tiles": {
+            "items": {
+              "$ref": "#/components/schemas/Tile"
+            },
+            "type": "array"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "x": {
+            "type": "integer"
+          },
+          "y": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "tick",
+          "map_width",
+          "map_height",
+          "x",
+          "y",
+          "width",
+          "height",
+          "tiles",
+          "fog"
+        ],
+        "type": "object"
+      },
+      "MapRegionRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "height": {
+            "type": "integer"
+          },
+          "width": {
+            "type": "integer"
+          },
+          "x": {
+            "type": "integer"
+          },
+          "y": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "x",
+          "y",
+          "width",
+          "height"
+        ],
+        "type": "object"
+      },
       "MapView": {
         "additionalProperties": false,
         "properties": {
@@ -1076,6 +1300,55 @@
           "epoch",
           "owner"
         ],
+        "type": "object"
+      },
+      "Observation": {
+        "additionalProperties": false,
+        "properties": {
+          "has_more": {
+            "type": "boolean"
+          },
+          "map_included": {
+            "type": "boolean"
+          },
+          "next_entity_id": {
+            "type": "integer"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/Snapshot"
+          }
+        },
+        "required": [
+          "snapshot",
+          "map_included",
+          "has_more",
+          "next_entity_id"
+        ],
+        "type": "object"
+      },
+      "ObserveRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "after_entity_id": {
+            "type": "integer"
+          },
+          "entity_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "include_map": {
+            "type": "boolean"
+          },
+          "limit": {
+            "type": "integer"
+          },
+          "owner": {
+            "type": "integer"
+          }
+        },
+        "required": [],
         "type": "object"
       },
       "OpponentView": {
@@ -2107,6 +2380,11 @@
       "matchToken": {
         "scheme": "bearer",
         "type": "http"
+      },
+      "mcpPlayerToken": {
+        "description": "Restricted player credential from POST /games/{id}/agent. Valid only at that membership MCP endpoint; cannot authorize REST.",
+        "scheme": "bearer",
+        "type": "http"
       }
     }
   },
@@ -2488,6 +2766,132 @@
           }
         ],
         "summary": "Read the lobby, roster, controls and save status"
+      }
+    },
+    "/games/{id}/agent": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentEndpoint"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Discover only your membership's MCP endpoint"
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgentEndpoint"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Get your membership's restricted MCP credential; cannot authorize REST or host administration"
       }
     },
     "/games/{id}/audit": {
@@ -3526,6 +3930,77 @@
           }
         ],
         "summary": "Read the journal visible to your kingdom"
+      }
+    },
+    "/games/{id}/memberships/{member}/mcp": {
+      "post": {
+        "description": "Every request requires a restricted MCP bearer token matching both the game and membership in this URL. Obtain it with POST /games/{id}/agent. Ordinary session tokens, browser cookies and MCP session IDs do not grant access. Stateless JSON responses; tool schemas derive from Go wire types. No host administration, foreign history or hidden-world access.",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "member",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Must accept both application/json and text/event-stream",
+            "in": "header",
+            "name": "Accept",
+            "required": true,
+            "schema": {
+              "example": "application/json, text/event-stream",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "additionalProperties": true,
+                "description": "MCP JSON-RPC envelope. Discover typed tool input/output schemas with tools/list.",
+                "type": "object"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "description": "MCP JSON-RPC envelope. Discover typed tool input/output schemas with tools/list.",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "MCP result or protocol error. Gameplay refusals use isError with the existing JSON RuleError in text content."
+          },
+          "202": {
+            "description": "MCP notification accepted"
+          },
+          "default": {
+            "description": "Authentication, origin, size, protocol or shutdown refusal"
+          }
+        },
+        "security": [
+          {
+            "mcpPlayerToken": []
+          }
+        ],
+        "summary": "Player-specific MCP Streamable HTTP endpoint"
       }
     },
     "/games/{id}/pause": {

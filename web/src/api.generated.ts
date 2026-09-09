@@ -12,6 +12,43 @@ export interface Action {
   reason?: string;
 }
 
+export interface AgentConnectionRequest {
+  connection_id: string;
+}
+
+export interface AgentConnectionResult {
+  ok: boolean;
+}
+
+export interface AgentEndpoint {
+  game_id: string;
+  membership_id: string;
+  player_id: number;
+  mcp_url: string;
+  token?: string;
+}
+
+export interface AgentGame {
+  game_id: string;
+  name: string;
+  player_id: number;
+  seat_id: string;
+  owner: boolean;
+  status: string;
+  match_status: string;
+  revision: number;
+  time: number;
+}
+
+export interface AgentLogRequest {
+  after?: number;
+  before?: number;
+  limit?: number;
+  entity_id?: number;
+  q?: string;
+  category?: string;
+}
+
 export interface ArchivePassword {
   passphrase: string;
 }
@@ -31,6 +68,7 @@ export interface AuditPage {
 }
 
 export interface Catalog {
+  commands: CommandInfo[];
   rules_version: string;
   definitions: Definition[];
   technologies: Technology[];
@@ -67,6 +105,12 @@ export interface Command {
   product?: string;
   queue?: boolean;
   value?: number;
+}
+
+export interface CommandInfo {
+  kind: string;
+  description: string;
+  fields: string[];
 }
 
 export interface CompleteTransfer {
@@ -278,6 +322,25 @@ export interface MapCell {
   fog: number;
 }
 
+export interface MapRegion {
+  tick: number;
+  map_width: number;
+  map_height: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  tiles: Tile[];
+  fog: number[];
+}
+
+export interface MapRegionRequest {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface MapView {
   width: number;
   height: number;
@@ -295,6 +358,21 @@ export interface MemberSession {
   rejoin_code?: string;
   epoch: string;
   owner: boolean;
+}
+
+export interface Observation {
+  snapshot: Snapshot;
+  map_included: boolean;
+  has_more: boolean;
+  next_entity_id: number;
+}
+
+export interface ObserveRequest {
+  owner?: number;
+  entity_ids?: number[];
+  after_entity_id?: number;
+  limit?: number;
+  include_map?: boolean;
 }
 
 export interface OpponentView {

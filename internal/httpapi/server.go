@@ -35,6 +35,7 @@ type Server struct {
 func New(service *matches.Service, assets fs.FS) *Server {
 	s := &Server{matches: service, mux: http.NewServeMux(), assets: assets}
 	s.gameRoutes()
+	s.mcpRoutes()
 	s.mux.HandleFunc("GET /api/v1/health", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, Health{"ok", game.RulesVersion}) })
 	s.mux.HandleFunc("GET /api/v1/catalog", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, game.GetCatalog()) })
 	s.mux.HandleFunc("GET /api/v1/openapi.json", func(w http.ResponseWriter, r *http.Request) { respond(w, 200, OpenAPI()) })
@@ -113,7 +114,19 @@ func writeError(w http.ResponseWriter, status int, code, message string) {
 	respond(w, status, ErrorBody{game.RuleError{Code: code, Message: message}})
 }
 func domainError(w http.ResponseWriter, err error) {
+	status, body := domainFailure(err)
+	if errors.Is(err, matches.ErrShuttingDown) {
+		w.Header().Set("Retry-After", "1")
+	}
+	respond(w, status, body)
+}
+
+// REST and MCP use the same public errors; internal errors never reach players.
+func domainFailure(err error) (int, ErrorBody) {
 	var rule *game.RuleError
+	failure := func(status int, code, message string) (int, ErrorBody) {
+		return status, ErrorBody{game.RuleError{Code: code, Message: message}}
+	}
 	switch {
 	case errors.As(err, &rule):
 		status := 422
@@ -126,25 +139,24 @@ func domainError(w http.ResponseWriter, err error) {
 		if rule.Code == "entity_not_found" {
 			status = 404
 		}
-		respond(w, status, ErrorBody{*rule})
+		return status, ErrorBody{*rule}
 	case errors.Is(err, matches.ErrNotFound):
-		writeError(w, 404, "match_not_found", "No saved game has that name or session ID.")
+		return failure(404, "match_not_found", "No saved game has that name or session ID.")
 	case errors.Is(err, matches.ErrNameExists):
-		writeError(w, 409, "name_exists", "A game with that name already exists. Choose another name or resume it.")
+		return failure(409, "name_exists", "A game with that name already exists. Choose another name or resume it.")
 	case errors.Is(err, matches.ErrForbidden):
-		writeError(w, 403, "forbidden", "This action is not allowed for your membership.")
+		return failure(403, "forbidden", "This action is not allowed for your membership.")
 	case errors.Is(err, matches.ErrUnauthorized):
-		writeError(w, 401, "unauthorized", "A valid match token is required.")
+		return failure(401, "unauthorized", "A valid match token is required.")
 	case errors.Is(err, matches.ErrCapacity):
-		writeError(w, 503, "server_full", "The server is full. Try again later.")
+		return failure(503, "server_full", "The server is full. Try again later.")
 	case errors.Is(err, matches.ErrShuttingDown):
-		w.Header().Set("Retry-After", "1")
-		writeError(w, 503, "server_shutting_down", "The server is shutting down. Reconnect after it restarts.")
+		return failure(503, "server_shutting_down", "The server is shutting down. Reconnect after it restarts.")
 	case errors.Is(err, statemachine.ErrNotPermitted):
-		writeError(w, 422, "invalid_state", "This action is unavailable in the current state.")
+		return failure(422, "invalid_state", "This action is unavailable in the current state.")
 	default:
 		slog.Error("request failed", "error", err)
-		writeError(w, 500, "internal_error", "The request could not be completed.")
+		return failure(500, "internal_error", "The request could not be completed.")
 	}
 }
 func (s *Server) authorize(w http.ResponseWriter, r *http.Request) *matches.Match {

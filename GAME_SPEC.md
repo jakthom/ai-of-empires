@@ -540,10 +540,13 @@ The user's implementation decision supersedes the earlier proposed Rust/WASM arc
 | `open-ships/statemachine` instances | Typed lifecycle ownership with pure guards and named transition effects |
 | Go match service | Serialized commands/ticks, sessions, authentication, idempotency, and clocks |
 | Versioned HTTP API | Intent commands, placement queries, player-filtered snapshots, and reconnect; initial transport is REST plus SSE |
+| Player MCP endpoints | One authenticated endpoint per membership per game; agents assist that kingdom or claim a separate opponent seat, using the same Go commands and visibility rules |
 | Generated contracts | OpenAPI and TypeScript wire types derived from Go DTOs |
 | Persistence services (future) | Accounts, metadata, campaign content, authoritative saves, and replays |
 
 Every gameplay lifecycle uses the same state/event/guard/effect protocol, with separate owners for independent concerns. Ordinary calculations and command routing remain functions. The UI receives display metadata and available actions from the backend and never duplicates gameplay validation. See `docs/STATE_MACHINES.md` and `docs/API.md` for the implemented boundaries. `README.md` records current scope and gaps against this long-term specification.
+
+External agents must never receive another user's private commands, queues, economy, history or reasoning. Their observations contain only their own state and normal map observations, including last-known objects under fog. MCP credentials must be restricted to gameplay and must not grant host administration or database/archive access. Agent transport does not own a second simulation or bypass costs, timers, membership revocation or shared-clock policy. The current implementation and connection instructions are in `docs/MCP.md`; independent per-agent credentials, selective delegation and formal allied cooperation remain longer-term extensions.
 
 ### 15.3 Simulation contract
 

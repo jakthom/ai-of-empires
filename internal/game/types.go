@@ -98,6 +98,7 @@ type Civilization struct {
 	Bonus       string `json:"bonus"`
 }
 type Catalog struct {
+	Commands         []CommandInfo  `json:"commands"`
 	RulesVersion     string         `json:"rules_version"`
 	Definitions      []Definition   `json:"definitions"`
 	Technologies     []Technology   `json:"technologies"`

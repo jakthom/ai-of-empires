@@ -166,7 +166,7 @@ Friends open `http://<your-computer-address>:9090`. No external login provider i
 |---|---|
 | `internal/game` | Fixed 50 ms simulation steps, rules, AI, state machines, player read models |
 | `internal/matches` | Player memberships, lobbies, invitations, clocks, shared controls, scoped receipts, SQLite checkpoints and portable archives |
-| `internal/httpapi` | Strict JSON transport, authentication, REST commands, SSE snapshots, static serving |
+| `internal/httpapi` | Strict JSON transport, authentication, REST commands, player MCP tools, SSE snapshots, static serving |
 | `web/src` | Three.js geometry, camera, snapshot interpolation, selection, HUD, input |
 
 All gameplay lifecycles use [`open-ships/statemachine`](https://github.com/open-ships/statemachine), with one `Instance` owning each state. Guards observe; transition effects mutate; the tick loop emits events. See [the lifecycle design](docs/STATE_MACHINES.md).
@@ -174,6 +174,8 @@ All gameplay lifecycles use [`open-ships/statemachine`](https://github.com/open-
 The [API guide](docs/API.md) describes requests and reconnect behavior. [OpenAPI](api/openapi.json) and [TypeScript wire types](web/src/api.generated.ts) are generated from Go DTOs with `go run ./cmd/contracts`. Internal aggregates never become client authority. Action labels, costs, exchange gains, availability, and refusal reasons come from the backend.
 
 The [multiplayer lifecycle and API guide](docs/MULTIPLAYER.md) diagrams the implemented friend seats, invitations, shared controls, and portable games.
+
+Agents can play through a **separate MCP endpoint for each player membership** at `/api/v1/games/{game}/memberships/{member}/mcp`. Get your URL and restricted token with authenticated `POST /api/v1/games/{game}/agent`. An assistant can share your kingdom, or an opponent can claim an invited friend seat. The 15 tools expose all 27 multiplayer command kinds, placement, private observations/history and shared controls through the existing Go authority. Agent credentials cannot authorize REST administration or database downloads. See [MCP setup, privacy and gameplay coverage](docs/MCP.md), including the heartbeat requirements for unattended play.
 
 ## Implemented scope
 
