@@ -39,12 +39,15 @@ type Receipt struct {
 	Accepted  bool   `json:"accepted"`
 }
 type Placement struct {
-	Product  string   `json:"product"`
-	Position game.Vec `json:"position"`
+	EndPosition *game.Vec `json:"end_position,omitempty"`
+	Product     string    `json:"product"`
+	Position    game.Vec  `json:"position"`
 }
 type PlacementResult struct {
-	Valid  bool   `json:"valid"`
-	Reason string `json:"reason,omitempty"`
+	Positions []game.Vec     `json:"positions"`
+	Cost      game.Resources `json:"cost"`
+	Valid     bool           `json:"valid"`
+	Reason    string         `json:"reason,omitempty"`
 }
 type cachedCommand struct {
 	hash    [32]byte
@@ -74,6 +77,9 @@ type Match struct {
 	accumulator     float64
 }
 type Service struct {
+	stores    map[string]*sql.DB
+	paths     map[string]string
+	gamesDir  string
 	imported  map[string]importedTransfer
 	browsers  map[string]map[string]browserBinding
 	deleted   map[string]bool
@@ -86,7 +92,7 @@ type Service struct {
 }
 
 func NewService() *Service {
-	return &Service{imported: map[string]importedTransfer{}, browsers: map[string]map[string]browserBinding{}, deleted: map[string]bool{}, matches: map[string]*Match{}, stopping: make(chan struct{}), lifecycle: statemachine.NewInstance(serviceMachine, serviceServing)}
+	return &Service{stores: map[string]*sql.DB{}, paths: map[string]string{}, imported: map[string]importedTransfer{}, browsers: map[string]map[string]browserBinding{}, deleted: map[string]bool{}, matches: map[string]*Match{}, stopping: make(chan struct{}), lifecycle: statemachine.NewInstance(serviceMachine, serviceServing)}
 }
 
 // Stopping broadcasts the start of shutdown to transports and long-lived
@@ -136,11 +142,25 @@ func (s *Service) Create(cfg game.Config) (Session, error) {
 			return Session{}, ErrNameExists
 		}
 	}
+	for _, db := range s.stores {
+		var count int
+		if err := db.QueryRow("SELECT count(*) FROM sessions WHERE name_key=?", strings.ToLower(cfg.Name)).Scan(&count); err != nil {
+			return Session{}, err
+		}
+		if count > 0 {
+			return Session{}, ErrNameExists
+		}
+	}
 	world, err := game.NewWorld(cfg)
 	if err != nil {
 		return Session{}, err
 	}
-	m := &Match{id: id, db: s.db, world: world, tokenHash: tokenHash(token), commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
+	db, err := s.newGameDatabase(id)
+	if err != nil {
+		return Session{}, err
+	}
+	defer s.discardUncreated(id)
+	m := &Match{id: id, db: db, world: world, tokenHash: tokenHash(token), commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
 	if err := m.save(time.Now()); err != nil {
 		return Session{}, err
 	}
@@ -199,7 +219,7 @@ func (s *Service) Delete(id string, m *Match) error {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if s.db != nil {
-		if _, err := s.db.Exec("DELETE FROM sessions WHERE id=?", id); err != nil {
+		if err := s.deleteDatabase(m, "legacy"); err != nil {
 			return err
 		}
 	}
@@ -263,8 +283,8 @@ func (m *Match) Apply(c game.Command) (Receipt, error) {
 func (m *Match) Placement(p Placement) PlacementResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	err := m.world.Placement(1, p.Product, p.Position)
-	v := PlacementResult{Valid: err == nil}
+	positions, cost, err := m.world.PlanBuilding(1, p.Product, p.Position, p.EndPosition)
+	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost}
 	if err != nil {
 		v.Reason = err.Error()
 	}

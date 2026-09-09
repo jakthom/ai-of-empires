@@ -37,7 +37,7 @@ func TestShutdownBarrierPreservesStateAndClosesExactlyOnce(t *testing.T) {
 	if _, err := s.lifecycle.Fire(context.Background(), finishShutdown, s); !errors.Is(err, statemachine.ErrNotPermitted) {
 		t.Fatalf("closed before the mutation barrier: %v", err)
 	}
-	if _, err := s.db.Exec(`CREATE TABLE close_saves (id TEXT);
+	if _, err := m.db.Exec(`CREATE TABLE close_saves (id TEXT);
 	 CREATE TRIGGER count_close_saves AFTER UPDATE ON sessions BEGIN INSERT INTO close_saves VALUES(NEW.id); END;`); err != nil {
 		t.Fatal(err)
 	}
@@ -95,7 +95,7 @@ func TestShutdownBarrierPreservesStateAndClosesExactlyOnce(t *testing.T) {
 	}
 	defer restored.Close()
 	var saves int
-	if err := restored.db.QueryRow("SELECT count(*) FROM close_saves").Scan(&saves); err != nil || saves != 1 {
+	if err := restored.stores[seat.MatchID].QueryRow("SELECT count(*) FROM close_saves").Scan(&saves); err != nil || saves != 1 {
 		t.Fatalf("final checkpoint ran %d times: %v", saves, err)
 	}
 	loaded, err := restored.Authorized(seat.MatchID, seat.Token)
@@ -162,7 +162,8 @@ func TestShutdownSaveFailureKeepsAtomicCheckpointAndReportsSession(t *testing.T)
 	beforeLog, _ := failed.Log(game.LogQuery{FromStart: true, Limit: 200})
 	// Fail an event insert after the session row has been written. The whole
 	// transaction must roll back, while the other game's final save proceeds.
-	if _, err := s.db.Exec("CREATE TRIGGER reject_events BEFORE INSERT ON events WHEN NEW.session_id='" + seats[0].MatchID + "' BEGIN SELECT RAISE(ABORT,'disk unavailable'); END;"); err != nil {
+	failedDB := s.stores[seats[0].MatchID]
+	if _, err := failedDB.Exec("CREATE TRIGGER reject_events BEFORE INSERT ON events WHEN NEW.session_id='" + seats[0].MatchID + "' BEGIN SELECT RAISE(ABORT,'disk unavailable'); END;"); err != nil {
 		t.Fatal(err)
 	}
 	for _, seat := range seats {
@@ -186,7 +187,7 @@ func TestShutdownSaveFailureKeepsAtomicCheckpointAndReportsSession(t *testing.T)
 		t.Fatal(err)
 	}
 	defer restored.Close()
-	if _, err := restored.db.Exec("DROP TRIGGER reject_events"); err != nil {
+	if _, err := restored.stores[seats[0].MatchID].Exec("DROP TRIGGER reject_events"); err != nil {
 		t.Fatal(err)
 	}
 	m, _ := restored.Authorized(seats[0].MatchID, seats[0].Token)
@@ -217,7 +218,7 @@ func TestShutdownCheckpointDeadlineAndLockRetry(t *testing.T) {
 			if _, err := m.Apply(game.Command{ID: "pause", Kind: "pause"}); err != nil {
 				t.Fatal(err)
 			}
-			locker, err := sql.Open("sqlite", path)
+			locker, err := sql.Open("sqlite", s.paths[seat.MatchID])
 			if err != nil {
 				t.Fatal(err)
 			}

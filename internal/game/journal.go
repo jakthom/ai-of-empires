@@ -63,8 +63,24 @@ func (j *eventJournal) append(event Event, readers []int) {
 }
 
 func (w *World) record(event Event, entity *Entity, player int) {
+	if player == 0 && entity == nil {
+		// A world announcement has one separately owned entry per recipient.
+		for id := 1; id <= w.Config.Settlements; id++ {
+			if w.Players[id] != nil {
+				w.record(event, nil, id)
+			}
+		}
+		return
+	}
+	if player == 0 && entity != nil {
+		player = entity.Owner
+	}
 	w.NextEvent++
 	event.ID, event.Tick, event.Player = w.NextEvent, w.Tick, player
+	event.UserID = "world"
+	if p := w.Players[player]; p != nil {
+		event.UserID = p.UserID
+	}
 	event.Time = w.Time
 	if entity != nil {
 		event.EntityID, event.EntityType = entity.ID, entity.Type
@@ -81,18 +97,8 @@ func (w *World) record(event Event, entity *Entity, player int) {
 		}
 	}
 	readers := []int{}
-	for id := 1; id <= w.Config.Settlements; id++ {
-		p := w.Players[id]
-		if p == nil {
-			continue
-		}
-		if player > 0 {
-			if id == player {
-				readers = append(readers, id)
-			}
-		} else if entity == nil || entity.Owner == id || w.visibleEntity(id, entity) {
-			readers = append(readers, id)
-		}
+	if w.Players[player] != nil {
+		readers = append(readers, player)
 	}
 	w.journal.append(event, readers)
 }
@@ -110,11 +116,11 @@ func (w *World) Log(player int, query LogQuery) (EventPage, error) {
 	if query.EntityID != 0 {
 		indices = w.journal.entities[player][query.EntityID]
 		if len(indices) == 0 {
-			return page, rule("entity_not_found", "No observable history exists for that entity.")
+			return page, rule("entity_not_found", "No personal history exists for that entity.")
 		}
 		last := w.journal.records[indices[len(indices)-1]]
 		page.Entity = &HistoryEntity{ID: last.EntityID, Name: last.EntityName, Type: last.EntityType, Activity: "Last seen: " + last.Activity}
-		if e := w.Entities[query.EntityID]; e != nil && (e.Owner == player || w.visibleEntity(player, e)) {
+		if e := w.Entities[query.EntityID]; e != nil && e.Owner == player {
 			page.Entity.Activity, page.Entity.Present = w.activity(e), true
 		} else if last.Activity == "Destroyed" {
 			page.Entity.Activity = "Destroyed"

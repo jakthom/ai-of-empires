@@ -280,6 +280,7 @@ func (s *Server) gameRoutes() {
 		gameRequest(s, w, r, func(a *matches.Access, q matches.CompleteTransfer) (any, error) { return a.CompleteTransfer(q) })
 	})
 	s.mux.HandleFunc("GET /api/v1/games/{id}/transfers/{transfer}/archive", s.downloadArchive)
+	s.mux.HandleFunc("POST /api/v1/games/{id}/database", s.downloadDatabase)
 	s.mux.HandleFunc("POST /api/v1/games/{id}/transfers/{transfer}/archive", s.downloadArchive)
 	s.mux.HandleFunc("POST /api/v1/game-imports", s.importGame)
 }
@@ -371,6 +372,23 @@ func (s *Server) downloadArchive(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition", `attachment; filename="`+r.PathValue("id")+`.aoegame"`)
 	w.WriteHeader(200)
 	_, _ = w.Write(data)
+}
+func (s *Server) downloadDatabase(w http.ResponseWriter, r *http.Request) {
+	a := s.gameAccess(w, r)
+	if a == nil {
+		return
+	}
+	defer a.Release()
+	data, err := a.Database(r.Context())
+	if err != nil {
+		domainError(w, err)
+		return
+	}
+	defer data.Close()
+	w.Header().Set("Content-Type", "application/vnd.sqlite3")
+	w.Header().Set("Content-Disposition", `attachment; filename="`+r.PathValue("id")+`.sqlite"`)
+	w.WriteHeader(http.StatusOK)
+	_, _ = io.Copy(w, data)
 }
 func (s *Server) importGame(w http.ResponseWriter, r *http.Request) {
 	// Multipart carries binary archives without JSON/base64 expansion. Form

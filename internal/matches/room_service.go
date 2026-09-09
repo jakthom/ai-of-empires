@@ -67,7 +67,12 @@ func (s *Service) CreateGame(req CreateGame, browser string) (MemberSession, err
 		}
 		r.Seats = append(r.Seats, newSeat(sid, i+1, label, civ, controller))
 	}
-	m := &Match{id: id, db: s.db, room: r, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
+	db, err := s.newGameDatabase(id)
+	if err != nil {
+		return MemberSession{}, err
+	}
+	defer s.discardUncreated(id)
+	m := &Match{id: id, db: db, room: r, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
 	owner := r.Seats[0]
 	_ = fireRoom(owner.State, reserveSeat, owner)
 	_ = fireRoom(owner.State, claimSeat, owner)
@@ -339,8 +344,8 @@ func (a *Access) Placement(req Placement) (PlacementResult, error) {
 	if p != nil {
 		id = p.PlayerID
 	}
-	err = m.world.Placement(id, req.Product, req.Position)
-	v := PlacementResult{Valid: err == nil}
+	positions, cost, err := m.world.PlanBuilding(id, req.Product, req.Position, req.EndPosition)
+	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost}
 	if err != nil {
 		v.Reason = err.Error()
 	}
@@ -407,7 +412,7 @@ func (a *Access) Audit(after int) (AuditPage, error) {
 	}
 	v := AuditPage{Events: []AuditEvent{}}
 	for _, e := range m.room.Audit {
-		if e.ID > after {
+		if e.ID > after && (e.Audience == a.memberID || e.Audience == "members" && e.Actor == a.memberID) {
 			v.Events = append(v.Events, e)
 			if len(v.Events) == 200 {
 				break

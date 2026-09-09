@@ -184,6 +184,14 @@ func (r *room) audit(actor, action, message string) {
 			break
 		}
 	}
-	r.Audit = append(r.Audit, AuditEvent{Audience: "members", ActorName: name, ID: len(r.Audit) + 1, At: time.Now().UTC().Format(time.RFC3339Nano), Actor: actor, Action: action, Message: message})
+	if actor == "server" {
+		for _, seat := range r.Seats {
+			if seat.State.State() == seatClaimed {
+				r.Audit = append(r.Audit, AuditEvent{Audience: seat.MemberID, ActorName: name, ID: len(r.Audit) + 1, At: time.Now().UTC().Format(time.RFC3339Nano), Actor: actor, Action: action, Message: message})
+			}
+		}
+		return
+	}
+	r.Audit = append(r.Audit, AuditEvent{Audience: actor, ActorName: name, ID: len(r.Audit) + 1, At: time.Now().UTC().Format(time.RFC3339Nano), Actor: actor, Action: action, Message: message})
 }
 func ruleError(code, message string) error { return &game.RuleError{Code: code, Message: message} }

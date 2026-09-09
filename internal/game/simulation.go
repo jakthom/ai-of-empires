@@ -33,7 +33,7 @@ func (w *World) Update() {
 			continue
 		}
 		if e.Type == "monastery" && e.Owner > 0 {
-			w.Players[e.Owner].Resources.Gold += e.Amount * .5 * Step
+			w.receiveProduction(e.Owner, "gold", e.Amount*.5*Step)
 		}
 		if e.Type == "wonder" && e.Owner > 0 {
 			e.Work += Step
@@ -55,6 +55,7 @@ func (w *World) Update() {
 		}
 	}
 	w.updateProjectiles()
+	w.sampleProduction()
 	w.checkVictory()
 	if w.Tick%200 == 0 {
 		w.IDs = slices.DeleteFunc(w.IDs, func(id int) bool { return w.Entities[id] == nil })

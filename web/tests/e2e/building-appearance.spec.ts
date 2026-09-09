@@ -88,7 +88,8 @@ test('existing buildings visibly mature through four ages during public gameplay
   async function capture(age: number) {
     await expect.poll(async () => (await game.snapshot()).entities.find(e => e.id === town.id)?.appearance_age ?? 0).toBe(age);
     await battlefieldKey(page, 'h');
-    await page.getByRole('button', { name: 'Zoom in', exact: true }).click({ clickCount: 3 });
+    await page.locator('#world canvas').focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press('+');
     await expect(page.locator('#age')).toHaveText(['Dark Age', 'Feudal Age', 'Castle Age', 'Imperial Age'][age]);
     expect((await game.snapshot()).entities.filter(e => e.owner === 1 && e.kind === 'building').every(e => (e.appearance_age ?? 0) === age)).toBe(true);
     await page.screenshot({ path: info.outputPath(`settlement-age-${age}.png`) });

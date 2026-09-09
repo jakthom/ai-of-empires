@@ -11,7 +11,7 @@ import (
 
 func main() {
 	addr := flag.String("addr", "127.0.0.1:9090", "HTTP listen address")
-	dbPath := flag.String("db", "data/ai-of-empires.sqlite", "SQLite session database path (:memory: for disposable games)")
+	dbPath := flag.String("db", "data/ai-of-empires.sqlite", "Host catalog path; game files live in <path>.games/ (:memory: for disposable games)")
 	flag.Parse()
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	err := run(ctx, *addr, *dbPath)

@@ -224,6 +224,9 @@
       "Command": {
         "additionalProperties": false,
         "properties": {
+          "end_position": {
+            "$ref": "#/components/schemas/Vec"
+          },
           "entity_ids": {
             "items": {
               "type": "integer"
@@ -501,6 +504,12 @@
           "cargo_type": {
             "type": "string"
           },
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/Vec"
+            },
+            "type": "array"
+          },
           "container": {
             "type": "integer"
           },
@@ -638,6 +647,9 @@
           "message": {
             "type": "string"
           },
+          "player_id": {
+            "type": "integer"
+          },
           "position": {
             "$ref": "#/components/schemas/Vec"
           },
@@ -658,13 +670,18 @@
           },
           "time": {
             "type": "number"
+          },
+          "user_id": {
+            "type": "string"
           }
         },
         "required": [
+          "user_id",
           "id",
           "tick",
           "time",
           "message",
+          "player_id",
           "kind",
           "position"
         ],
@@ -1076,6 +1093,9 @@
       "Placement": {
         "additionalProperties": false,
         "properties": {
+          "end_position": {
+            "$ref": "#/components/schemas/Vec"
+          },
           "position": {
             "$ref": "#/components/schemas/Vec"
           },
@@ -1092,6 +1112,15 @@
       "PlacementResult": {
         "additionalProperties": false,
         "properties": {
+          "cost": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "positions": {
+            "items": {
+              "$ref": "#/components/schemas/Vec"
+            },
+            "type": "array"
+          },
           "reason": {
             "type": "string"
           },
@@ -1100,6 +1129,8 @@
           }
         },
         "required": [
+          "positions",
+          "cost",
           "valid"
         ],
         "type": "object"
@@ -1143,6 +1174,9 @@
           "population": {
             "type": "integer"
           },
+          "production": {
+            "$ref": "#/components/schemas/ProductionView"
+          },
           "resources": {
             "$ref": "#/components/schemas/Resources"
           },
@@ -1161,6 +1195,7 @@
           "name",
           "civilization",
           "resources",
+          "production",
           "age",
           "age_name",
           "population",
@@ -1172,6 +1207,49 @@
           "technologies",
           "defeated",
           "kills"
+        ],
+        "type": "object"
+      },
+      "ProductionSample": {
+        "additionalProperties": false,
+        "properties": {
+          "rates": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "time",
+          "rates"
+        ],
+        "type": "object"
+      },
+      "ProductionView": {
+        "additionalProperties": false,
+        "properties": {
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/ProductionSample"
+            },
+            "type": "array"
+          },
+          "rates": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "sample_seconds": {
+            "type": "integer"
+          },
+          "window_seconds": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "rates",
+          "history",
+          "window_seconds",
+          "sample_seconds"
         ],
         "type": "object"
       },
@@ -2836,6 +2914,71 @@
           }
         ],
         "summary": "Update this member's browser connection: leave"
+      }
+    },
+    "/games/{id}/database": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/vnd.sqlite3": {
+                "schema": {
+                  "format": "binary",
+                  "type": "string"
+                }
+              }
+            },
+            "description": "Self-contained SQLite game database"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Owner-only standalone SQLite snapshot including private game state and recovery credentials"
       }
     },
     "/games/{id}/entities/{entity}/history": {

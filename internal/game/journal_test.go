@@ -82,8 +82,8 @@ func TestJournalVisibilityIsCapturedWhenTheEventHappens(t *testing.T) {
 	if page.Entity.Present || page.Entity.Activity == "Destroyed" {
 		t.Fatal("hidden death leaked")
 	}
-	if len(page.Events) != 2 || page.Events[1].Kind != "observed_test" {
-		t.Fatal("history visibility changed after losing sight")
+	if len(page.Events) != 1 || page.Events[0].Kind != "discovered" {
+		t.Fatal("foreign activity became visible in private history after losing sight")
 	}
 	for _, event := range w.View(1).Events {
 		if event.Kind == "private_test" {

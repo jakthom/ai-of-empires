@@ -133,7 +133,11 @@ func (s *Service) binding(browser, id string) (browserBinding, error) {
 	}
 	hash := fmt.Sprintf("%x", tokenHash(browser))
 	if s.db != nil {
-		err := s.db.QueryRow("SELECT game_id,member_id,version FROM browser_members WHERE browser_hash=? AND game_id=?", hash, id).Scan(&b.GameID, &b.MemberID, &b.Version)
+		db, err := s.gameDatabase(id)
+		if err != nil {
+			return b, ErrUnauthorized
+		}
+		err = db.QueryRow("SELECT game_id,member_id,version FROM browser_members WHERE browser_hash=? AND game_id=?", hash, id).Scan(&b.GameID, &b.MemberID, &b.Version)
 		if err != nil {
 			return b, ErrUnauthorized
 		}
@@ -160,8 +164,12 @@ func (s *Service) roomRecord(id string) (*storedRoom, error) {
 	if s.db == nil {
 		return nil, ErrNotFound
 	}
+	db, err := s.gameDatabase(id)
+	if err != nil {
+		return nil, err
+	}
 	var data []byte
-	if err := s.db.QueryRow("SELECT room FROM sessions WHERE id=?", id).Scan(&data); err != nil {
+	if err := db.QueryRow("SELECT room FROM sessions WHERE id=?", id).Scan(&data); err != nil {
 		return nil, ErrNotFound
 	}
 	if len(data) == 0 {
@@ -172,4 +180,23 @@ func (s *Service) roomRecord(id string) (*storedRoom, error) {
 		return nil, err
 	}
 	return &c, nil
+}
+
+func storedUsers(r *storedRoom) map[int]game.RestoreUser {
+	if r == nil {
+		return nil
+	}
+	users := map[int]game.RestoreUser{}
+	for _, p := range r.Seats {
+		if p.State == seatClaimed {
+			user := game.RestoreUser{ID: p.MemberID}
+			// The owner cannot be replaced. Older friend seats have no
+			// event-to-membership attribution across late joins/replacements.
+			if p.MemberID == r.OwnerID {
+				user.LegacyID = p.MemberID
+			}
+			users[p.PlayerID] = user
+		}
+	}
+	return users
 }

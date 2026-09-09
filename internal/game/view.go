@@ -22,6 +22,7 @@ func (w *World) View(player int) Snapshot {
 		Opponents: []OpponentView{}, Entities: []EntityView{}, Projectiles: []ProjectileView{}, Events: []Event{}, BuildOptions: []Action{},
 		Map: MapView{Width: w.Width, Height: w.Height, Biome: w.WorldOptions().Biome, Tiles: make([]Tile, len(w.Tiles)), Fog: make([]int, len(w.Tiles))},
 	}
+	v.Player.Production = p.Production.view()
 	for id := 1; id <= w.Config.Settlements; id++ {
 		if id != player {
 			other := w.Players[id]
@@ -95,6 +96,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	d := w.stats(e)
 	v := EntityView{ID: e.ID, Type: e.Type, Kind: d.Kind, Name: d.Name, Owner: e.Owner, Position: e.Position, HP: e.HP, MaxHP: d.HP, Radius: d.Radius, Progress: e.Progress, Amount: e.Amount, Resource: e.Resource, State: string(e.behavior.State()), Visible: true, Actions: []Action{}, Tasks: []Task{}, Passengers: []int{}, Deployed: e.siege.State() == SiegeDeployed, Container: e.Container, Relic: e.Relic}
 	v.Activity = w.activity(e)
+	v.Connections = w.barrierLinks(e, player)
 	if d.Kind == "building" {
 		if owner := w.Players[e.Owner]; owner != nil {
 			v.AppearanceAge = owner.Age
@@ -125,6 +127,9 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	}
 	p := w.Players[player]
 	defs, techs := orderedCatalog()
+	if e.Container == 0 && e.life.State() == Active && (d.Kind == "unit" || d.Kind == "building") {
+		v.Actions = append(v.Actions, action("interact", "", "Give order", "Choose a resource, target, or destination. Shortcut: Q.", Resources{}, 0, nil))
+	}
 	if d.Kind == "building" && e.life.State() == Active {
 		for _, u := range defs {
 			if u.Kind == "unit" && u.Producer == e.Type {

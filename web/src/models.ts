@@ -87,10 +87,22 @@ function building(g: THREE.Group, e: EntityView) {
     return;
   }
   if (type === 'wall' || type === 'palisade' || type === 'gate') {
-    const wood = type === 'palisade';
-    box(g, wood ? palette.wood : palette.shade, 0, .6, 0, r * 1.8, 1.2, r * 1.3);
-    for (let i = -1; i <= 1; i++) box(g, wood ? palette.wood : palette.limestone, i * r * .6, 1.3, 0, r * .3, .4, r * 1.3);
-    if (type === 'gate') box(g, '#302e24', 0, .45, -.61, .8, .9, .1);
+    const wood = type === 'palisade', color = wood ? palette.wood : palette.shade;
+    if (type === 'gate') {
+      const arch = new THREE.Group(); g.add(arch);
+      // The observed connections determine its orientation on the server.
+      if (e.connections?.some(d => d.y !== 0) && !e.connections.some(d => d.x !== 0)) arch.rotation.y = Math.PI / 2;
+      for (const x of [-.54,.54]) box(arch, palette.shade, x,.75,0,.25,1.5,.48);
+      box(arch,palette.limestone,0,1.52,0,1.35,.3,.5);
+      for (let i=-2;i<=2;i++) box(arch,palette.wood,i*.16,1.12,0,.06,.6,.1);
+      box(arch,palette.wood,0,1.12,0,.86,.07,.1);
+    } else {
+      box(g, color, 0, .6, 0, .65,1.2,.65);
+      const links = e.connections?.length ? e.connections : [{x:1,y:0},{x:-1,y:0}];
+      for (const d of links) box(g,color,d.x*.25,.6,d.y*.25,d.x ? .55 : .48,1.2,d.y ? .55 : .48);
+      box(g,wood ? palette.wood : palette.limestone,0,1.3,0,.28,.35,.5);
+      for (const d of links) box(g,wood ? palette.wood : palette.limestone,d.x*.43,1.3,d.y*.43,.22,.35,.35);
+    }
     return;
   }
   box(g, '#817962', 0, .04, 0, r * 2, .16, r * 2);

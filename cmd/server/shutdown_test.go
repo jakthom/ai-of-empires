@@ -212,8 +212,9 @@ func TestSignalsCheckpointWithLiveSSEAndResumeCommandReceipts(t *testing.T) {
 func TestSignalSaveFailureExitsNonzeroWithLastCheckpointIntact(t *testing.T) {
 	p := startProcess(t)
 	seat := apiJSON[matches.Session](t, p.url, "POST", "/api/v1/matches", "", game.Config{Civilization: "britons", Difficulty: "peaceful", Mode: "skirmish"}, 201)
-	// Only this test's database is modified; the app has no fault-injection API.
-	db, err := sql.Open("sqlite", p.dbPath)
+	// Only this test's game database is modified; the app has no fault-injection API.
+	gamePath := filepath.Join(p.dbPath+".games", seat.MatchID+".sqlite")
+	db, err := sql.Open("sqlite", gamePath)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -53,6 +53,9 @@ func (s *Service) AdoptLegacy(id, token, browser string) (MemberSession, error) 
 		return MemberSession{}, err
 	}
 	r.OwnerID = owner.MemberID
+	oldUser := old.world.Players[1].UserID
+	oldAliases := append([]string(nil), old.world.Players[1].UserAliases...)
+	old.world.AdoptUser(1, owner.MemberID)
 	session.Owner = true
 	_ = old.world.SetPaused(true)
 	r.audit(owner.MemberID, "upgraded", "Upgraded this saved game to a private membership. The game remains paused.")
@@ -63,6 +66,8 @@ func (s *Service) AdoptLegacy(id, token, browser string) (MemberSession, error) 
 		old.commands[owner.MemberID+":"+id] = c
 	}
 	if err = s.saveMembership(browser, old, owner); err != nil {
+		old.world.BindUser(1, oldUser)
+		old.world.Players[1].UserAliases = oldAliases
 		old.room = nil
 		old.commands = commands
 		return MemberSession{}, err

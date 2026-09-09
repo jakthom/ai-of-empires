@@ -71,6 +71,16 @@ func (w *World) Checkpoint() ([]byte, error) {
 }
 
 func Restore(data []byte, journal []JournalRecord) (*World, error) {
+	return RestoreForUsers(data, journal, nil)
+}
+
+// RestoreUser separates the current controller from proven historical
+// ownership. LegacyID stays empty when an older seat may have changed hands.
+type RestoreUser struct{ ID, LegacyID string }
+
+// Users supplies authenticated ownership when upgrading checkpoints that
+// predate event identities. Existing identities are never overwritten.
+func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]RestoreUser) (*World, error) {
 	var c checkpoint
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
@@ -118,6 +128,12 @@ func Restore(data []byte, journal []JournalRecord) (*World, error) {
 			return nil, fmt.Errorf("invalid checkpoint player %d", id)
 		}
 		p.lifecycle = statemachine.NewInstance(playerMachine, state)
+		if p.UserID == "" {
+			p.UserID = users[id].ID
+			if p.UserID == "" {
+				p.UserID = fmt.Sprintf("kingdom:%d", id)
+			}
+		}
 		strategy := aiDeveloping
 		if c.Version >= 2 {
 			strategy = c.Strategies[id]
@@ -189,18 +205,24 @@ func Restore(data []byte, journal []JournalRecord) (*World, error) {
 			return nil, fmt.Errorf("invalid journal sequence")
 		}
 		previous = record.Event.ID
-		readers := []int{}
-		for id := 1; id <= w.Config.Settlements; id++ {
-			if record.Readers&(1<<id) != 0 {
-				readers = append(readers, id)
+		record.Event.Player = record.Player
+		if record.Event.UserID == "" {
+			record.Event.UserID = "legacy:unattributed"
+			if user := users[record.Player].LegacyID; user != "" {
+				record.Event.UserID = user
+			} else if p := w.Players[record.Player]; p != nil && users == nil {
+				// Legacy single-player credentials always controlled player one.
+				// AI records remain indexed only for their own kingdom.
+				record.Event.UserID = p.UserID
 			}
 		}
-		record.Event.Player = record.Player
-		w.journal.append(record.Event, readers)
+		w.journal.append(record.Event, nil)
+		w.journal.readers[len(w.journal.readers)-1] = record.Readers
 	}
 	if previous != w.NextEvent {
 		return nil, fmt.Errorf("checkpoint journal is incomplete")
 	}
+	w.indexPrivateJournal()
 	return w, nil
 }
 

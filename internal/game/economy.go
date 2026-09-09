@@ -98,7 +98,7 @@ func resourceReached(_ context.Context, c *unitContext) error {
 }
 func beginGathering(_ context.Context, c *unitContext) error {
 	c.Actor.CargoType = c.Target.Resource
-	c.World.record(Event{Kind: "harvest", Message: fmt.Sprintf("%s #%d started gathering %s", definitions[c.Actor.Type].Name, c.Actor.ID, c.Target.Resource), Resource: c.Target.Resource, TargetID: c.Actor.ID}, c.Target, 0)
+	c.World.record(Event{Kind: "harvest", Message: fmt.Sprintf("%s #%d started gathering %s", definitions[c.Actor.Type].Name, c.Actor.ID, c.Target.Resource), Resource: c.Target.Resource, TargetID: c.Actor.ID}, c.Target, c.Actor.Owner)
 	return nil
 }
 func approachResource(_ context.Context, c *unitContext) error {
@@ -154,7 +154,7 @@ func dropOffReached(_ context.Context, c *unitContext) error {
 }
 func depositCargo(_ context.Context, c *unitContext) error {
 	p, e := c.World.Players[c.Actor.Owner], c.Actor
-	p.Resources.Deposit(e.CargoType, e.Cargo)
+	c.World.receiveProduction(e.Owner, e.CargoType, e.Cargo)
 	p.Gathered.Deposit(e.CargoType, e.Cargo)
 	message := fmt.Sprintf("Delivered %.2f %s to %s #%d", e.Cargo, e.CargoType, definitions[c.DropOff.Type].Name, c.DropOff.ID)
 	c.World.record(Event{Kind: "delivery", Message: message, Resource: e.CargoType, Amount: e.Cargo, TargetID: c.DropOff.ID}, e, 0)
@@ -223,7 +223,7 @@ func collectTradeCargo(_ context.Context, c *unitContext) error {
 	return nil
 }
 func deliverTradeCargo(_ context.Context, c *unitContext) error {
-	c.World.Players[c.Actor.Owner].Resources.Gold += c.Actor.Cargo
+	c.World.receiveProduction(c.Actor.Owner, "gold", c.Actor.Cargo)
 	c.World.entityEvent(c.Actor, "trade", fmt.Sprintf("Delivered %.2f trade gold", c.Actor.Cargo), c.Actor.Cargo)
 	c.Actor.Cargo = 0
 	c.Actor.Path = nil
