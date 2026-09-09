@@ -8,6 +8,8 @@ Go serves the UI and `/api/v1` from the same origin. Requests carry intentions. 
 
 The endpoint table and lifecycle diagrams are in [MULTIPLAYER.md](MULTIPLAYER.md#api). The complete generated contract is [OpenAPI](../api/openapi.json).
 
+Each player membership also has its own [MCP endpoint](MCP.md). Authenticated `GET /games/{id}/agent` discovers your URL; `POST` on the same route returns a restricted MCP token. That token only authorizes your membership's `/games/{id}/memberships/{member}/mcp` endpoint and cannot access ordinary REST routes. `Catalog.commands` lists all implemented multiplayer intentions and their fields.
+
 Create a saved private lobby with `POST /api/v1/games` and `Content-Type: application/json`:
 
 ```json
@@ -35,9 +37,9 @@ Legacy `/matches` creation and authenticated single-player routes remain availab
 
 The catalog includes Huge (224×224) and Giant (288×288), with settlement count still independent of area. With `biome: "mixed"`, each observed `Tile.biome` identifies its regional scenery. This optional field overrides `MapView.biome` for that cell; unknown terrain omits it. Single-biome worlds and older checkpoints can omit tile biomes. Regional metadata is generated in Go and checkpointed with the terrain.
 
-Buildings include optional `EntityView.appearance_age` (0–3, default 0), representing the owner's age when observed. Render materials from this field, not the viewer's age or a lookup of another kingdom's current state. Last-known buildings retain their observed age while outside sight. Age and biome are presentation inputs; texture generation and icons belong to the UI and carry no game rules.
+Buildings include optional `EntityView.appearance_age` (0–3, default 0), representing the owner's age when observed. Render materials from this field, not the viewer's age or a lookup of another kingdom's current state. Last-known buildings retain their observed age while outside sight. Appearance age is a presentation input. Biome metadata also identifies Go’s regional deposit rules; texture generation and icons belong to the UI and carry no game rules.
 
-Go generates and validates terrain before publishing a session. Biomes do not affect rules. Natural resource abundance scales finite deposit amounts, not starting stockpiles, entity health, or farms. Hidden maps use normal visibility; explored maps expose terrain but retain entity fog; full reveal gives every kingdom full visibility. Terrain components route scouts, gathering and transport plans; they contain no foreign entity information. Older games retain their tiles and omit the new world type in their metadata (the UI labels them Original world).
+Go generates and validates terrain before publishing a session. Generation-2 worlds apply `Catalog.worlds.economies` multipliers to countryside land deposits by regional biome. Home deposits within 15 tiles of a settlement retain their starting amounts; fish and farms retain their own rules. Mixed Regions is the default for new games. Natural resource abundance additionally scales finite deposit amounts, not starting stockpiles, entity health, or farms. Existing checkpoints retain their deposit amounts. Hidden maps use normal visibility; explored maps expose terrain but retain entity fog; full reveal gives every kingdom full visibility. Terrain components route scouts, gathering and transport plans; they contain no foreign entity information. Older games retain their tiles and omit the new world type in their metadata (the UI labels them Original world).
 
 ## Durable sessions and shared controls
 
@@ -78,7 +80,11 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | `stop`, `delete` | `entity_ids` |
 | `stance` | `entity_ids`, `product`: `defensive` (default), `stand_ground`, `passive`, or `aggressive` |
 | `reseed_farm` | One owned, depleted farm in `entity_ids`; pays 60 wood and assigns its farmer or the nearest idle villager on connected land |
-| `market_buy`, `market_sell` | One market in `entity_ids`, `product`: `food`, `wood`, or `stone` |
+| `market_buy`, `market_sell` | One market in `entity_ids`, `product`: `food`, `wood`, or `stone`; optional `market_revision` requires the displayed merchant quote |
+| `market_post` | One owned Market in `entity_ids`; `offer` supplies give/want resource and amount, lots and optional private `target_player` |
+| `market_accept` | One idle Trade Cart at your Market in `entity_ids`, `offer_id`, optional `repeat` |
+| `market_cancel` | Your `offer_id`; refunds unclaimed lots |
+| `market_resume`, `market_recall` | Your `shipment_id`; resume interruption or recall before pickup |
 | `resign` | No entity selection; resign only your own kingdom |
 | `speed` (legacy adapter only; multiplayer uses `/speed`) | `value`: 1, 1.7, 3.4, 8, 16, or 32; supported values also come from `catalog.speeds` |
 
@@ -86,7 +92,9 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 
 `reseed_farm` fires the farm lifecycle from Exhausted to Foundation, charges once, and assigns construction through the villager lifecycle. Repeating it on the new foundation is refused. It reports `farm_not_depleted`, `insufficient_resources`, or `no_available_villager` when appropriate. Existing `interact` orders on depleted farms and automatic reseeding continue to use the same lifecycle.
 
-For market exchange actions, optional `gain` has the same resource-object shape as `cost`. Render both from the snapshot; clients must not calculate exchange rates. The server validates and executes the same quote and appends an `exchange` event, included by the `economy` log filter. `trade` orders require an explored neutral Market and a completed owned Market on connected land.
+The authenticated `GET /games/{id}/marketplace`, `Snapshot.marketplace`, optional `SnapshotDelta.marketplace`, and MCP `marketplace` tool share the same player-filtered read model. See [Marketplace](MARKETPLACE.md) for offers, escrow, finite stocks, transport and privacy.
+
+For market exchange actions, optional `gain` has the same resource-object shape as `cost`. Render both from the snapshot; clients must not calculate exchange rates. The server validates and executes its current quote against finite shared stock and appends an `exchange` event, included by the `economy` log filter. `trade` orders require an explored neutral Market and a completed owned Market on connected land.
 
 Fishing uses `gather` or `interact` with a Fishing Ship and a Fish Shoal target. Fish have `resource: "food"`; cargo contributes to the Food stockpile only after delivery at a reachable Dock. Depletion removes the shoal through its lifecycle. Cargo, orders, remaining fish and reseeding progress are checkpointed normally.
 
@@ -102,7 +110,7 @@ For wall/palisade drags, `position` and `end_position` define a route of at most
 
 Snapshots contain simulation tick/time, match status, your economy, explored terrain/fog, observable entities and projectiles, and recent events. Entity views include a backend-derived `activity` label such as `Farming`, `Logging`, or `Mining stone`. Owned entity views contain current state, production progress, and server-computed actions with `enabled`, `reason`, `cost`, and `duration`. Render these fields; do not reproduce rules or infer affordability in the client. Actions can become stale between observation and command, so all commands are revalidated.
 
-`player.production` contains `rates` (the four resource amounts per game minute), `history` (`{time,rates}` samples), `sample_seconds: 5`, and `window_seconds: 60`. It measures actual harvest/fish deliveries, trade-route gold and relic income, excluding initial supplies, spending, refunds and market exchanges. History contains up to 60 samples. Samples use fixed simulation time, stop while paused, and persist with their partially accumulated bucket. Only the viewer's production series appears in a snapshot.
+`player.production` contains `rates` (the four resource amounts per game minute), `history` (`{time,rates}` samples), `sample_seconds: 5`, and `window_seconds: 60`. It measures actual harvest/fish deliveries, trade-route gold and relic income, excluding initial supplies, spending, refunds, commodity trades and merchant exchanges. History contains up to 60 samples. Samples use fixed simulation time, stop while paused, and persist with their partially accumulated bucket. Only the viewer's production series appears in a snapshot.
 
 
 Owned entities also include `stance`; foreign stances remain private. Each `opponents` entry includes its relationship **with the authenticated player** (`relation`: `peaceful` or `hostile`) and a public `temperament` label (`Builder`, `Defensive`, `Expansionist`, or `Player controlled`). This does not disclose targets, army plans, or third-party relationships. Attacks and conversion attempts change relationships on the backend; quiet periods can restore peace. These fields and current stances survive checkpoint resume.
@@ -110,6 +118,8 @@ Owned entities also include `stance`; foreign stances remain private. Each `oppo
 `Catalog.difficulties` supplies `{id, name, description}` for `peaceful`, `easy`, `normal`, `hard`, `extra_hard`, `expert`, and `aggressive`. Use these options when creating a match. `Snapshot.difficulty` supplies the current match's metadata, including after reconnect. Difficulty is fixed at creation. It changes Go's economic, production, research, and attack priorities; it does not grant extra starting resources or population.
 
 Enemy units outside sight are omitted. Explored static objects can appear as last-known observations. Opponent economy and internal world state are not exposed. A snapshot read does not advance the simulation or RNG.
+
+Foreign activity labels contain only public observation information. Seeing a building does not disclose what it trains or researches; seeing a moving unit does not disclose its future intention, cargo or private timers. The same projection applies to MCP, SSE, snapshots and old fog memories. Discovery-history read models similarly omit private activity captured by older versions while leaving stored journal entries unchanged.
 
 Without a format parameter, SSE retains the original `event: snapshot`, `id: <tick>` contract, about every 100 ms. The UI requests `?format=delta-v1` (plus its `connection` ID for `/games`), which sends `event: frame` about every 50 ms. JSON data follows the generated `SnapshotFrame` schema:
 

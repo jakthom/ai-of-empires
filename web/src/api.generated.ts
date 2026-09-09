@@ -12,6 +12,43 @@ export interface Action {
   reason?: string;
 }
 
+export interface AgentConnectionRequest {
+  connection_id: string;
+}
+
+export interface AgentConnectionResult {
+  ok: boolean;
+}
+
+export interface AgentEndpoint {
+  game_id: string;
+  membership_id: string;
+  player_id: number;
+  mcp_url: string;
+  token?: string;
+}
+
+export interface AgentGame {
+  game_id: string;
+  name: string;
+  player_id: number;
+  seat_id: string;
+  owner: boolean;
+  status: string;
+  match_status: string;
+  revision: number;
+  time: number;
+}
+
+export interface AgentLogRequest {
+  after?: number;
+  before?: number;
+  limit?: number;
+  entity_id?: number;
+  q?: string;
+  category?: string;
+}
+
 export interface ArchivePassword {
   passphrase: string;
 }
@@ -30,7 +67,14 @@ export interface AuditPage {
   events: AuditEvent[];
 }
 
+export interface BiomeEconomy {
+  biome: string;
+  deposits: Resources;
+  description: string;
+}
+
 export interface Catalog {
+  commands: CommandInfo[];
   rules_version: string;
   definitions: Definition[];
   technologies: Technology[];
@@ -57,6 +101,11 @@ export interface ClaimInvite {
 }
 
 export interface Command {
+  offer?: TradeOfferIntent;
+  offer_id?: number;
+  shipment_id?: number;
+  repeat?: boolean;
+  market_revision?: number;
   end_position?: Vec;
   id: string;
   kind: string;
@@ -67,6 +116,12 @@ export interface Command {
   product?: string;
   queue?: boolean;
   value?: number;
+}
+
+export interface CommandInfo {
+  kind: string;
+  description: string;
+  fields: string[];
 }
 
 export interface CompleteTransfer {
@@ -278,12 +333,41 @@ export interface MapCell {
   fog: number;
 }
 
+export interface MapRegion {
+  tick: number;
+  map_width: number;
+  map_height: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  tiles: Tile[];
+  fog: number[];
+}
+
+export interface MapRegionRequest {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface MapView {
   width: number;
   height: number;
   biome: string;
   tiles: Tile[];
   fog: number[];
+}
+
+export interface MarketplaceView {
+  offers: TradeOfferView[];
+  shipments: TradeShipmentView[];
+  merchants: MerchantView;
+  reserved: Resources;
+  capacity: number;
+  max_lots: number;
+  max_offers: number;
 }
 
 export interface MemberSession {
@@ -295,6 +379,28 @@ export interface MemberSession {
   rejoin_code?: string;
   epoch: string;
   owner: boolean;
+}
+
+export interface MerchantView {
+  stock: Resources;
+  revision: number;
+  market_id?: number;
+  actions: Action[];
+}
+
+export interface Observation {
+  snapshot: Snapshot;
+  map_included: boolean;
+  has_more: boolean;
+  next_entity_id: number;
+}
+
+export interface ObserveRequest {
+  owner?: number;
+  entity_ids?: number[];
+  after_entity_id?: number;
+  limit?: number;
+  include_map?: boolean;
 }
 
 export interface OpponentView {
@@ -445,6 +551,7 @@ export interface Session {
 }
 
 export interface Snapshot {
+  marketplace: MarketplaceView;
   control_revision?: number;
   version: string;
   difficulty: Difficulty;
@@ -468,6 +575,7 @@ export interface Snapshot {
 }
 
 export interface SnapshotDelta {
+  marketplace?: MarketplaceView;
   control_revision: number;
   tick: number;
   time: number;
@@ -520,6 +628,43 @@ export interface Tile {
   elevation: number;
 }
 
+export interface TradeOfferIntent {
+  give_resource: string;
+  give_amount: number;
+  want_resource: string;
+  want_amount: number;
+  lots: number;
+  target_player?: number;
+}
+
+export interface TradeOfferView {
+  id: number;
+  owner: number;
+  terms: TradeOfferIntent;
+  remaining: number;
+  state: string;
+  market_id?: number;
+  position?: Vec;
+  can_accept: boolean;
+  reason?: string;
+  cart_id?: number;
+}
+
+export interface TradeShipmentView {
+  id: number;
+  offer_id: number;
+  seller: number;
+  buyer: number;
+  terms: TradeOfferIntent;
+  state: string;
+  status: string;
+  cart_id?: number;
+  position?: Vec;
+  can_resume: boolean;
+  can_recall: boolean;
+  repeat: boolean;
+}
+
 export interface TransferInfo {
   id: string;
   game_id: string;
@@ -540,6 +685,7 @@ export interface Vec {
 }
 
 export interface WorldCatalog {
+  economies: BiomeEconomy[];
   types: WorldChoice[];
   biomes: WorldChoice[];
   sizes: WorldSize[];

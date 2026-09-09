@@ -96,6 +96,7 @@ func (w *World) record(event Event, entity *Entity, player int) {
 			}
 		}
 	}
+	event = observedEvent(event)
 	readers := []int{}
 	if w.Players[player] != nil {
 		readers = append(readers, player)
@@ -118,7 +119,7 @@ func (w *World) Log(player int, query LogQuery) (EventPage, error) {
 		if len(indices) == 0 {
 			return page, rule("entity_not_found", "No personal history exists for that entity.")
 		}
-		last := w.journal.records[indices[len(indices)-1]]
+		last := observedEvent(w.journal.records[indices[len(indices)-1]])
 		page.Entity = &HistoryEntity{ID: last.EntityID, Name: last.EntityName, Type: last.EntityType, Activity: "Last seen: " + last.Activity}
 		if e := w.Entities[query.EntityID]; e != nil && e.Owner == player {
 			page.Entity.Activity, page.Entity.Present = w.activity(e), true
@@ -148,12 +149,22 @@ func (w *World) Log(player int, query LogQuery) (EventPage, error) {
 	}
 	page.HasOlder, page.HasNewer = start > 0, end < len(indices)
 	for _, index := range indices[start:end] {
-		page.Events = append(page.Events, w.journal.records[index])
+		page.Events = append(page.Events, observedEvent(w.journal.records[index]))
 	}
 	if len(page.Events) > 0 {
 		page.OlderCursor, page.NewerCursor = page.Events[0].ID, page.Events[len(page.Events)-1].ID
 	}
 	return page, nil
+}
+
+// Discovery is the viewer's observation, not access to the subject's private
+// activity. Project old discovery records safely without rewriting history.
+func observedEvent(e Event) Event {
+	if e.Kind == "discovered" {
+		e.State, e.Activity = "observed", "Observed"
+		e.Resource = ""
+	}
+	return e
 }
 
 // Activity is a projection of the state-machine owners, never another mutable
@@ -206,6 +217,11 @@ func (w *World) activity(e *Entity) string {
 		}
 	}
 	switch e.behavior.State() {
+	case Caravanning:
+		if s := w.Marketplace.Shipments[e.Order.Shipment]; s != nil {
+			return "Caravan: " + strings.ReplaceAll(string(s.lifecycle.State()), "_", " ")
+		}
+		return "Caravan"
 	case SeekingResource:
 		if target != nil && target.Type == "farm" && farmOccupied(nil, &unitContext{World: w, Actor: e, Target: target}) == nil {
 			return "Waiting for an available farm"

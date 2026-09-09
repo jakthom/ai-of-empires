@@ -125,7 +125,7 @@ func (w *World) findPath(e *Entity, goal Vec, reach float64, avoidUnits bool) []
 			if !avoidUnits || od.Naval != d.Naval || o.Position.Distance(e.Position) < d.Radius+od.Radius {
 				continue
 			}
-		} else if o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && o.Owner == e.Owner && o.life.State() == Active {
+		} else if o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
 			continue
 		}
 		r := od.Radius + d.Radius - .05
@@ -308,7 +308,7 @@ func (w *World) freeFor(e *Entity, pos Vec) bool {
 			continue
 		}
 		od := definitions[o.Type]
-		if od.Kind == "unit" || o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && o.Owner == e.Owner && o.life.State() == Active {
+		if od.Kind == "unit" || o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
 			continue
 		}
 		if pos.Distance(o.Position) < d.Radius+od.Radius-.05 {

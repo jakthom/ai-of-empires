@@ -33,6 +33,7 @@ type aiPlan struct {
 	RecoverUntil          float64
 	NextRaidAt            float64
 	NextWorkerAt          float64
+	NextTradeAt           float64
 	ScoutID               int
 	ScoutGoal             *Vec
 	ScoutDeadline         float64

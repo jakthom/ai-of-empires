@@ -57,6 +57,9 @@ func (w *World) apply(player int, c Command) error {
 	if w.match.State() == MatchPaused {
 		return rule("paused", "Resume the match before issuing an order.")
 	}
+	if slices.Contains([]string{"market_post", "market_cancel", "market_accept", "market_resume", "market_recall"}, c.Kind) {
+		return w.marketplaceCommand(player, c)
+	}
 	if len(c.EntityIDs) == 0 || len(c.EntityIDs) > 200 {
 		return rule("invalid_selection", "Select between 1 and 200 units or buildings.")
 	}
@@ -73,6 +76,11 @@ func (w *World) apply(player int, c Command) error {
 		}
 	}
 	first := es[0]
+	for _, e := range es {
+		if e.Type == "trade_cart" && w.cartShipment(e.ID) != nil && !slices.Contains([]string{"move", "stop", "delete", "stance"}, c.Kind) {
+			return rule("active_shipment", "This cart has a delivery. Move or stop it, then resume or recall it from the Marketplace.")
+		}
+	}
 	if slices.Contains([]string{"train", "research", "age", "cancel", "rally", "market_sell", "market_buy", "reseed_farm", "unload", "deploy"}, c.Kind) && len(es) != 1 {
 		return rule("invalid_selection", "Select one unit or building for this action.")
 	}
@@ -173,6 +181,9 @@ func (w *World) apply(player int, c Command) error {
 		first.Rally = &pos
 		return nil
 	case "market_sell", "market_buy":
+		if c.MarketRevision != nil && *c.MarketRevision != w.Marketplace.Revision {
+			return rule("market_changed", "Merchant stock or prices changed. Review the new quote.")
+		}
 		return w.exchange(p, first, c.Kind, c.Product)
 	case "reseed_farm":
 		return w.reseedFarm(first)

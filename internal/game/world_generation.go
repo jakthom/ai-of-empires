@@ -71,7 +71,7 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 	}
 	options := cfg.World
 	size := worldSize(options)
-	w := &World{Config: cfg, Generation: 1, Width: size, Height: size, Entities: map[int]*Entity{}, Players: map[int]*Player{}, Speed: 1.7, match: statemachine.NewInstance(matchMachine, MatchRunning), NextID: 1, rng: uint64(cfg.Seed), Projectiles: []Projectile{}}
+	w := &World{Config: cfg, Generation: 2, Width: size, Height: size, Entities: map[int]*Entity{}, Players: map[int]*Player{}, Speed: 1.7, match: statemachine.NewInstance(matchMachine, MatchRunning), NextID: 1, rng: uint64(cfg.Seed), Projectiles: []Projectile{}}
 	rng := rand.New(rand.NewPCG(uint64(cfg.Seed), 0x776f726c64))
 	starts := worldStarts(cfg, rng)
 	w.generateTerrain(starts, rng)
@@ -107,13 +107,14 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		w.Players[id] = p
 	}
 	w.initializeRelations()
+	w.initializeMarketplace()
 	w.initializeTreaty()
 	w.initializeVoyages()
+	w.assignRegionalBiomes()
 	for i, start := range starts {
 		w.seedSettlement(i+1, start)
 	}
 	w.seedCountryside(starts, rng)
-	w.assignRegionalBiomes()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")
 	if options.TreatyMinutes > 0 {
@@ -363,6 +364,20 @@ func (w *World) seedCountryside(starts []Vec, rng *rand.Rand) {
 			typ := "gold"
 			if j%2 == 1 {
 				typ = "stone"
+			}
+			w.resource(typ, p)
+			break
+		}
+	}
+	for j := 0; j < w.Width/3; j++ {
+		for attempt := 0; attempt < 100; attempt++ {
+			p := Vec{5 + rng.Float64()*float64(w.Width-10), 5 + rng.Float64()*float64(w.Height-10)}
+			if reserved(p) || w.tile(p).Terrain != "grass" || !w.free(p, .6, 0, false) {
+				continue
+			}
+			typ := "berries"
+			if j%2 == 1 {
+				typ = "sheep"
 			}
 			w.resource(typ, p)
 			break

@@ -23,6 +23,7 @@ func (w *World) View(player int) Snapshot {
 		Map: w.mapView(p),
 	}
 	v.Player.Production = p.Production.view()
+	v.Marketplace = w.marketplaceView(player)
 	for id := 1; id <= w.Config.Settlements; id++ {
 		if id != player {
 			other := w.Players[id]
@@ -64,7 +65,7 @@ func (w *World) View(player int) Snapshot {
 	sort.Ints(ids)
 	for _, id := range ids {
 		if !seen[id] {
-			v.Entities = append(v.Entities, p.Memory[id])
+			v.Entities = append(v.Entities, observedEntity(p.Memory[id]))
 		}
 	}
 	for _, projectile := range w.Projectiles {
@@ -96,8 +97,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 		v.State = string(Foundation)
 	}
 	if e.Owner != player || player == 0 {
-		v.State = "observed"
-		return v
+		return observedEntity(v)
 	}
 	v.Cargo = e.Cargo
 	v.Stance = e.Stance
@@ -220,6 +220,24 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	if d.Kind != "resource" {
 		v.Actions = append(v.Actions, action("delete", "", "Delete", "Permanently remove this entity.", Resources{}, 0, nil))
 	}
+	return v
+}
+
+// observedEntity also sanitizes observations restored from older checkpoints.
+// A visible building does not reveal its production, and a moving unit does
+// not reveal its destination, queued intent, cargo or recovery timers.
+func observedEntity(v EntityView) EntityView {
+	v.State, v.Activity = "observed", "Observed"
+	if v.Kind == "resource" {
+		v.Activity = "Available"
+	} else if v.Progress < 1 {
+		v.Activity = "Under construction"
+	} else if v.Type == "farm" && v.Amount <= 0 {
+		v.Activity = "Depleted"
+	}
+	v.Cargo, v.Faith, v.Container = 0, 0, 0
+	v.CargoType, v.Stance, v.Rally = "", "", nil
+	v.Actions, v.Tasks, v.Passengers = []Action{}, []Task{}, []int{}
 	return v
 }
 func action(kind, product, label, description string, cost Resources, duration float64, err error) Action {

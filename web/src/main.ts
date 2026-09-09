@@ -9,6 +9,7 @@ FORM: The user's pinned Age of Empires reference governs the composition.
 import './style.css';
 import { APIError, GameAPI } from './api';
 import { MultiplayerUI } from './multiplayer';
+import { MarketplaceUI } from './marketplace';
 import { buildingIcon } from './building-icons';
 import { WorldRenderer } from './world';
 import { EventLog } from './journal';
@@ -28,7 +29,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <div class="population" title="Population / housing capacity"><span class="people-icon">♟</span><strong id="population">— / —</strong><span>Population</span></div>
     <div class="age"><span id="age-symbol">I</span><div><strong id="age">Dark Age</strong><span id="clock">00:00</span><span id="treaty-clock" hidden></span></div></div>
     <div class="match-difficulty"><span>Difficulty</span><strong id="match-difficulty">—</strong></div>
-    <div class="match-controls"><button id="speed" title="Change game speed">1.7×</button><button id="pause" title="Pause or resume (Space)" aria-label="Pause match">Ⅱ</button><button id="help" title="Show controls" aria-label="Show controls">?</button><button id="menu" title="Match menu" aria-label="Match menu">☰</button></div>
+    <div class="match-controls"><button id="open-marketplace" aria-label="Open marketplace" title="Marketplace" disabled>Trade</button><button id="speed" title="Change game speed">1.7×</button><button id="pause" title="Pause or resume (Space)" aria-label="Pause match">Ⅱ</button><button id="help" title="Show controls" aria-label="Show controls">?</button><button id="menu" title="Match menu" aria-label="Match menu">☰</button></div>
   </header>
   <aside class="briefing" id="briefing"><div class="eyebrow"><span class="tiny-rule"></span> THE BORDERLANDS</div><h1>A kingdom begins<br>with its people.</h1><p>Gather. Build. Advance. Conquer.</p><div class="objective"><span>⚑</span><div><strong>Establish your settlement</strong><span>Select a villager, choose Give order, then click a resource.</span></div></div><button id="dismiss-briefing" class="text-button">Understood <span>↗</span></button></aside>
   <details class="rival" id="relationships"><summary aria-label="Kingdom relationships"><span class="shield" aria-hidden="true">♜</span><div><strong id="rival-name">Other kingdoms</strong><span id="rival-status">At peace</span></div><span class="rival-dot" aria-hidden="true"></span></summary><div class="relationship-body"><ul id="kingdom-relations"></ul><p>Builders favor growth. Defensive kingdoms may counterattack. Expansionists may start conflicts. Peace returns after five game minutes without attacks.</p></div></details>
@@ -73,6 +74,8 @@ const multiplayer = new MultiplayerUI(api, enterWorld, () => resetMatch(true), s
 type InputMode = { kind: 'order' | 'pan' } | { kind: 'target'; action: Action } | { kind: 'delete'; entityIds: number[] };
 let catalog: Catalog, snapshot: Snapshot | null = null, selection: number[] = [], tab = 'orders', actionSignature = '', queueSignature = '', activeMode: InputMode | null = null;
 let buildingPoint: Vec | null = null, previewVersion = 0, previewTimer = 0, noticeTimer = 0, connectionReady = false, resultShown = false;
+const marketplace = new MarketplaceUI(api, (position, id) => { world.focus(position); if (id) select([id]); minimap(); });
+el('open-marketplace').onclick = () => { cancelMode(); marketplace.open(); };
 const groups = new Map<string, number[]>();
 function showNotice(message: string) { text('notice', message); el('notice').hidden = false; clearTimeout(noticeTimer); noticeTimer = window.setTimeout(() => { el('notice').hidden = true; }, 5000); }
 function selectedViews() { return snapshot?.entities.filter(e => selection.includes(e.id)) ?? []; }
@@ -137,7 +140,7 @@ function runAction(action: Action) {
     setMode({ kind: 'delete', entityIds: [...selection] }, 'Remove this selection?'); world.canvas.focus(); return;
   }
   const ids = ['train', 'research', 'age', 'deploy', 'unload', 'market_sell', 'market_buy', 'reseed_farm'].includes(action.kind) ? selection.slice(0, 1) : selection;
-  void send({ kind: action.kind, product: action.product, entity_ids: ids });
+  void send({ kind: action.kind, product: action.product, entity_ids: ids, ...(['market_buy', 'market_sell'].includes(action.kind) ? {market_revision: snapshot!.marketplace.merchants.revision} : {}) });
 }
 function refreshSelection() {
   if (!snapshot) return;
@@ -176,7 +179,7 @@ function refreshSelection() {
       const detail = stance ? pressed === 'true' ? 'Selected' : pressed === 'mixed' ? 'Some selected' : 'Stance' : a.gain ? `${cost(a.cost)} → ${cost(a.gain)}` : cost(a.cost) || (a.duration ? `${a.duration}s` : a.kind === 'delete' ? 'Choose to confirm' : 'Command');
       return `<button class="action ${a.kind === 'age' ? 'advance' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? buildingIcon(a.product ?? '') : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span></button>`;
     }).join('') : `<p class="empty-actions">${first ? tab === 'build' ? 'Select villagers to construct buildings.' : tab === 'research' ? 'Select a building to see its technologies.' : 'No orders available for this selection.' : 'Select your Town Center to train villagers,<br>or select settlers to begin building.'}</p>`;
-    text('action-help', tab === 'trade' ? 'Market exchange · prices shown as cost → received' : '');
+    text('action-help', tab === 'trade' ? 'Finite merchant stock · cost → received · Open Trade in the top bar for kingdom offers' : '');
     el('actions').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button => { const action = filtered[Number(button.dataset.action)]; button.onclick = () => runAction(action); button.onfocus = button.onpointerenter = () => text('action-help', action.reason || action.description); });
     if (focusedAction !== undefined) el('actions').querySelector<HTMLButtonElement>(`[data-action="${focusedAction}"]`)?.focus({ preventScroll: true });
   }
@@ -203,6 +206,7 @@ function minimap() {
 function receive(next: Snapshot) {
   const previous = snapshot;
   snapshot = next; world.update(next);
+  marketplace.update(next, catalog, connectionReady); el<HTMLButtonElement>('open-marketplace').disabled = false;
   if(api.room && next.control_revision!==undefined && next.control_revision>=api.room.revision){api.room.revision=next.control_revision;api.room.match_status=next.status;}
   const tooltip = document.getElementById('building-tooltip');
   if (tooltip && !tooltip.hidden) {
@@ -243,6 +247,7 @@ function connection(state: string) {
   connectionReady = state === 'connected'; el('connection').hidden = connectionReady;
   if (!connectionReady) text('connection', state === 'expired' ? 'This session is no longer connected. Open Saved games from the menu to resume.' : 'Reconnecting to your kingdom…');
   if(state==='expired'&&api.session?.membership_id)void multiplayer.show();
+  if(snapshot) marketplace.update(snapshot, catalog, connectionReady);
   refreshSelection();
 }
 

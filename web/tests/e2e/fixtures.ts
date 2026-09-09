@@ -99,7 +99,7 @@ export { expect };
 export async function projectOpening(page: Page, snapshot: Snapshot, point: {x:number; y:number}, height = 0) {
   const box = await page.locator('#world canvas').boundingBox();
   if (!box) throw new Error('No battlefield bounds.');
-  const home = snapshot.entities.find(e => e.owner === 1 && e.type === 'town_center')!.position;
+  const home = snapshot.entities.find(e => e.owner === snapshot.player.id && e.type === 'town_center')!.position;
   const terrain = new BattlefieldTerrain(snapshot.map);
   try {
     const camera = new THREE.PerspectiveCamera(38, box.width / box.height, .1, 350);

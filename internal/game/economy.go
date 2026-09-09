@@ -214,10 +214,12 @@ func tradeRouteLost(_ context.Context, c *unitContext) error {
 	return applicable(c.Target == nil || c.Target.Type != "market" || c.Target.Owner != 0 || c.DropOff == nil)
 }
 func tradeDestinationReached(_ context.Context, c *unitContext) error {
-	return applicable(c.Actor.Position.Distance(c.Target.Position) <= definitions[c.Target.Type].Radius+.8)
+	return applicable(c.World.Marketplace.Merchants.Gold > 0 && c.Actor.Position.Distance(c.Target.Position) <= definitions[c.Target.Type].Radius+.8)
 }
 func collectTradeCargo(_ context.Context, c *unitContext) error {
-	c.Actor.Cargo = math.Max(1, c.DropOff.Position.Distance(c.Target.Position)*.7)
+	c.Actor.Cargo = math.Min(c.World.Marketplace.Merchants.Gold, math.Max(1, c.DropOff.Position.Distance(c.Target.Position)*.7))
+	c.World.Marketplace.Merchants.Gold -= c.Actor.Cargo
+	c.World.Marketplace.Revision++
 	c.Actor.CargoType = "gold"
 	c.Actor.Path = nil
 	return nil

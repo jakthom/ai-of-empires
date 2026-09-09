@@ -76,5 +76,17 @@ func (w *World) freezeCheckpointWorld() *World {
 	for i := range c.Projectiles {
 		c.Projectiles[i].flight = nil
 	}
+	c.Marketplace.Offers = make(map[int]*tradeOffer, len(w.Marketplace.Offers))
+	for id, o := range w.Marketplace.Offers {
+		copy := *o
+		copy.lifecycle = nil
+		c.Marketplace.Offers[id] = &copy
+	}
+	c.Marketplace.Shipments = make(map[int]*tradeShipment, len(w.Marketplace.Shipments))
+	for id, s := range w.Marketplace.Shipments {
+		copy := *s
+		copy.lifecycle = nil
+		c.Marketplace.Shipments[id] = &copy
+	}
 	return &c
 }

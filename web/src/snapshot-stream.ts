@@ -52,6 +52,7 @@ export class SnapshotAssembler {
         paused: d.paused, status: d.status, winner: d.winner, treaty_remaining: d.treaty_remaining,
         event_cursor: d.event_cursor, projectiles: d.projectiles, map,
         player: d.player ?? old.player, opponents: d.opponents ?? old.opponents,
+		marketplace: d.marketplace ?? old.marketplace,
         events: d.events ?? old.events, build_options: d.build_options ?? old.build_options,
         entities: d.entities?.length || d.removed_entities?.length ? [...this.entities.values()] : old.entities,
       };

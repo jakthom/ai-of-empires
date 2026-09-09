@@ -224,6 +224,17 @@ func (s *Server) gameRoutes() {
 	s.mux.HandleFunc("POST /api/v1/games/{id}/commands", func(w http.ResponseWriter, r *http.Request) {
 		gameRequest(s, w, r, func(a *matches.Access, q game.Command) (any, error) { return a.Apply(q) })
 	})
+	s.mux.HandleFunc("GET /api/v1/games/{id}/marketplace", func(w http.ResponseWriter, r *http.Request) {
+		if a := s.gameAccess(w, r); a != nil {
+			defer a.Release()
+			v, err := a.View()
+			if err != nil {
+				domainError(w, err)
+				return
+			}
+			respond(w, 200, v.Marketplace)
+		}
+	})
 	s.mux.HandleFunc("POST /api/v1/games/{id}/placement", func(w http.ResponseWriter, r *http.Request) {
 		gameRequest(s, w, r, func(a *matches.Access, q matches.Placement) (any, error) { return a.Placement(q) })
 	})
