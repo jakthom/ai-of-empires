@@ -303,6 +303,10 @@ func newPlayerMCP() *mcp.Server {
 	})
 	playerTool(s, tool("catalog", "Discover all supported command kinds and their fields, units, buildings, technologies, civilizations, world options and log filters. Current prices and availability come from observations.", true, true), func(_ *matches.Access, _ struct{}) (game.Catalog, error) { return game.GetCatalog(), nil })
 	playerTool(s, tool("observe", "Read your authorized snapshot with paged entities (default 100). Use owner=your player_id to find your units. Keep filters when paging with next_entity_id. Map dimensions are always included; tile/fog arrays are empty unless include_map=true. Read-only; never ticks the simulation.", true, true), observe)
+	playerTool(s, tool("marketplace", "Read the ongoing buy/sell/barter book, finite merchant stock and quotes, and your caravan deliveries. Private offers appear only for their participants. Use catalog's market_post/accept/cancel/resume/recall commands to trade. Scout the offering Market; payment and goods travel with a vulnerable cart. Prices and availability come from Go.", true, true), func(a *matches.Access, _ struct{}) (game.MarketplaceView, error) {
+		v, err := a.View()
+		return v.Marketplace, err
+	})
 	playerTool(s, tool("map_region", "Read a bounded rectangle from your fog-filtered map. Row-major tiles/fog; fog 0=unknown, 1=explored, 2=visible. Unknown cells contain no hidden terrain. Placement must still be checked by Go.", true, true), mapRegion)
 	commandTool := tool("command", "Issue any supported gameplay intention as your authenticated player. Consult catalog.commands for fields and observe for available actions. Includes construction, economy, combat, production, monks, naval transport and resign. A unique ID makes identical retries apply at most once; reuse with different content is rejected. No player/owner override is accepted.", false, true)
 	schema, err := jsonschema.For[game.Command](nil)

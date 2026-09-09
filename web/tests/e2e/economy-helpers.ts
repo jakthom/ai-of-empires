@@ -23,7 +23,7 @@ export async function build(page: Page, game: Game, type: string, label: string,
   await battlefieldKey(page, '1');
   await page.getByRole('button', { name: 'Build', exact: true }).click();
   await page.locator('#actions').getByRole('button', { name: new RegExp(label) }).click();
-  const snapshot = await game.snapshot(), home = snapshot.entities.find(e => e.type === 'town_center' && e.owner === 1)!.position;
+  const snapshot = await game.snapshot(), home = snapshot.entities.find(e => e.type === 'town_center' && e.owner === snapshot.player.id)!.position;
   let candidates: Vec[] = [[-4,-3],[-5,3],[4,5],[-3,-6],[6,2],[-6,-3],[1,-6],[-5,6],[7,4],[-2,5],[-8,1],[3,-8],[8,-2],[-7,-6],[6,-6],[0,8]].map(([x,y]) => ({x:home.x+x,y:home.y+y}));
   if (shore) candidates = snapshot.map.tiles.flatMap((tile,i) => {
     const x=i%snapshot.map.width,y=Math.floor(i/snapshot.map.width), distance=Math.hypot(x+.5-home.x,y+.5-home.y);
@@ -40,13 +40,13 @@ export async function build(page: Page, game: Game, type: string, label: string,
     placed = true; break;
   }
   expect(placed, `find an accepted ${label} site through placement previews`).toBe(true);
-  await expect.poll(async () => (await game.snapshot()).entities.some(e=>e.type===type && e.owner===1 && e.progress===1),{timeout:15_000}).toBe(true);
+  await expect.poll(async () => { const v=await game.snapshot();return v.entities.some(e=>e.type===type && e.owner===v.player.id && e.progress===1); },{timeout:15_000}).toBe(true);
   await game.command('stop',()=>battlefieldKey(page,'s'));
   await page.getByRole('button',{name:'Orders',exact:true}).click();
 }
 
 export async function select(page: Page, game: Game, type: string) {
-  const snapshot=await game.snapshot(), entity=snapshot.entities.find(e=>e.owner===1 && e.type===type)!;
+  const snapshot=await game.snapshot(), entity=snapshot.entities.find(e=>e.owner===snapshot.player.id && e.type===type)!;
   const point=await projectOpening(page,snapshot,entity.position,type==='fishing_ship'?.25:.45);
   await page.mouse.click(point.x,point.y);
   await expect(page.locator('#selected-name')).toHaveText(entity.name);

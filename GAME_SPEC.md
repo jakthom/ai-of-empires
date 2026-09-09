@@ -147,6 +147,14 @@ Queueing pays the cost immediately; housing availability controls production acc
 - Relics generate gold only while properly deposited in monasteries. Their rate and civilization modifiers are data, independent from mining upgrades.
 - Players may send resource tribute with the applicable fee. Transport and trade technologies reduce the specified costs; tribute is recorded for postgame analysis.
 
+### 4.5 Regional scarcity and an ongoing marketplace
+
+Product direction: mutual economic benefit should emerge from regional resource advantages, persistent offers, and physical deliveries. A kingdom rich in timber can supply a mineral-producing partner, and both benefit from keeping the route open.
+
+The current ruleset implements biome-dependent countryside deposit amounts, equal viable starting patches, public or privately addressed standing buy/sell/barter offers, reserved inventory, and Trade Cart delivery. Posting commits offered stock; payment travels to the offering Market and purchased goods travel back. Recall, interruption, destruction, conversion and save/reload must preserve exactly-once accounting. Repeated trips continue through the ordinary command boundary. Merchant exchange uses finite shared stock and supply-responsive quotes; neutral gold routes draw from the same finite treasury. No clock-based restocking creates substitute resources.
+
+Offer terms are disclosed to their intended audience. A listing alone never reveals unexplored Market locations or foreign stockpiles. Only its participants see a delivery’s terms and settlement milestones; cargo location follows ordinary ownership/visibility rules. Peaceful trade grants the assigned cart gate passage, without general military access or shared vision. Formal negotiated treaties, automatic matching of independent offers, and naval commodity freight remain future extensions. Implemented limits and transport semantics are documented in `docs/MARKETPLACE.md`.
+
 ## 5. Construction, repair, and production
 
 ### 5.1 Placement and building lifecycle
@@ -435,7 +443,7 @@ The current skirmish implementation provides these eight original layouts. Ranke
 7. **Coastal Frontier:** continuous mainland with a significant shared coast.
 8. **Highland Relics:** elevation, constrained approaches, and contested relics.
 
-Current creation options offer independent 96×96, 128×128 and 160×160 maps for 1–6 settlements, four visual biomes, deposit abundance, starting separation, map reveal, seed and an initial peace period. Land/sea connectivity, symmetric starting resources and checkpoint preservation have automated coverage; the 10,000-seed ranked suite below is not yet implemented.
+Current creation options offer independent 96×96, 128×128, 160×160, 224×224 and 288×288 maps for 1–6 settlements, six regional biome economies plus Mixed Regions, deposit abundance, starting separation, map reveal, seed and an initial peace period. Land/sea connectivity, symmetric starting resources and checkpoint preservation have automated coverage; the 10,000-seed ranked suite below is not yet implemented.
 
 The longer-term launch target chooses logical size by player count: target 120×120 for 1v1, 168×168 for four players, 220×220 for six, and 240×240 for eight. These sizes are product defaults and may be tuned with performance and balance evidence. Custom size can be independent from player count.
 

@@ -24,6 +24,7 @@ type MapCell struct {
 }
 
 type SnapshotDelta struct {
+	Marketplace     *MarketplaceView `json:"marketplace,omitempty"`
 	ControlRevision int              `json:"control_revision"`
 	Tick            int              `json:"tick"`
 	Time            float64          `json:"time"`
@@ -61,6 +62,9 @@ func (s *SnapshotStream) Next(v Snapshot, sampleMS float64) SnapshotFrame {
 		d := &SnapshotDelta{ControlRevision: v.ControlRevision, Tick: v.Tick, Time: v.Time, Speed: v.Speed, Paused: v.Paused, Status: v.Status, Winner: v.Winner, TreatyRemaining: v.TreatyRemaining, Projectiles: v.Projectiles, EventCursor: v.EventCursor}
 		if !reflect.DeepEqual(p.Player, v.Player) {
 			d.Player = &v.Player
+		}
+		if !reflect.DeepEqual(p.Marketplace, v.Marketplace) {
+			d.Marketplace = &v.Marketplace
 		}
 		if !slices.Equal(p.Opponents, v.Opponents) {
 			d.Opponents = &v.Opponents

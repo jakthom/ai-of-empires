@@ -23,6 +23,7 @@ func (w *World) View(player int) Snapshot {
 		Map: w.mapView(p),
 	}
 	v.Player.Production = p.Production.view()
+	v.Marketplace = w.marketplaceView(player)
 	for id := 1; id <= w.Config.Settlements; id++ {
 		if id != player {
 			other := w.Players[id]

@@ -225,6 +225,26 @@
         ],
         "type": "object"
       },
+      "BiomeEconomy": {
+        "additionalProperties": false,
+        "properties": {
+          "biome": {
+            "type": "string"
+          },
+          "deposits": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "description": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "biome",
+          "deposits",
+          "description"
+        ],
+        "type": "object"
+      },
       "Catalog": {
         "additionalProperties": false,
         "properties": {
@@ -366,6 +386,15 @@
           "kind": {
             "type": "string"
           },
+          "market_revision": {
+            "type": "integer"
+          },
+          "offer": {
+            "$ref": "#/components/schemas/TradeOfferIntent"
+          },
+          "offer_id": {
+            "type": "integer"
+          },
           "position": {
             "$ref": "#/components/schemas/Vec"
           },
@@ -374,6 +403,12 @@
           },
           "queue": {
             "type": "boolean"
+          },
+          "repeat": {
+            "type": "boolean"
+          },
+          "shipment_id": {
+            "type": "integer"
           },
           "target_id": {
             "type": "integer"
@@ -1263,6 +1298,48 @@
         ],
         "type": "object"
       },
+      "MarketplaceView": {
+        "additionalProperties": false,
+        "properties": {
+          "capacity": {
+            "type": "integer"
+          },
+          "max_lots": {
+            "type": "integer"
+          },
+          "max_offers": {
+            "type": "integer"
+          },
+          "merchants": {
+            "$ref": "#/components/schemas/MerchantView"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/TradeOfferView"
+            },
+            "type": "array"
+          },
+          "reserved": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "shipments": {
+            "items": {
+              "$ref": "#/components/schemas/TradeShipmentView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "offers",
+          "shipments",
+          "merchants",
+          "reserved",
+          "capacity",
+          "max_lots",
+          "max_offers"
+        ],
+        "type": "object"
+      },
       "MemberSession": {
         "additionalProperties": false,
         "properties": {
@@ -1299,6 +1376,32 @@
           "membership_id",
           "epoch",
           "owner"
+        ],
+        "type": "object"
+      },
+      "MerchantView": {
+        "additionalProperties": false,
+        "properties": {
+          "actions": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "type": "array"
+          },
+          "market_id": {
+            "type": "integer"
+          },
+          "revision": {
+            "type": "integer"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/Resources"
+          }
+        },
+        "required": [
+          "stock",
+          "revision",
+          "actions"
         ],
         "type": "object"
       },
@@ -1902,6 +2005,9 @@
           "map": {
             "$ref": "#/components/schemas/MapView"
           },
+          "marketplace": {
+            "$ref": "#/components/schemas/MarketplaceView"
+          },
           "opponents": {
             "items": {
               "$ref": "#/components/schemas/OpponentView"
@@ -1949,6 +2055,7 @@
           }
         },
         "required": [
+          "marketplace",
           "version",
           "difficulty",
           "settlements",
@@ -2003,6 +2110,9 @@
               "$ref": "#/components/schemas/Event"
             },
             "type": "array"
+          },
+          "marketplace": {
+            "$ref": "#/components/schemas/MarketplaceView"
           },
           "opponents": {
             "items": {
@@ -2173,6 +2283,135 @@
         ],
         "type": "object"
       },
+      "TradeOfferIntent": {
+        "additionalProperties": false,
+        "properties": {
+          "give_amount": {
+            "type": "integer"
+          },
+          "give_resource": {
+            "type": "string"
+          },
+          "lots": {
+            "type": "integer"
+          },
+          "target_player": {
+            "type": "integer"
+          },
+          "want_amount": {
+            "type": "integer"
+          },
+          "want_resource": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "give_resource",
+          "give_amount",
+          "want_resource",
+          "want_amount",
+          "lots"
+        ],
+        "type": "object"
+      },
+      "TradeOfferView": {
+        "additionalProperties": false,
+        "properties": {
+          "can_accept": {
+            "type": "boolean"
+          },
+          "cart_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "market_id": {
+            "type": "integer"
+          },
+          "owner": {
+            "type": "integer"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "reason": {
+            "type": "string"
+          },
+          "remaining": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/TradeOfferIntent"
+          }
+        },
+        "required": [
+          "id",
+          "owner",
+          "terms",
+          "remaining",
+          "state",
+          "can_accept"
+        ],
+        "type": "object"
+      },
+      "TradeShipmentView": {
+        "additionalProperties": false,
+        "properties": {
+          "buyer": {
+            "type": "integer"
+          },
+          "can_recall": {
+            "type": "boolean"
+          },
+          "can_resume": {
+            "type": "boolean"
+          },
+          "cart_id": {
+            "type": "integer"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "offer_id": {
+            "type": "integer"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "repeat": {
+            "type": "boolean"
+          },
+          "seller": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "terms": {
+            "$ref": "#/components/schemas/TradeOfferIntent"
+          }
+        },
+        "required": [
+          "id",
+          "offer_id",
+          "seller",
+          "buyer",
+          "terms",
+          "state",
+          "status",
+          "can_resume",
+          "can_recall",
+          "repeat"
+        ],
+        "type": "object"
+      },
       "TransferInfo": {
         "additionalProperties": false,
         "properties": {
@@ -2249,6 +2488,12 @@
           "defaults": {
             "$ref": "#/components/schemas/WorldOptions"
           },
+          "economies": {
+            "items": {
+              "$ref": "#/components/schemas/BiomeEconomy"
+            },
+            "type": "array"
+          },
           "resources": {
             "items": {
               "$ref": "#/components/schemas/WorldChoice"
@@ -2287,6 +2532,7 @@
           }
         },
         "required": [
+          "economies",
           "types",
           "biomes",
           "sizes",
@@ -3930,6 +4176,70 @@
           }
         ],
         "summary": "Read the journal visible to your kingdom"
+      }
+    },
+    "/games/{id}/marketplace": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketplaceView"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Read published trade offers, your deliveries and finite merchant quotes"
       }
     },
     "/games/{id}/memberships/{member}/mcp": {

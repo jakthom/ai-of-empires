@@ -108,6 +108,7 @@ const (
 	DepositingRelic    UnitState = "depositing_relic"
 	Trading            UnitState = "trading_outbound"
 	ReturningTrade     UnitState = "trading_returning"
+	Caravanning        UnitState = "caravanning"
 	Embarking          UnitState = "embarking"
 	Garrisoned         UnitState = "garrisoned"
 	UnitPulse          UnitEvent = "pulse"
@@ -121,6 +122,7 @@ const (
 	OrderRelic         UnitEvent = "order_relic"
 	OrderDepositRelic  UnitEvent = "order_deposit_relic"
 	OrderTrade         UnitEvent = "order_trade"
+	OrderCaravan       UnitEvent = "order_caravan"
 	OrderEmbark        UnitEvent = "order_embark"
 	StopOrder          UnitEvent = "stop_order"
 	QueueOrder         UnitEvent = "queue_order"
@@ -170,8 +172,9 @@ func init() {
 		}
 		return nil
 	}
-	states := []UnitState{Idle, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, Healing, ApproachingConvert, RecoveringFaith, Converting, ApproachingRelic, CollectingRelic, ApproachingDeposit, DepositingRelic, Trading, ReturningTrade, Embarking}
+	states := []UnitState{Idle, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, Healing, ApproachingConvert, RecoveringFaith, Converting, ApproachingRelic, CollectingRelic, ApproachingDeposit, DepositingRelic, Trading, ReturningTrade, Caravanning, Embarking}
 	destinations := []unitRow{
+		{Event: OrderCaravan, To: Caravanning, Guard: caravanUnit},
 		{Event: OrderMove, To: Moving, Guard: mobile},
 		{Event: OrderGather, To: SeekingResource, Guard: worker},
 		{Event: OrderBuild, To: Constructing, Guard: villager},
@@ -204,6 +207,7 @@ func init() {
 		unitRows = append(unitRows, unitRow{From: from, Event: QueueOrder, To: from, Guard: queueHasRoom, Do: appendOrder})
 	}
 	unitRows = append(unitRows, movementTransitions()...)
+	unitRows = append(unitRows, unitRow{From: Caravanning, Event: UnitPulse, To: Caravanning})
 	unitRows = append(unitRows, economyTransitions()...)
 	unitRows = append(unitRows, combatTransitions()...)
 	unitRows = append(unitRows, monkTransitions()...)
@@ -247,4 +251,12 @@ func mustFire[S, E comparable, T any](instance *statemachine.Instance[S, E, T], 
 
 var orderEvents = map[string]UnitEvent{"move": OrderMove, "attack_move": OrderMove, "gather": OrderGather, "build": OrderBuild, "repair": OrderRepair, "attack": OrderAttack, "heal": OrderHeal, "convert": OrderConvert, "relic": OrderRelic, "deposit_relic": OrderDepositRelic, "trade": OrderTrade, "garrison": OrderEmbark, "idle": StopOrder, "stop": StopOrder}
 
-func orderEvent(kind string) UnitEvent { return orderEvents[kind] }
+func orderEvent(kind string) UnitEvent {
+	if kind == "caravan" {
+		return OrderCaravan
+	}
+	return orderEvents[kind]
+}
+func caravanUnit(_ context.Context, c *unitContext) error {
+	return applicable(c.Actor.Type == "trade_cart" && c.Actor.Container == 0)
+}

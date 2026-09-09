@@ -73,6 +73,7 @@ func New(cfg Config) *World {
 		w.Players[id].Temperament = initialTemperament(cfg, id)
 	}
 	w.initializeRelations()
+	w.initializeMarketplace()
 	w.initializeTreaty()
 	w.initializeVoyages()
 	for i, pos := range starts[:cfg.Settlements] {
@@ -186,6 +187,9 @@ func (w *World) resource(typ string, pos Vec) {
 		e.Resource = "gold"
 	case "stone":
 		e.Resource = "stone"
+	}
+	if e.Resource != "" && typ != "fish" {
+		e.Amount *= w.biomeDepositMultiplier(pos, e.Resource)
 	}
 }
 func (w *World) inside(p Vec) bool {

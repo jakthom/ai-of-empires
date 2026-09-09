@@ -67,6 +67,12 @@ export interface AuditPage {
   events: AuditEvent[];
 }
 
+export interface BiomeEconomy {
+  biome: string;
+  deposits: Resources;
+  description: string;
+}
+
 export interface Catalog {
   commands: CommandInfo[];
   rules_version: string;
@@ -95,6 +101,11 @@ export interface ClaimInvite {
 }
 
 export interface Command {
+  offer?: TradeOfferIntent;
+  offer_id?: number;
+  shipment_id?: number;
+  repeat?: boolean;
+  market_revision?: number;
   end_position?: Vec;
   id: string;
   kind: string;
@@ -349,6 +360,16 @@ export interface MapView {
   fog: number[];
 }
 
+export interface MarketplaceView {
+  offers: TradeOfferView[];
+  shipments: TradeShipmentView[];
+  merchants: MerchantView;
+  reserved: Resources;
+  capacity: number;
+  max_lots: number;
+  max_offers: number;
+}
+
 export interface MemberSession {
   match_id: string;
   token: string;
@@ -358,6 +379,13 @@ export interface MemberSession {
   rejoin_code?: string;
   epoch: string;
   owner: boolean;
+}
+
+export interface MerchantView {
+  stock: Resources;
+  revision: number;
+  market_id?: number;
+  actions: Action[];
 }
 
 export interface Observation {
@@ -523,6 +551,7 @@ export interface Session {
 }
 
 export interface Snapshot {
+  marketplace: MarketplaceView;
   control_revision?: number;
   version: string;
   difficulty: Difficulty;
@@ -546,6 +575,7 @@ export interface Snapshot {
 }
 
 export interface SnapshotDelta {
+  marketplace?: MarketplaceView;
   control_revision: number;
   tick: number;
   time: number;
@@ -598,6 +628,43 @@ export interface Tile {
   elevation: number;
 }
 
+export interface TradeOfferIntent {
+  give_resource: string;
+  give_amount: number;
+  want_resource: string;
+  want_amount: number;
+  lots: number;
+  target_player?: number;
+}
+
+export interface TradeOfferView {
+  id: number;
+  owner: number;
+  terms: TradeOfferIntent;
+  remaining: number;
+  state: string;
+  market_id?: number;
+  position?: Vec;
+  can_accept: boolean;
+  reason?: string;
+  cart_id?: number;
+}
+
+export interface TradeShipmentView {
+  id: number;
+  offer_id: number;
+  seller: number;
+  buyer: number;
+  terms: TradeOfferIntent;
+  state: string;
+  status: string;
+  cart_id?: number;
+  position?: Vec;
+  can_resume: boolean;
+  can_recall: boolean;
+  repeat: boolean;
+}
+
 export interface TransferInfo {
   id: string;
   game_id: string;
@@ -618,6 +685,7 @@ export interface Vec {
 }
 
 export interface WorldCatalog {
+  economies: BiomeEconomy[];
   types: WorldChoice[];
   biomes: WorldChoice[];
   sizes: WorldSize[];

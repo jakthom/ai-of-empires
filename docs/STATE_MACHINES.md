@@ -17,6 +17,8 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 | Civilization strategy | Developing, defending, raiding, recovering | `internal/game/ai_strategy.go` |
 | Initial peace period | Active, expired | `internal/game/treaty.go` |
 | Naval expedition | Idle, boarding, sailing, landing, returning | `internal/game/ai_naval.go` |
+| Market offer | Draft, open, filled, cancelled | `internal/game/trade_offers.go` |
+| Commodity delivery | Reserved, outbound, returning, returning payment, delivered, recalled, lost | `internal/game/trade_shipments.go` |
 | Pairwise relationship | Peaceful, hostile | `internal/game/diplomacy.go` |
 | Match | Running, paused, finished | `internal/game/lifecycle.go` |
 | Server session lease | Open, draining, closed | `internal/matches/lifecycle.go` |
@@ -137,3 +139,9 @@ Fishing uses the ordinary seeking, gathering, returning and natural-resource dep
 Readiness is optional and is invalidated by roster or world changes, with a distinct revision for that content. A peer marking Ready does not invalidate another peer's response or the owner's Start. Start requires the current world settings but permits vacant, reserved and unready friend seats. Unclaimed human kingdoms do not run AI or trigger disconnect pauses; a late claim preserves their entities and the current clock. Shared Pause/Resume are explicit idempotent events, with a control revision on authenticated snapshots fencing stale Resume. Human players never pulse AI strategy machines.
 
 State effects freeze or mutate in-memory state. SQLite I/O happens afterward under the mutation barrier. Failed close leaves Closing and a paused World; Retry checkpoints again and Cancel returns Open/Paused (or Lobby). Transfers persist the frozen marker, archive, receipts and journal in one transaction before download. Import restores existing lifecycle instances without replaying effects, gives the runtime a new epoch and opens paused. Deletion writes a tombstone before removing the game, so a stale save cannot resurrect it.
+
+## Marketplace ownership
+
+Each listing owns one offer instance. Post reserves all offered lots; fill transfers one lot into a new shipment; cancel releases only unclaimed lots. Each shipment owns one delivery instance. Its effects load payment, move the assigned cart, exchange cargo at the partner Market, return goods, recall payment, or settle loss. The unit behavior instance owns whether the cart is following the caravan intention or interrupted by a normal move/stop. It does not duplicate the delivery phase. The simulation emits shipment pulses after unit/projectile updates; continuation commands dispatch only after delivery commits.
+
+Guards only inspect funds, terms, ownership, observations, route connectivity and lifecycle state. Inventory, price formulas and movement are ordinary data/math, not additional state machines. Checkpoint version 5 stores offer/shipment states separately from their data, deep-copies records for background encoding, and restores without replaying payments or refunds. Older checkpoints initialize finite merchant stock without regenerating their resource deposits.

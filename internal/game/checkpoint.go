@@ -18,6 +18,8 @@ type entityStates struct {
 	Siege      SiegeState
 }
 type checkpoint struct {
+	Offers                map[int]offerState
+	Shipments             map[int]shipmentState
 	Version               int
 	Rules                 string
 	World                 *World
@@ -52,7 +54,7 @@ func (w *World) JournalSince(after int) []JournalRecord {
 }
 
 func (w *World) checkpointState() checkpoint {
-	c := checkpoint{Version: 4, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c := checkpoint{Version: 5, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
 	for id, e := range w.Entities {
 		c.Entities[id] = entityStates{e.behavior.State(), e.life.State(), e.production.State(), e.siege.State()}
 	}
@@ -66,6 +68,12 @@ func (w *World) checkpointState() checkpoint {
 	}
 	for key, relation := range w.Relations {
 		c.Relations[key] = relation.lifecycle.State()
+	}
+	for id, o := range w.Marketplace.Offers {
+		c.Offers[id] = o.lifecycle.State()
+	}
+	for id, s := range w.Marketplace.Shipments {
+		c.Shipments[id] = s.lifecycle.State()
 	}
 	return c
 }
@@ -98,7 +106,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
 	}
-	if (c.Version < 1 || c.Version > 4) || c.Rules != RulesVersion {
+	if (c.Version < 1 || c.Version > 5) || c.Rules != RulesVersion {
 		return nil, fmt.Errorf("unsupported checkpoint version %d / %q", c.Version, c.Rules)
 	}
 	w := c.World
@@ -124,7 +132,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	w.aiClock, w.visibleClock, w.rng = c.AIClock, c.VisibleClock, c.RNG
 	for id, e := range w.Entities {
 		s := c.Entities[id]
-		if e == nil || e.ID != id || definitions[e.Type].ID == "" || !e.Position.Finite() || !slices.Contains([]UnitState{Idle, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, ApproachingConvert, RecoveringFaith, ApproachingRelic, ApproachingDeposit, Healing, Converting, CollectingRelic, DepositingRelic, Trading, ReturningTrade, Embarking, Garrisoned}, s.Behavior) || !slices.Contains([]LifeState{Foundation, Active, Destroyed, Exhausted}, s.Life) || !slices.Contains([]ProductionState{ProductionIdle, ProductionWorking, ProductionBlocked}, s.Production) || !slices.Contains([]SiegeState{SiegePacked, SiegeDeploying, SiegeDeployed, SiegePacking}, s.Siege) {
+		if e == nil || e.ID != id || definitions[e.Type].ID == "" || !e.Position.Finite() || !slices.Contains([]UnitState{Idle, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, ApproachingConvert, RecoveringFaith, ApproachingRelic, ApproachingDeposit, Healing, Converting, CollectingRelic, DepositingRelic, Trading, ReturningTrade, Caravanning, Embarking, Garrisoned}, s.Behavior) || !slices.Contains([]LifeState{Foundation, Active, Destroyed, Exhausted}, s.Life) || !slices.Contains([]ProductionState{ProductionIdle, ProductionWorking, ProductionBlocked}, s.Production) || !slices.Contains([]SiegeState{SiegePacked, SiegeDeploying, SiegeDeployed, SiegePacking}, s.Siege) {
 			return nil, fmt.Errorf("invalid checkpoint entity %d", id)
 		}
 		e.behavior = statemachine.NewInstance(unitMachine, s.Behavior)
@@ -236,6 +244,9 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 		return nil, fmt.Errorf("checkpoint journal is incomplete")
 	}
 	w.indexPrivateJournal()
+	if err := w.restoreMarketplace(c); err != nil {
+		return nil, err
+	}
 	return w, nil
 }
 

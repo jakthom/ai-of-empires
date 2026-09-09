@@ -120,6 +120,7 @@ func OpenAPI() map[string]any {
 	add("get", "/games/{id}/agent", "Discover only your membership's MCP endpoint", "", "AgentEndpoint", 200, true)
 	add("post", "/games/{id}/agent", "Get your membership's restricted MCP credential; cannot authorize REST or host administration", "", "AgentEndpoint", 200, true)
 	add("get", "/games/{id}/snapshot", "Read this member's authorized world view", "", "Snapshot", 200, true)
+	add("get", "/games/{id}/marketplace", "Read published trade offers, your deliveries and finite merchant quotes", "", "MarketplaceView", 200, true)
 	add("patch", "/games/{id}/rules", "Update lobby settings and clear readiness", "RulesChange", "GameInfo", 200, true)
 	add("post", "/games/{id}/seats", "Add a human or AI seat in the lobby", "SeatChange", "GameInfo", 200, true)
 	add("patch", "/games/{id}/seats/{seat}", "Configure a lobby seat", "SeatChange", "GameInfo", 200, true)

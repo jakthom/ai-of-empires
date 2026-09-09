@@ -2,6 +2,7 @@ package game
 
 import (
 	"encoding/json"
+	"math"
 	"reflect"
 	"testing"
 )
@@ -114,15 +115,14 @@ func TestWorldOptionsDeterminismAbundanceRevealAndRestore(t *testing.T) {
 	if !reflect.DeepEqual(a.View(1), b.View(1)) {
 		t.Fatal("same options and seed differ")
 	}
-	cfg.World.Biome = "desert"
 	cfg.World.Resources = "abundant"
 	cfg.World.Reveal = "all"
 	c, _ := NewWorld(cfg)
 	if !reflect.DeepEqual(a.Tiles, c.Tiles) {
-		t.Fatal("biome/abundance/reveal changed topology")
+		t.Fatal("abundance/reveal changed topology")
 	}
 	for id, e := range a.Entities {
-		if e.Resource != "" && e.Owner == 0 && c.Entities[id].Amount != e.Amount*1.75 {
+		if e.Resource != "" && e.Owner == 0 && math.Abs(c.Entities[id].Amount-e.Amount*1.75) > 1e-8 {
 			t.Fatal("abundance did not scale natural deposit", id)
 		}
 	}

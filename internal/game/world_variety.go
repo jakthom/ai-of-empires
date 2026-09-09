@@ -77,8 +77,8 @@ func archipelagoIslands(starts []Vec, size, phase float64) []landscapeIsland {
 	return islands
 }
 
-// Regional scenery is checkpointed terrain metadata. It has no influence on
-// walkability, supplies or civilization bonuses, and unknown cells hide it.
+// Regional biomes are checkpointed before countryside resources are seeded.
+// They determine resource abundance, not walkability; unknown cells hide them.
 func (w *World) assignRegionalBiomes() {
 	if w.Config.World.Biome != "mixed" {
 		return

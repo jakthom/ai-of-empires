@@ -18,6 +18,9 @@ func applyStreamFrame(v Snapshot, f SnapshotFrame) Snapshot {
 	if d.Player != nil {
 		v.Player = *d.Player
 	}
+	if d.Marketplace != nil {
+		v.Marketplace = *d.Marketplace
+	}
 	if d.Opponents != nil {
 		v.Opponents = *d.Opponents
 	}

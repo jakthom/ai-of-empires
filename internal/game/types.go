@@ -117,6 +117,7 @@ type Tile struct {
 	Elevation float64 `json:"elevation"`
 }
 type Order struct {
+	Shipment     int    `json:"shipment,omitempty"`
 	Kind         string `json:"kind"`
 	Target       int    `json:"target,omitempty"`
 	Position     *Vec   `json:"position,omitempty"`
@@ -243,6 +244,7 @@ type Config struct {
 	World        WorldOptions `json:"world,omitempty"`
 }
 type World struct {
+	Marketplace  marketplace
 	Config       Config
 	Tick         int
 	Time         float64
@@ -274,16 +276,21 @@ type World struct {
 
 // Command contains intent only; never caller-supplied HP, costs, velocities or owners.
 type Command struct {
-	EndPosition  *Vec    `json:"end_position,omitempty"`
-	ID           string  `json:"id"`
-	Kind         string  `json:"kind"`
-	EntityIDs    []int   `json:"entity_ids,omitempty"`
-	TargetID     int     `json:"target_id,omitempty"`
-	TargetPlayer int     `json:"target_player,omitempty"`
-	Position     *Vec    `json:"position,omitempty"`
-	Product      string  `json:"product,omitempty"`
-	Queue        bool    `json:"queue,omitempty"`
-	Value        float64 `json:"value,omitempty"`
+	Offer          *TradeOfferIntent `json:"offer,omitempty"`
+	OfferID        int               `json:"offer_id,omitempty"`
+	ShipmentID     int               `json:"shipment_id,omitempty"`
+	Repeat         bool              `json:"repeat,omitempty"`
+	MarketRevision *int              `json:"market_revision,omitempty"`
+	EndPosition    *Vec              `json:"end_position,omitempty"`
+	ID             string            `json:"id"`
+	Kind           string            `json:"kind"`
+	EntityIDs      []int             `json:"entity_ids,omitempty"`
+	TargetID       int               `json:"target_id,omitempty"`
+	TargetPlayer   int               `json:"target_player,omitempty"`
+	Position       *Vec              `json:"position,omitempty"`
+	Product        string            `json:"product,omitempty"`
+	Queue          bool              `json:"queue,omitempty"`
+	Value          float64           `json:"value,omitempty"`
 }
 type RuleError struct {
 	Code    string `json:"code"`
@@ -368,6 +375,7 @@ type MapView struct {
 	Fog    []int  `json:"fog"`
 }
 type Snapshot struct {
+	Marketplace MarketplaceView `json:"marketplace"`
 	// Filled by the session boundary for shared control concurrency.
 	ControlRevision int              `json:"control_revision,omitempty"`
 	Version         string           `json:"version"`

@@ -55,6 +55,7 @@ func (w *World) Update() {
 		}
 	}
 	w.updateProjectiles()
+	w.pulseMarketplace()
 	w.sampleProduction()
 	w.checkVictory()
 	if w.Tick%200 == 0 {

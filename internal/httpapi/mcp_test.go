@@ -419,18 +419,18 @@ func TestMCPDiscoveryStrictInputsAndBoundedReads(t *testing.T) {
 			t.Fatal("tools need typed outputs and side-effect annotations", tool.Name)
 		}
 	}
-	for _, name := range []string{"observe", "command", "check_placement", "map_region", "read_log", "catalog", "game_status", "start_game", "pause_game", "resume_game", "set_speed", "save_game", "connect_player", "heartbeat", "leave_player"} {
+	for _, name := range []string{"observe", "command", "check_placement", "map_region", "read_log", "catalog", "game_status", "start_game", "pause_game", "resume_game", "set_speed", "save_game", "connect_player", "heartbeat", "leave_player", "marketplace"} {
 		if !slices.Contains(names, name) {
 			t.Fatal("missing tool", name)
 		}
 	}
-	if len(names) != 15 {
+	if len(names) != 16 {
 		t.Fatal("unexpected tools: audit their player authority", names)
 	}
 	catalog := mcpOutput[game.Catalog](t, client, "catalog", struct{}{})
 	properties := commandSchema["properties"].(map[string]any)
 	kinds := properties["kind"].(map[string]any)["enum"].([]any)
-	if len(kinds) != len(catalog.Commands) || len(kinds) != 27 || commandSchema["additionalProperties"] != false {
+	if len(kinds) != len(catalog.Commands) || len(kinds) != 32 || commandSchema["additionalProperties"] != false {
 		t.Fatal("command schema missing catalogue coverage or strict field validation")
 	}
 	for _, c := range catalog.Commands {

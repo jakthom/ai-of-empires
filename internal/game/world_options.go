@@ -28,18 +28,20 @@ type WorldSize struct {
 }
 
 type WorldCatalog struct {
-	Types         []WorldChoice `json:"types"`
-	Biomes        []WorldChoice `json:"biomes"`
-	Sizes         []WorldSize   `json:"sizes"`
-	Resources     []WorldChoice `json:"resources"`
-	Separations   []WorldChoice `json:"separations"`
-	Reveals       []WorldChoice `json:"reveals"`
-	TreatyMinutes []int         `json:"treaty_minutes"`
-	Defaults      WorldOptions  `json:"defaults"`
+	Economies     []BiomeEconomy `json:"economies"`
+	Types         []WorldChoice  `json:"types"`
+	Biomes        []WorldChoice  `json:"biomes"`
+	Sizes         []WorldSize    `json:"sizes"`
+	Resources     []WorldChoice  `json:"resources"`
+	Separations   []WorldChoice  `json:"separations"`
+	Reveals       []WorldChoice  `json:"reveals"`
+	TreatyMinutes []int          `json:"treaty_minutes"`
+	Defaults      WorldOptions   `json:"defaults"`
 }
 
 func worldCatalog() WorldCatalog {
 	return WorldCatalog{
+		Economies: biomeEconomies(),
 		Types: []WorldChoice{
 			{"plains", "Open Plains", "Open country with scattered woods and room to expand in every direction."},
 			{"forest", "Forest Marches", "Wooded regions surround clearings. Shared paths and tree cutting open routes between kingdoms."},
@@ -55,13 +57,13 @@ func worldCatalog() WorldCatalog {
 			{"archipelago", "Scattered Archipelago", "Irregular home islands and smaller offshore islets. Ships carry settlers between separate kingdoms."},
 		},
 		Biomes: []WorldChoice{
-			{"temperate", "Temperate", "Green meadows, mixed woodland, and cool blue water."},
-			{"desert", "Desert", "Warm sand, dry earth, and palms along turquoise shores."},
-			{"alpine", "Alpine", "Snowy ground, dark evergreens, and slate-blue water."},
-			{"tropical", "Tropical", "Lush green ground, broad canopies, and bright coastal water."},
-			{"autumn", "Autumn Woodland", "Copper and amber canopies over cool, mossy countryside."},
-			{"savanna", "Savanna", "Golden grasslands, red earth and spreading acacia trees."},
-			{"mixed", "Mixed Regions", "Explore snowy uplands, green and autumn woodland, dry grasslands, desert and tropical shores in one world."},
+			{"temperate", "Temperate", "Green woodland with good food and timber; smaller mineral deposits."},
+			{"desert", "Desert", "Gold-rich sands and stone reserves; scarce food and timber outside starting settlements."},
+			{"alpine", "Alpine", "Snowy uplands rich in stone and gold; limited food and timber."},
+			{"tropical", "Tropical", "Lush forests and abundant food; scarce gold and stone."},
+			{"autumn", "Autumn Woodland", "Large timber reserves and good food; limited gold."},
+			{"savanna", "Savanna", "Abundant natural food and good gold; scarce timber and stone."},
+			{"mixed", "Mixed Regions", "Regions have different resource strengths. Explore for supplies and trade local surpluses with other kingdoms."},
 		},
 		Sizes: []WorldSize{
 			{"small", "Small", "A compact world with shorter journeys.", 96},
@@ -86,7 +88,7 @@ func worldCatalog() WorldCatalog {
 			{"all", "Everything visible", "All kingdoms share full map visibility throughout the game."},
 		},
 		TreatyMinutes: []int{0, 5, 10, 20, 30},
-		Defaults:      WorldOptions{Type: "rivers", Biome: "temperate", Size: "small", Resources: "standard", Separation: "standard", Reveal: "hidden"},
+		Defaults:      WorldOptions{Type: "rivers", Biome: "mixed", Size: "small", Resources: "standard", Separation: "standard", Reveal: "hidden"},
 	}
 }
 

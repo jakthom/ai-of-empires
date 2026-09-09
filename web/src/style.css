@@ -16,6 +16,63 @@
   font-synthesis: none;
   font-size: 14px;
 }
+.match-controls #open-marketplace { width: auto; min-width: 46px; padding: 0 8px; font-size: 12px; color: var(--accent); border-color: var(--line); }
+#marketplace-dialog { width: min(940px, calc(100vw - 24px)); padding: 24px; }
+.market-heading { display: flex; justify-content: space-between; align-items: start; gap: 16px; }
+.market-heading h2 { margin: 0 0 8px; font-size: 30px; }
+.market-heading p { margin: 0; line-height: 1.5; }
+#market-close { width: 36px; height: 36px; flex: 0 0 36px; font-size: 24px; }
+.market-tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 20px 0; padding-bottom: 8px; }
+.market-tabs button { padding: 8px 14px; font-size: 13px; }
+.market-tabs button[aria-pressed="true"] { background: var(--raised); color: var(--accent); border-color: var(--accent); }
+#marketplace-dialog h3 { margin: 0 0 10px; font: 22px Palatino, Georgia, serif; }
+#marketplace-dialog .market-note { font-size: 12px; line-height: 1.6; color: var(--muted); margin: 8px 0 14px; }
+.market-offers-layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 28px; align-items: start; }
+.market-book, #market-offer-form { min-width: 0; }
+.market-section-heading { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.market-section-heading label { display: flex; align-items: center; gap: 8px; }
+.market-section-heading select { margin: 0; width: auto; padding: 6px; min-height: 34px; }
+#market-offer-fields { border: 0; padding: 0; margin: 0; min-width: 0; }
+#market-offer-fields legend { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+#market-offer-fields > label { margin-bottom: 14px; }
+.market-form-pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 12px; margin-bottom: 14px; }
+.market-form-pair input, .market-form-pair select { min-width: 0; }
+#marketplace-dialog .market-repeat { display: flex; align-items: start; gap: 8px; font-size: 12px; line-height: 1.6; margin-bottom: 14px; }
+#marketplace-dialog .market-repeat input { width: 16px; min-height: 16px; margin: 2px 0 0; flex: 0 0 16px; accent-color: var(--accent); }
+.market-offer { padding: 16px 0; border-top: 1px solid var(--line); }
+.market-offer-title { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; overflow-wrap: anywhere; }
+.market-offer-title > span { color: var(--muted); }
+#marketplace-dialog .market-exchange { margin: 10px 0 4px; color: var(--text); font-size: 16px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.market-row-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.market-row-actions button { min-height: 34px; padding: 7px 10px; font-size: 12px; }
+#marketplace-dialog .market-refusal { margin: 8px 0 0; font-size: 12px; line-height: 1.5; color: #e9c4a4; }
+#marketplace-dialog .market-empty { padding: 26px 0; color: var(--muted); line-height: 1.7; }
+#market-status, #market-error { font-size: 13px; line-height: 1.5; margin: 0 0 16px; }
+#market-status:empty, #market-error:empty { display: none; }
+#market-error { color: #edb59c; }
+.merchant-resource { padding: 18px 0; border-top: 1px solid var(--line); display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 20px; }
+.merchant-resource h4 { margin: 0; font-size: 16px; text-transform: capitalize; }
+#marketplace-dialog .merchant-resource p { margin: 8px 0 0; line-height: 1.5; font-size: 12px; }
+.merchant-quotes { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.merchant-quotes button { padding: 10px 12px; min-height: 58px; width: 100%; text-align: left; }
+.merchant-quotes button strong, .merchant-quotes button span { display: block; font-size: 12px; line-height: 1.6; }
+.merchant-quotes button span { color: var(--accent); }
+.market-table-scroll { overflow-x: auto; }
+#marketplace-dialog table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
+#marketplace-dialog caption { text-align: left; color: var(--muted); margin: 4px 0 14px; font-size: 12px; }
+#marketplace-dialog th, #marketplace-dialog td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--line); }
+#marketplace-dialog th:first-child { text-align: left; }
+#marketplace-dialog thead th { color: var(--accent); text-transform: capitalize; }
+@media (max-width: 700px) {
+  #marketplace-dialog { padding: 18px; }
+  .market-offers-layout { grid-template-columns: minmax(0, 1fr); gap: 22px; }
+  #market-offer-form { padding-top: 20px; border-top: 1px solid var(--line); }
+  .market-tabs button { flex: 1; padding: 8px 4px; font-size: 12px; }
+  .market-section-heading { align-items: start; flex-wrap: wrap; }
+  .merchant-resource { grid-template-columns: 1fr; gap: 12px; }
+  .merchant-quotes { grid-template-columns: 1fr; gap: 12px; }
+  #marketplace-dialog th, #marketplace-dialog td { padding: 10px 5px; font-size: 12px; }
+}
 * { box-sizing: border-box; }
 body { margin: 0; overflow: hidden; background: var(--background); }
 button, select, input { font: inherit; }

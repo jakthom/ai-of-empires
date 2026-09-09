@@ -217,6 +217,11 @@ func (w *World) activity(e *Entity) string {
 		}
 	}
 	switch e.behavior.State() {
+	case Caravanning:
+		if s := w.Marketplace.Shipments[e.Order.Shipment]; s != nil {
+			return "Caravan: " + strings.ReplaceAll(string(s.lifecycle.State()), "_", " ")
+		}
+		return "Caravan"
 	case SeekingResource:
 		if target != nil && target.Type == "farm" && farmOccupied(nil, &unitContext{World: w, Actor: e, Target: target}) == nil {
 			return "Waiting for an available farm"

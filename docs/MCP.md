@@ -69,7 +69,7 @@ Rejoining rotates the membership credentials and invalidates its existing MCP to
 
 ## Tools and gameplay coverage
 
-All **27 implemented multiplayer command kinds** were already reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
+All **32 implemented multiplayer command kinds** are reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
 
 | Gameplay | Command kinds / API |
 |---|---|
@@ -78,7 +78,7 @@ All **27 implemented multiplayer command kinds** were already reachable through 
 | Production and progression | `train`, `research`, `age`, `cancel`, `rally` |
 | Combat and monks | `attack`, `heal`, `convert`, `relic`, `deposit_relic`, `deploy` |
 | Garrison and sea transport | `garrison`, `unload`; ship movement uses `move` |
-| Trade | `market_buy`, `market_sell`, `trade` |
+| Trade | `market_buy`, `market_sell`, `trade`, `market_post`, `market_accept`, `market_cancel`, `market_resume`, `market_recall` |
 | Removal and defeat | `delete`, `resign` |
 | Placement | `check_placement`, equivalent to the authenticated `/placement` query |
 | Shared clock | `start_game`, `pause_game`, `resume_game`, `set_speed` |
@@ -86,13 +86,14 @@ All **27 implemented multiplayer command kinds** were already reachable through 
 
 Automatic delivery, resource depletion, production completion, gate passage, attack timing and victory do not need independent mutation endpoints. Player intentions start or interrupt these existing Go lifecycles. Mechanics still listed as future scope in [README](../README.md#implemented-scope), such as formal alliances and formations, do not become available merely through MCP.
 
-The endpoint advertises 15 tools:
+The endpoint advertises 16 tools:
 
 | Tool | Use |
 |---|---|
 | `game_status` | Your identity/seat, shared lobby and match status, owner flag and control revision; no seed or foreign membership IDs |
 | `catalog` | Commands and required/optional fields, units, buildings, technologies, civilizations, world options and log filters |
 | `observe` | Your snapshot with at most 200 entities per page (100 by default); optional `owner` and `entity_ids` filters |
+| `marketplace` | Published offers, participant-only private offers/deliveries, and shared finite merchant stock/quotes; see [trading examples](MARKETPLACE.md) |
 | `map_region` | Up to 32×32 fog-filtered tiles in row-major order |
 | `check_placement` | Go validates/prices a building or wall route without spending resources |
 | `command` | A typed gameplay intention with a unique ID |

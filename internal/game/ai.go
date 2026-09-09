@@ -22,6 +22,9 @@ func (w *World) thinkPlayer(player int) {
 }
 
 func (w *World) aiEconomy(c *aiContext, defending bool) {
+	if !defending {
+		w.aiCommerce(c)
+	}
 	p, workers, tcs := c.Player, c.Workers, c.Centers
 	player, policy := p.ID, c.Policy
 	if len(tcs) == 0 {

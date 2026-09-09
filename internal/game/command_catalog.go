@@ -34,8 +34,13 @@ func PlayerCommands() []CommandInfo {
 		{"delete", "Permanently remove your selected entities; this can defeat your kingdom.", []string{"entity_ids"}},
 		{"stance", "Set automatic response: defensive, stand_ground, passive or aggressive in product.", []string{"entity_ids", "product"}},
 		{"reseed_farm", "Reseed one depleted owned farm; Go chooses a worker and charges the cost.", []string{"entity_ids"}},
-		{"market_buy", "Buy food, wood or stone using one completed market; product names the resource.", []string{"entity_ids", "product"}},
-		{"market_sell", "Sell food, wood or stone using one completed market; product names the resource.", []string{"entity_ids", "product"}},
+		{"market_buy", "Buy 100 food, wood or stone from finite merchant stock. Supply the observed market revision to require that quote.", []string{"entity_ids", "product", "market_revision?"}},
+		{"market_sell", "Sell 100 food, wood or stone into finite merchant stock at its current quote.", []string{"entity_ids", "product", "market_revision?"}},
+		{"market_post", "Post a standing buy, sell or barter offer at your completed Market. Reserves give_amount times lots; optional target_player makes the terms private to that kingdom.", []string{"entity_ids", "offer"}},
+		{"market_cancel", "Close your offer and refund its unclaimed lots. Accepted caravans continue.", []string{"offer_id"}},
+		{"market_accept", "Accept one lot using an idle, empty Trade Cart beside your Market. Scout the offering Market first. Payment travels outward and purchased goods return. repeat continues while stock and payment remain available.", []string{"entity_ids", "offer_id", "repeat?"}},
+		{"market_resume", "Resume your interrupted caravan without paying or reserving goods twice.", []string{"shipment_id"}},
+		{"market_recall", "Recall your caravan before collection. Seller goods are released; your payment returns with the cart.", []string{"shipment_id"}},
 		{"resign", "Resign only your authenticated kingdom.", []string{}},
 	}
 }
