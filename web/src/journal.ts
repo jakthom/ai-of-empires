@@ -38,7 +38,7 @@ export class EventLog {
       <div class="log-summary"><button id="log-toggle" aria-expanded="false" aria-controls="event-log-body" title="Expand event log">Event log <span aria-hidden="true">▴</span></button><span id="activity">A new age awaits.</span><button id="idle" title="Select idle villagers (.)">Idle villagers <strong id="idle-count">0</strong></button></div>
       <div id="event-log-body" hidden>
         <div class="log-filters" role="search" aria-label="Search game events"><input id="log-search" type="search" aria-label="Search event log" placeholder="Search events or Villager 3…" maxlength="200" autocomplete="off"><select id="log-category" aria-label="Event category"><option value="">All categories</option></select><button id="log-clear" aria-label="Clear log filters" disabled>Clear</button></div>
-        <div class="log-toolbar"><button id="log-global" aria-pressed="true">All events</button><div class="log-context"><strong id="log-title">Your kingdom</strong><span id="log-status">Events visible to your kingdom</span></div><button id="log-follow" aria-pressed="true">Live</button><button id="log-older">Older</button><button id="log-newer" disabled>Newer</button></div>
+        <div class="log-toolbar"><button id="log-global" aria-pressed="true">All events</button><div class="log-context"><strong id="log-title">Your kingdom</strong><span id="log-status">Your private events</span></div><button id="log-follow" aria-pressed="true">Live</button><button id="log-older">Older</button><button id="log-newer" disabled>Newer</button></div>
         <div id="log-feedback" role="status" hidden><span></span><button id="log-retry" hidden>Retry</button></div>
         <ol id="event-entries" role="log" aria-label="Event history" aria-live="off" tabindex="0"></ol>
       </div>`;
@@ -130,12 +130,14 @@ export class EventLog {
     return Math.max(35, Math.floor(window.innerHeight - world.offsetTop - deck.offsetHeight - 120));
   }
   private setHeight(value: number) {
+    // Compact layouts make room for usable log rows before calculating the cap.
+    const toggle = this.button('log-toggle');
+    toggle.setAttribute('aria-expanded', String(value > 35));
     this.height = Math.round(Math.max(35, Math.min(this.maxHeight(), value)));
     if (this.height > 100) this.expandedHeight = this.height;
     document.documentElement.style.setProperty('--log-height', `${this.height}px`);
     const collapsed = this.height === 35;
     this.node('event-log-body').hidden = collapsed;
-    const toggle = this.button('log-toggle');
     toggle.setAttribute('aria-expanded', String(!collapsed));
     toggle.setAttribute('aria-label', collapsed ? 'Expand event log' : 'Collapse event log');
     toggle.title = collapsed ? 'Expand event log' : 'Collapse event log';
@@ -170,7 +172,7 @@ export class EventLog {
       this.node('activity').title = preview;
     }
     if (this.entityID) {
-      const current = snapshot.entities.find(e => e.id === this.entityID && e.visible);
+      const current = snapshot.entities.find(e => e.id === this.entityID && e.owner === snapshot.player.id);
       if (current) this.entity = { id: current.id, name: current.name, type: current.type, activity: current.activity, present: true };
     }
     this.controls();
@@ -269,7 +271,7 @@ export class EventLog {
       this.button('log-clear').disabled = !this.filtered && !this.entityID;
     }
     this.node('log-title').textContent = this.entityID ? this.entity ? `${this.entity.name} #${this.entity.id}` : `Entity #${this.entityID}` : this.ready ? 'Your kingdom' : 'Entity history';
-    this.node('log-status').textContent = this.entityID ? this.entity?.activity ?? 'Loading current status…' : this.ready ? this.filtered ? 'Matching events · full history' : 'Events visible to your kingdom' : '';
+    this.node('log-status').textContent = this.entityID ? this.entity?.activity ?? 'Loading current status…' : this.ready ? this.filtered ? 'Matching events · full history' : 'Your private events' : '';
     const follow = this.button('log-follow');
     follow.textContent = this.following ? 'Live' : 'Follow live';
     follow.setAttribute('aria-pressed', String(this.following));

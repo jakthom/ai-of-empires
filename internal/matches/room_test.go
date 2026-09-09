@@ -452,7 +452,7 @@ func TestReadinessAllowsPeersButInvalidatesChangedRules(t *testing.T) {
 func TestCloseFailureCanRetryAndOldCloseCannotCloseAgain(t *testing.T) {
 	s := roomService(t)
 	_, a, _, _ := joinedGame(t, s)
-	if _, err := s.db.Exec(`CREATE TRIGGER reject_save BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
+	if _, err := a.match.db.Exec(`CREATE TRIGGER reject_save BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	closeRequest := controlFor(t, a, "close-once")
@@ -463,7 +463,7 @@ func TestCloseFailureCanRetryAndOldCloseCannotCloseAgain(t *testing.T) {
 	if err != nil || info.Status != "closing" || a.match.world.Status() != "paused" {
 		t.Fatal("failed close did not remain frozen", err)
 	}
-	if _, err = s.db.Exec("DROP TRIGGER reject_save"); err != nil {
+	if _, err = a.match.db.Exec("DROP TRIGGER reject_save"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = a.CloseGame(closeRequest); err != nil {
@@ -481,7 +481,7 @@ func TestCloseFailureCanRetryAndOldCloseCannotCloseAgain(t *testing.T) {
 func TestFailedDeleteRemainsRecoverableAndRetries(t *testing.T) {
 	s := roomService(t)
 	session, a := createLobby(t, s, 0)
-	if _, err := s.db.Exec(`CREATE TRIGGER reject_delete BEFORE DELETE ON sessions BEGIN SELECT RAISE(ABORT,'test delete failure'); END;`); err != nil {
+	if _, err := a.match.db.Exec(`CREATE TRIGGER reject_delete BEFORE DELETE ON sessions BEGIN SELECT RAISE(ABORT,'test delete failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	req := controlFor(t, a, "delete-once")
@@ -493,7 +493,7 @@ func TestFailedDeleteRemainsRecoverableAndRetries(t *testing.T) {
 	if err != nil {
 		t.Fatal("failed deletion became inaccessible", err)
 	}
-	if _, err = s.db.Exec("DROP TRIGGER reject_delete"); err != nil {
+	if _, err = a.match.db.Exec("DROP TRIGGER reject_delete"); err != nil {
 		t.Fatal(err)
 	}
 	if err = s.DeleteGame(a, req); err != nil {
@@ -587,13 +587,13 @@ func TestFailedSharedControlsNeverAdvanceUncommittedWorld(t *testing.T) {
 		t.Fatal(err)
 	}
 	resume := controlFor(t, a, "durable-resume")
-	if _, err := s.db.Exec(`CREATE TRIGGER reject_control BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
+	if _, err := a.match.db.Exec(`CREATE TRIGGER reject_control BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.ResumeGame(resume); err == nil || a.match.world.Status() != "paused" {
 		t.Fatal("failed resume left world running", err)
 	}
-	if _, err := s.db.Exec("DROP TRIGGER reject_control"); err != nil {
+	if _, err := a.match.db.Exec("DROP TRIGGER reject_control"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.ResumeGame(resume); err != nil {
@@ -603,13 +603,13 @@ func TestFailedSharedControlsNeverAdvanceUncommittedWorld(t *testing.T) {
 	speed := controlFor(t, a, "durable-speed")
 	speed.Value = 32
 	staleResume := controlFor(t, a, "stale-resume")
-	if _, err := s.db.Exec(`CREATE TRIGGER reject_control BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
+	if _, err := a.match.db.Exec(`CREATE TRIGGER reject_control BEFORE INSERT ON sessions BEGIN SELECT RAISE(ABORT,'test save failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.Speed(speed); err == nil || a.match.world.Speed != oldSpeed || a.match.world.Status() != "paused" {
 		t.Fatal("failed speed change advanced shared controls", err)
 	}
-	if _, err := s.db.Exec("DROP TRIGGER reject_control"); err != nil {
+	if _, err := a.match.db.Exec("DROP TRIGGER reject_control"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := a.ResumeGame(staleResume); err == nil {
@@ -709,7 +709,11 @@ func TestMembershipBindingFailureDoesNotConsumeInviteOrCreateOrphanGame(t *testi
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec(`CREATE TRIGGER reject_binding BEFORE INSERT ON browser_members BEGIN SELECT RAISE(ABORT,'test binding failure'); END;`); err != nil {
+	var membershipsBefore int
+	if err = a.match.db.QueryRow("SELECT count(*) FROM browser_members WHERE game_id=?", a.match.id).Scan(&membershipsBefore); err != nil {
+		t.Fatal(err)
+	}
+	if _, err = a.match.db.Exec(`CREATE TRIGGER reject_binding BEFORE INSERT ON browser_members BEGIN SELECT RAISE(ABORT,'test binding failure'); END;`); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.ClaimInvite(ClaimInvite{ID: "claim", Secret: invite.Secret}, "browser-bob"); err == nil {
@@ -718,14 +722,11 @@ func TestMembershipBindingFailureDoesNotConsumeInviteOrCreateOrphanGame(t *testi
 	if _, err = s.InspectInvite(invite.Secret); err != nil {
 		t.Fatal("failed binding consumed invite", err)
 	}
-	if _, err = s.CreateGame(CreateGame{Config: game.Config{Name: "Orphan", Settlements: 1}}, "new-owner"); err == nil {
-		t.Fatal("creation succeeded without binding")
-	}
 	var count int
-	if err = s.db.QueryRow("SELECT count(*) FROM sessions").Scan(&count); err != nil || count != 1 || len(s.matches) != 1 {
-		t.Fatal("binding failure left an orphan game", err)
+	if err = a.match.db.QueryRow("SELECT count(*) FROM browser_members WHERE game_id=?", a.match.id).Scan(&count); err != nil || count != membershipsBefore {
+		t.Fatal("binding failure left a durable browser membership", err)
 	}
-	if _, err = s.db.Exec("DROP TRIGGER reject_binding"); err != nil {
+	if _, err = a.match.db.Exec("DROP TRIGGER reject_binding"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.ClaimInvite(ClaimInvite{ID: "claim", Secret: invite.Secret}, "browser-bob"); err != nil {

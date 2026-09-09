@@ -57,6 +57,7 @@ export interface ClaimInvite {
 }
 
 export interface Command {
+  end_position?: Vec;
   id: string;
   kind: string;
   entity_ids?: number[];
@@ -130,6 +131,7 @@ export interface Difficulty {
 }
 
 export interface EntityView {
+  connections?: Vec[];
   appearance_age?: number;
   id: number;
   type: string;
@@ -164,10 +166,12 @@ export interface ErrorBody {
 }
 
 export interface Event {
+  user_id: string;
   id: number;
   tick: number;
   time: number;
   message: string;
+  player_id: number;
   kind: string;
   entity_id?: number;
   entity_name?: string;
@@ -297,11 +301,14 @@ export interface OpponentView {
 }
 
 export interface Placement {
+  end_position?: Vec;
   product: string;
   position: Vec;
 }
 
 export interface PlacementResult {
+  positions: Vec[];
+  cost: Resources;
   valid: boolean;
   reason?: string;
 }
@@ -311,6 +318,7 @@ export interface PlayerView {
   name: string;
   civilization: string;
   resources: Resources;
+  production: ProductionView;
   age: number;
   age_name: string;
   population: number;
@@ -322,6 +330,18 @@ export interface PlayerView {
   technologies: string[];
   defeated: boolean;
   kills: number;
+}
+
+export interface ProductionSample {
+  time: number;
+  rates: Resources;
+}
+
+export interface ProductionView {
+  rates: Resources;
+  history: ProductionSample[];
+  window_seconds: number;
+  sample_seconds: number;
 }
 
 export interface ProjectileView {

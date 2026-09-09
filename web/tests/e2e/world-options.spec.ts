@@ -52,7 +52,8 @@ for (const [type, name, biome] of [
     await page.getByRole('button', { name: 'Resume battle', exact: true }).click();
     await expect(page.locator('#paused')).toBeHidden();
     await expect(page.locator('#treaty-clock')).toBeVisible();
-    await page.getByRole('button', { name: 'Zoom out', exact: true }).click({ clickCount: 3 });
+    await page.locator('#world canvas').focus();
+    for (let i = 0; i < 3; i++) await page.keyboard.press('-');
     await page.screenshot({ path: info.outputPath(`${type}-${biome}.png`) });
   });
 }
@@ -91,7 +92,8 @@ for (const [size, tiles] of [['huge',224], ['giant',288]] as const) {
     await page.getByRole('button', { name: 'Resume battle', exact: true }).click();
     await expect(page.locator('#paused')).toBeHidden();
     await battlefieldKey(page, 'h');
-    await page.getByRole('button', { name: 'Zoom out', exact: true }).click({ clickCount: 4 });
+    await page.locator('#world canvas').focus();
+    for (let i = 0; i < 4; i++) await page.keyboard.press('-');
     await page.screenshot({ path: info.outputPath(`${size}-mixed-regions.png`) });
   });
 }

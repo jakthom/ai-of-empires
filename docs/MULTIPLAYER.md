@@ -62,10 +62,10 @@ flowchart TD
         API[HTTP API: authenticate game, seat and role]
         API -->|Validated intentions| Queue[Serialized commands and clock ticks]
         Queue --> Simulation[One World per active game]
-        Simulation --> Views[Per-player snapshots and observable history]
+        Simulation --> Views[Per-player snapshots and private history]
         Views --> API
         Simulation --> Save[Checkpoint worker]
-        Save --> DB[(SQLite: games, seats, invitations, saves and logs)]
+        Save --> DB[(Per-game SQLite: seats, invitations, saves and logs)]
         DB -->|Restore saved state| Simulation
     end
     API -->|SSE: authorized view| Owner
@@ -222,8 +222,7 @@ requires new links and authentication on the new origin; stable game IDs alone
 do not redirect old URLs. An optional directory/redirect could help hosted moves
 later. LAN players open `http://<machine-address>:9090` with the Go application
 listening on that machine's LAN interface, without an Internet login dependency.
-Moving an entire SQLite database is a whole-server operator action; archives move
-one selected game.
+Every game now has its own SQLite database. An owner can download a consistent standalone file, or an operator can gracefully stop the source and copy that game file to the destination game directory. The `.aoegame` move protocol additionally fences the source and rotates hosting credentials. A raw SQLite move preserves the original credentials; stop the source to avoid two active copies.
 
 Keep ten-second autosaves. Planned close/move and graceful shutdown commit the
 final frozen state. A crash restores the last committed checkpoint and can lose
@@ -265,7 +264,7 @@ reasons from the server.
 
 Control requests carry a unique `id` and observed `revision`. SSE snapshots include `control_revision`, so a pause visible on the battlefield is also reflected in the next Resume request. A roster revision separately invalidates readiness when rules or seats change; another player marking Ready does not invalidate a concurrent Ready request. Command receipts use `(membership_id, command_id)` within a game. Admission limits are 60 new commands per member per second and 180 per game, with 50,000 retained command receipts and 10,000 control receipts.
 
-A host-local, HttpOnly, SameSite cookie binds the browser's private library. Bearer tokens authorize one membership. Recovery rotates only that membership's bearer credential. Imports revoke source bearer credentials and pending invitations; existing member rejoin codes still recover their original seats. Secrets are never placed in request URLs or audit records. The shared audit uses the explicit `members` audience; the world journal remains fog-filtered.
+A host-local, HttpOnly, SameSite cookie binds the browser's private library. Bearer tokens authorize one membership. Recovery rotates only that membership's bearer credential. Imports revoke source bearer credentials and pending invitations; existing member rejoin codes still recover their original seats. Secrets are never placed in request URLs or audit records. Audit records have one membership audience; gameplay records carry immutable user identities. Only that user can query their log, even when another player can see the entity. System notices create one private entry per recipient. Discovery reports remain the discovering user's events. Per-game SQLite files also preserve private browser recovery bindings; host-local browser cookies do not transfer to a new origin, so players use their rejoin codes.
 
 SSE connections and five-second browser heartbeats maintain presence. Silent connections expire after 12 seconds, followed by the 15-second absent-player grace. Losing one of several live tabs does not disconnect a seat. Browser departure hints use the connection-specific Leave route. No-human games pause and save before their runtime lease unloads. Restart reconstructs presence without advancing offline time.
 

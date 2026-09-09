@@ -91,9 +91,7 @@ for (const viewport of [{ width: 800, height: 600 }, { width: 390, height: 640 }
     await expect(page.getByRole('button', { name: 'Locate Villager #3', exact: true })).toBeInViewport({ ratio: 1 });
     expect((await page.locator('#event-entries').boundingBox())!.height).toBeGreaterThan(24);
     expect((await page.locator('#world').boundingBox())!.height).toBeGreaterThanOrEqual(120);
-    const worldBounds = (await page.locator('#world').boundingBox())!;
-    const controls = (await page.locator('.battlefield-controls').boundingBox())!;
-    expect(controls.y).toBeGreaterThanOrEqual(worldBounds.y);
+    await expect(page.locator('.battlefield-controls')).toHaveCount(0);
     expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
     await page.screenshot({ path: info.outputPath('compact-search.png') });
   });

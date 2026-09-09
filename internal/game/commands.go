@@ -144,13 +144,25 @@ func (w *World) apply(player int, c Command) error {
 			return err
 		}
 		pos := snap(*c.Position)
-		if err := w.Placement(player, d.ID, pos); err != nil {
+		sites, price, err := w.PlanBuilding(player, d.ID, pos, c.EndPosition)
+		if err != nil {
 			return err
 		}
-		p.Resources.Add(d.Cost.Scale(-1))
-		e := w.spawnWithLife(d.ID, player, pos, Foundation)
 		for _, worker := range es {
-			w.setOrder(worker, Order{Kind: "build", Target: e.ID}, c.Queue)
+			if c.Queue && len(worker.Orders)+len(sites) > 64 {
+				return rule("queue_full", "The construction order queue is full.")
+			}
+		}
+		p.Resources.Add(price.Scale(-1))
+		for i, site := range sites {
+			if old := w.barrierAt(site); d.ID == "gate" && old != nil {
+				w.entityEvent(old, "replaced", "Replaced by a gate", 0)
+				w.remove(old.ID)
+			}
+			e := w.spawnWithLife(d.ID, player, site, Foundation)
+			for _, worker := range es {
+				w.setOrder(worker, Order{Kind: "build", Target: e.ID}, c.Queue || i > 0)
+			}
 		}
 		return nil
 	case "rally":
@@ -466,6 +478,9 @@ func (w *World) Placement(player int, typ string, pos Vec) error {
 		return rule("unknown_product", "Unknown building.")
 	}
 	pos = snap(pos)
+	if typ == "gate" && !w.straightGate(player, pos, nil) {
+		return rule("invalid_placement", "Gates need a straight wall section. Choose walls along one axis.")
+	}
 	for y := pos.Y - d.Radius; y <= pos.Y+d.Radius; y += .5 {
 		for x := pos.X - d.Radius; x <= pos.X+d.Radius; x += .5 {
 			q := Vec{x, y}
@@ -493,8 +508,17 @@ func (w *World) Placement(player int, typ string, pos Vec) error {
 			continue
 		}
 		ed := definitions[e.Type]
+		if barrier(typ) && barrier(e.Type) && e.Owner == player {
+			distance := e.Position.Distance(pos)
+			if e.Type == "gate" && distance == 1 && !w.straightGate(player, e.Position, map[Vec]bool{pos: true}) {
+				return rule("invalid_placement", "Connect walls along the gate's existing wall line.")
+			}
+			if distance == 1 || typ == "gate" && distance < .01 && e.Type != "gate" {
+				continue
+			}
+		}
 		if ed.Kind == "unit" {
-			if typ != "farm" && typ != "gate" && e.Position.Distance(pos) < d.Radius+ed.Radius+.15 {
+			if typ != "farm" && e.Position.Distance(pos) < d.Radius+ed.Radius+.15 {
 				return rule("invalid_placement", "Units occupy this site. Move them or choose another location.")
 			}
 			continue

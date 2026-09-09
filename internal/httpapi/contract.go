@@ -143,6 +143,8 @@ func OpenAPI() map[string]any {
 		add("post", "/games/{id}/connections/{connection}/"+action, "Update this member's browser connection: "+action, "", "", 204, true)
 	}
 	add("post", "/games/{id}/transfers", "Freeze and save a game-scoped portable archive", "TransferRequest", "TransferInfo", 200, true)
+	add("post", "/games/{id}/database", "Owner-only standalone SQLite snapshot including private game state and recovery credentials", "", "", 200, true)
+	paths["/games/{id}/database"].(map[string]any)["post"].(map[string]any)["responses"].(map[string]any)["200"] = map[string]any{"description": "Self-contained SQLite game database", "content": map[string]any{"application/vnd.sqlite3": map[string]any{"schema": map[string]any{"type": "string", "format": "binary"}}}}
 	add("post", "/games/{id}/transfers/complete", "Retire the source using a destination completion receipt", "CompleteTransfer", "GameInfo", 200, true)
 	for _, method := range []string{"get", "post"} {
 		input := ""

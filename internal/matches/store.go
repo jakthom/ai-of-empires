@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
@@ -58,7 +59,7 @@ type storedMatch struct {
 
 // OpenService opens a local session library. Only loaded sessions consume
 // simulation time; opening a checkpoint never advances offline wall time.
-func OpenService(path string) (*Service, error) {
+func openDatabase(path string) (*sql.DB, error) {
 	if path != ":memory:" {
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			return nil, err
@@ -74,8 +75,8 @@ func OpenService(path string) (*Service, error) {
 		return nil, err
 	}
 	db.SetMaxOpenConns(1)
-	fail := func(err error) (*Service, error) { _ = db.Close(); return nil, err }
-	if _, err = db.Exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=WAL; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;"); err != nil {
+	fail := func(err error) (*sql.DB, error) { _ = db.Close(); return nil, err }
+	if _, err = db.Exec("PRAGMA busy_timeout=5000; PRAGMA journal_mode=DELETE; PRAGMA foreign_keys=ON; PRAGMA synchronous=FULL;"); err != nil {
 		return fail(err)
 	}
 	var version int
@@ -89,7 +90,7 @@ func OpenService(path string) (*Service, error) {
 	if err != nil {
 		return fail(err)
 	}
-	schemaFail := func(err error) (*Service, error) { _ = schema.Rollback(); return fail(err) }
+	schemaFail := func(err error) (*sql.DB, error) { _ = schema.Rollback(); return fail(err) }
 	if _, err = schema.Exec(`
 		CREATE TABLE IF NOT EXISTS sessions (
 		 id TEXT PRIMARY KEY, name_key TEXT NOT NULL UNIQUE,
@@ -117,9 +118,7 @@ func OpenService(path string) (*Service, error) {
 	if err = schema.Commit(); err != nil {
 		return fail(err)
 	}
-	s := NewService()
-	s.db = db
-	return s, nil
+	return db, nil
 }
 
 func (m *Match) info() SavedGame {
@@ -332,8 +331,12 @@ func (s *Service) load(id string) (*Match, error) {
 	if len(s.matches) >= 16 {
 		return nil, ErrCapacity
 	}
+	db, err := s.gameDatabase(id)
+	if err != nil {
+		return nil, err
+	}
 	var data, metadata []byte
-	if err := s.db.QueryRow("SELECT checkpoint,metadata FROM sessions WHERE id=?", id).Scan(&data, &metadata); err != nil {
+	if err := db.QueryRow("SELECT checkpoint,metadata FROM sessions WHERE id=?", id).Scan(&data, &metadata); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, ErrNotFound
 		}
@@ -347,7 +350,7 @@ func (s *Service) load(id string) (*Match, error) {
 	if err := json.Unmarshal(metadata, &info); err != nil {
 		return nil, err
 	}
-	rows, err := s.db.Query("SELECT record FROM events WHERE session_id=? ORDER BY event_id", id)
+	rows, err := db.Query("SELECT record FROM events WHERE session_id=? ORDER BY event_id", id)
 	if err != nil {
 		return nil, err
 	}
@@ -373,7 +376,7 @@ func (s *Service) load(id string) (*Match, error) {
 	}
 	var world *game.World
 	if checkpointHasWorld(c.World) {
-		world, err = game.Restore(c.World, records)
+		world, err = game.RestoreForUsers(c.World, records, storedUsers(c.Room))
 		if err != nil {
 			return nil, err
 		}
@@ -388,7 +391,7 @@ func (s *Service) load(id string) (*Match, error) {
 	if room != nil && world != nil {
 		_ = world.SetPaused(true)
 	}
-	m := &Match{room: room, id: id, db: s.db, world: world, tokenHash: c.TokenHash, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen), accumulator: c.Accumulator, savedAt: info.SavedAt, savedCursor: infoCursor(world)}
+	m := &Match{room: room, id: id, db: db, world: world, tokenHash: c.TokenHash, commands: map[string]cachedCommand{}, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen), accumulator: c.Accumulator, savedAt: info.SavedAt, savedCursor: infoCursor(world)}
 	for id, cmd := range c.Commands {
 		var err error
 		if cmd.Error != nil {
@@ -423,28 +426,30 @@ func (s *Service) List(query string) (SavedGames, error) {
 		}
 		return result, nil
 	}
-	rows, err := s.db.Query("SELECT metadata FROM sessions WHERE instr(name_key,?)>0 OR instr(id,?)>0 ORDER BY saved_at DESC LIMIT 100", query, query)
-	if err != nil {
-		return result, err
-	}
-	defer rows.Close()
-	for rows.Next() {
-		var data []byte
-		var info SavedGame
-		if err := rows.Scan(&data); err != nil {
+	for _, db := range s.stores {
+		rows, err := db.Query("SELECT metadata FROM sessions WHERE instr(name_key,?)>0 OR instr(id,?)>0", query, query)
+		if err != nil {
 			return result, err
 		}
-		if err := json.Unmarshal(data, &info); err != nil {
+		for rows.Next() {
+			var data []byte
+			var info SavedGame
+			if err = rows.Scan(&data); err == nil {
+				err = json.Unmarshal(data, &info)
+			}
+			if err != nil {
+				rows.Close()
+				return result, err
+			}
+			result.Games = append(result.Games, info)
+		}
+		err = rows.Err()
+		rows.Close()
+		if err != nil {
 			return result, err
 		}
-		// Do not acquire a match lock while holding SQLite's only connection:
-		// an autosave can own that lock while waiting for the connection.
-		result.Games = append(result.Games, info)
 	}
-	if err := rows.Err(); err != nil {
-		return result, err
-	}
-	_ = rows.Close()
+	sort.Slice(result.Games, func(i, j int) bool { return result.Games[i].SavedAt > result.Games[j].SavedAt })
 	for i, info := range result.Games {
 		if m := s.matches[info.MatchID]; m != nil {
 			m.mu.Lock()
@@ -464,12 +469,18 @@ func (s *Service) Resume(identifier string) (Session, error) {
 	identifier = strings.TrimSpace(identifier)
 	id := ""
 	if s.db != nil {
-		err := s.db.QueryRow("SELECT id FROM sessions WHERE id=? OR name_key=? ORDER BY CASE WHEN id=? THEN 0 ELSE 1 END LIMIT 1", identifier, strings.ToLower(identifier), identifier).Scan(&id)
-		if errors.Is(err, sql.ErrNoRows) {
-			return Session{}, ErrNotFound
-		}
-		if err != nil {
-			return Session{}, err
+		for key, db := range s.stores {
+			var matchID string
+			err := db.QueryRow("SELECT id FROM sessions WHERE id=? OR name_key=?", identifier, strings.ToLower(identifier)).Scan(&matchID)
+			if err != nil && !errors.Is(err, sql.ErrNoRows) {
+				return Session{}, err
+			}
+			if matchID != "" {
+				id = key
+				if key == identifier {
+					break
+				}
+			}
 		}
 	} else {
 		for key, m := range s.matches {
@@ -544,11 +555,9 @@ func (s *Service) CloseContext(ctx context.Context) error {
 		return s.closeErr
 	}
 	var result error
-	if s.db != nil && len(s.matches) > 0 {
-		// SQLite's busy handler can sleep before observing an interrupt. Use
-		// short waits during final saves; our retries obey the shared context.
-		if _, err := s.db.ExecContext(ctx, "PRAGMA busy_timeout=100"); err != nil {
-			result = errors.Join(result, fmt.Errorf("configure shutdown checkpoints: %w", err))
+	for id, db := range s.stores {
+		if _, err := db.ExecContext(ctx, "PRAGMA busy_timeout=100"); err != nil {
+			result = errors.Join(result, fmt.Errorf("configure game %s shutdown: %w", id, err))
 		}
 	}
 	for id, m := range s.matches {
@@ -557,6 +566,11 @@ func (s *Service) CloseContext(ctx context.Context) error {
 		m.mu.Unlock()
 		if err != nil {
 			result = errors.Join(result, fmt.Errorf("checkpoint session %s: %w", id, err))
+		}
+	}
+	for id, db := range s.stores {
+		if err := db.Close(); err != nil {
+			result = errors.Join(result, fmt.Errorf("close game %s: %w", id, err))
 		}
 	}
 	if s.db != nil {

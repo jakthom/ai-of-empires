@@ -102,6 +102,13 @@ export class GameAPI {
     if(!response.ok){const body=await response.json();throw new APIError(body.error.code,body.error.message,response.status)}
     return response.blob();
   }
+  async downloadDatabase() {
+    const headers = new Headers();
+    if (this.session?.token) headers.set('Authorization', `Bearer ${this.session.token}`);
+    const response = await fetch(`/api/v1${this.path()}/database`, { method: 'POST', headers });
+    if (!response.ok) { const body = await response.json(); throw new APIError(body.error.code, body.error.message, response.status); }
+    return response.blob();
+  }
   async deleteGame() { await this.mutate<void>('','DELETE',{confirm:true});this.forget(); }
   async ensureConnection() {
     if (!this.session?.membership_id || this.connectionID) return;
@@ -129,8 +136,8 @@ export class GameAPI {
   command(command: Omit<Command, 'id'>, id = requestID()) {
     return this.request<Receipt>(`${this.path()}/commands`, { method: 'POST', body: JSON.stringify({ ...command, id }) });
   }
-  placement(product: string, position: Vec) {
-    return this.request<PlacementResult>(`${this.path()}/placement`, { method: 'POST', body: JSON.stringify({ product, position }) });
+  placement(product: string, position: Vec, end_position?: Vec) {
+    return this.request<PlacementResult>(`${this.path()}/placement`, { method: 'POST', body: JSON.stringify({ product, position, end_position }) });
   }
   async close() {
     if (this.session?.membership_id) { await this.save(); await this.depart(); }

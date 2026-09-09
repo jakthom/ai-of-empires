@@ -101,11 +101,13 @@ func (s *Service) secretGame(secret, kind string) (string, error) {
 	}
 	hash := tokenHash(secret)
 	if s.db != nil {
-		var id string
-		if err := s.db.QueryRow("SELECT game_id FROM game_secrets WHERE hash=? AND kind=?", fmt.Sprintf("%x", hash), kind).Scan(&id); err != nil {
-			return "", ErrUnauthorized
+		for _, db := range s.stores {
+			var id string
+			if err := db.QueryRow("SELECT game_id FROM game_secrets WHERE hash=? AND kind=?", fmt.Sprintf("%x", hash), kind).Scan(&id); err == nil && !s.deleted[id] {
+				return id, nil
+			}
 		}
-		return id, nil
+		return "", ErrUnauthorized
 	}
 	for id, m := range s.matches {
 		m.mu.Lock()
@@ -210,6 +212,10 @@ func (s *Service) ClaimInvite(req ClaimInvite, browser string) (MemberSession, e
 	before := m.room.stored()
 	oldRoom := m.room
 	oldName := p.Name
+	oldUser := ""
+	if m.world != nil {
+		oldUser = m.world.Players[p.PlayerID].UserID
+	}
 	result, err := m.issueCredentials(p, true)
 	if err != nil {
 		return MemberSession{}, err
@@ -223,6 +229,7 @@ func (s *Service) ClaimInvite(req ClaimInvite, browser string) (MemberSession, e
 	}
 	if m.world != nil {
 		m.world.Players[p.PlayerID].Name = name
+		m.world.BindUser(p.PlayerID, p.MemberID)
 	} else {
 		m.room.invalidateReady()
 	}
@@ -236,6 +243,7 @@ func (s *Service) ClaimInvite(req ClaimInvite, browser string) (MemberSession, e
 		m.room.OpenedAt = oldRoom.OpenedAt
 		if m.world != nil {
 			m.world.Players[p.PlayerID].Name = oldName
+			m.world.BindUser(p.PlayerID, oldUser)
 		}
 		return MemberSession{}, err
 	}
@@ -291,22 +299,10 @@ func (s *Service) Games(browser, query string) (GameLibrary, error) {
 	hash := fmt.Sprintf("%x", tokenHash(browser))
 	bindings := []browserBinding{}
 	if s.db != nil {
-		rows, err := s.db.Query("SELECT game_id,member_id,version FROM browser_members WHERE browser_hash=? LIMIT 100", hash)
-		if err != nil {
-			return v, err
-		}
-		for rows.Next() {
-			var b browserBinding
-			if err = rows.Scan(&b.GameID, &b.MemberID, &b.Version); err != nil {
-				rows.Close()
-				return v, err
+		for id := range s.stores {
+			if b, err := s.binding(browser, id); err == nil {
+				bindings = append(bindings, b)
 			}
-			bindings = append(bindings, b)
-		}
-		err = rows.Err()
-		rows.Close()
-		if err != nil {
-			return v, err
 		}
 	} else {
 		for _, b := range s.browsers[hash] {
@@ -342,7 +338,11 @@ func (s *Service) Games(browser, query string) (GameLibrary, error) {
 			var info SavedGame
 			var data []byte
 			if s.db != nil {
-				if err = s.db.QueryRow("SELECT metadata FROM sessions WHERE id=?", b.GameID).Scan(&data); err != nil {
+				db, dbErr := s.gameDatabase(b.GameID)
+				if dbErr != nil {
+					continue
+				}
+				if err = db.QueryRow("SELECT metadata FROM sessions WHERE id=?", b.GameID).Scan(&data); err != nil {
 					continue
 				}
 				if err = json.Unmarshal(data, &info); err != nil {

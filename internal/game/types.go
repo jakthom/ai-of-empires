@@ -166,11 +166,14 @@ type Entity struct {
 	Stance              string
 }
 type Player struct {
+	UserID       string
+	UserAliases  []string
 	ID           int
 	Start        Vec
 	Name         string
 	Civilization string
 	Resources    Resources
+	Production   ResourceProduction
 	Age          int
 	Technologies map[string]bool
 	AI           bool
@@ -209,11 +212,12 @@ type ProjectileView struct {
 	Kind     string `json:"kind"`
 }
 type Event struct {
+	UserID        string  `json:"user_id"`
 	ID            int     `json:"id"`
 	Tick          int     `json:"tick"`
 	Time          float64 `json:"time"`
 	Message       string  `json:"message"`
-	Player        int     `json:"-"`
+	Player        int     `json:"player_id"`
 	Kind          string  `json:"kind"`
 	EntityID      int     `json:"entity_id,omitempty"`
 	EntityName    string  `json:"entity_name,omitempty"`
@@ -263,10 +267,12 @@ type World struct {
 	peacePeriod  *statemachine.Instance[treatyState, treatyEvent, *World]
 	landRegions  []int
 	waterRegions []int
+	barriers     map[Vec]*Entity
 }
 
 // Command contains intent only; never caller-supplied HP, costs, velocities or owners.
 type Command struct {
+	EndPosition  *Vec    `json:"end_position,omitempty"`
 	ID           string  `json:"id"`
 	Kind         string  `json:"kind"`
 	EntityIDs    []int   `json:"entity_ids,omitempty"`
@@ -297,6 +303,7 @@ type Action struct {
 	Reason      string     `json:"reason,omitempty"`
 }
 type EntityView struct {
+	Connections   []Vec    `json:"connections,omitempty"`
 	AppearanceAge int      `json:"appearance_age,omitempty"`
 	ID            int      `json:"id"`
 	Type          string   `json:"type"`
@@ -326,21 +333,22 @@ type EntityView struct {
 	Faith         float64  `json:"faith,omitempty"`
 }
 type PlayerView struct {
-	ID           int       `json:"id"`
-	Name         string    `json:"name"`
-	Civilization string    `json:"civilization"`
-	Resources    Resources `json:"resources"`
-	Age          int       `json:"age"`
-	AgeName      string    `json:"age_name"`
-	Population   int       `json:"population"`
-	Capacity     int       `json:"capacity"`
-	Limit        int       `json:"limit"`
-	Idle         int       `json:"idle"`
-	Workers      int       `json:"workers"`
-	Military     int       `json:"military"`
-	Technologies []string  `json:"technologies"`
-	Defeated     bool      `json:"defeated"`
-	Kills        int       `json:"kills"`
+	ID           int            `json:"id"`
+	Name         string         `json:"name"`
+	Civilization string         `json:"civilization"`
+	Resources    Resources      `json:"resources"`
+	Production   ProductionView `json:"production"`
+	Age          int            `json:"age"`
+	AgeName      string         `json:"age_name"`
+	Population   int            `json:"population"`
+	Capacity     int            `json:"capacity"`
+	Limit        int            `json:"limit"`
+	Idle         int            `json:"idle"`
+	Workers      int            `json:"workers"`
+	Military     int            `json:"military"`
+	Technologies []string       `json:"technologies"`
+	Defeated     bool           `json:"defeated"`
+	Kills        int            `json:"kills"`
 }
 type OpponentView struct {
 	ID           int    `json:"id"`

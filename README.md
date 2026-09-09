@@ -37,7 +37,7 @@ make build
 ./bin/ai-of-empires
 ```
 
-The server defaults to `127.0.0.1:9090` and stores games in `data/ai-of-empires.sqlite`. Use `-addr` to change the address and `-db /path/to/games.sqlite` to change the database. `-db :memory:` creates disposable sessions for testing.
+The server defaults to `127.0.0.1:9090` and stores each game in **`data/ai-of-empires.sqlite.games/<game-id>.sqlite`**. `data/ai-of-empires.sqlite` is the host catalog for deletion markers. Use `-addr` to change the address and `-db /path/to/host.sqlite` to change the catalog and its adjacent `.games/` directory. `-db :memory:` creates a separate disposable SQLite database for each game.
 
 For frontend development, keep the Go server running and run `npm --prefix web run dev`; Vite proxies `/api` to Go. Restart the Go server after rebuilding embedded assets when testing the production page.
 
@@ -97,20 +97,26 @@ Kingdoms start **at peace**. Passing troops do not trigger combat or an AI defen
 Military units and armed buildings default to **Return fire**. Idle defenders respond to actual recent attackers of themselves or nearby friends, with a six-tile pursuit limit around the defense position; villagers defend only themselves when idle. They do not target innocent units just because they belong to the attacker's kingdom. **Hold position** returns fire within range without pursuit; **Hold fire** disables automatic response; **Aggressive** opts into proximity attacks. Explicit **Attack**, **Attack move**, and hostile contextual orders can start conflicts regardless of the automatic stance. A normal Move order continues to its destination. AI raids target one chosen kingdom along their route and may defend against others that actually attack them.
 
 - **Click** to select an element. **Hold the left mouse button briefly, then drag** to pan (180 ms hold delay). **Hold both left and right mouse buttons**, then drag left/right to rotate or up/down to tilt; release either button to stop. **Shift + arrow keys** also rotate and tilt, including on a trackpad. **Shift-click** adds or removes a selection, and **Shift-drag** selects a group, replacing your previous selection.
-- Select your units, click **Give order** (or press **Q**), then click a resource, entity, or destination. The same control sets a selected building's rally point when you click the ground.
+- Select your units, choose **Give order** in the **Orders** panel (or press **Q**), then click a resource, entity, or destination. The same control sets a selected building's rally point when you click the ground.
 - For quick orders, use **Option/Alt-click**, **Control-click on Mac**, or **right-click** with a mouse. Secondary click on a trackpad works too if enabled. No secondary click is required to play.
 - Hold **Shift** while issuing orders to queue them and keep targeting. Click **Cancel** or press **Escape** to return to selection.
 - Select villagers and open **Build** to place a building. Go checks the site and charges the cost.
 - Hover over a building to see its type and activity. Select it to train units, research, advance ages, or cancel queued work. New units emerge in clear spaces beside their own producer; a blocked exit waits for room. Units route around occupied space and steer past nearby traffic.
 - **H** selects the Town Center; **.** selects idle villagers; **A** starts attack move; **S** stops selected units.
-- Click **Pan view** (or press **P**), then drag to move across the map. Click it again or press Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also pan, following the current camera angle. **Scroll or pinch** to zoom around the ground under your cursor; **+ / −** zooms around the center of the view.
-- **Reset view / R** restores the starting camera angle and zoom at your current location. **H** returns to your Town Center. Camera gestures preserve your selection and send no gameplay commands.
+- Press **P**, then drag to move across the map. Press P again or Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also pan, following the current camera angle. **Scroll or pinch** to zoom around the ground under your cursor; **+ / − keys** zoom around the center of the view. Zoom extends to a strategic overview, scaling further for Huge and Giant worlds. The floating camera toolbar is removed; active-order instructions appear in the command deck.
+- **R** restores the starting camera angle and zoom at your current location. **H** returns to your Town Center. Camera gestures preserve your selection and send no gameplay commands.
 - **Cmd/Ctrl + a number** assigns a control group; the number recalls it. To remove a selection, choose **Delete**, then **Confirm removal**; Delete or Mac Delete/Backspace also confirms while removal is armed.
 - Space pauses; the speed button cycles through 1×, 1.7×, 3.4×, 8×, 16×, and 32×. The match menu lets you choose a speed directly.
 - Selected entities display their current activity (farming, logging, mining, and more). Choose the **History** tab after **Research** to read that entity's immutable log in the command panel, retained even after removal. The global tray stays independent.
 - Select a depleted **Farm**, then choose **Reseed farm** in Orders. It costs **60 wood**, assigns an existing farmer or the nearest idle villager on connected land, and rebuilds the farm before farming resumes. The action explains missing wood or workers. Assigned farmers also reseed automatically while wood is available; selecting a villager and ordering it onto an empty farm still works. Empty fields visibly lose their crops.
 - **Event log** at the bottom expands the live kingdom chronicle. Drag its top edge to resize down to one line; with the edge focused, use arrows to resize or Home to collapse. **Older / Newer** browse history and **Follow live** returns to new events.
 - Search the full retained log by activity, message, resource, or exact identity (for example, **villager 3** or **#3**). Combine search with the event category selector. **Locate** centers the camera on that entity and opens its History tab; for entities no longer visible it visits the event's recorded location. Entity names filter the tray to their history. **Clear** or **All events** removes the filters.
+
+Stone Walls and Palisades support **click-and-drag construction**: select villagers, open **Build**, choose the wall, drag a line, and release. Go previews connected segments and the total cost, then validates and queues the entire line (up to 64 segments). An obstructed or unaffordable line creates no partial foundations. Existing friendly walls/gates can anchor a line. Stone Gates can replace owned wall or palisade segments in a straight section, or stand alone with walls connected along one axis. Completed gates admit their owner's units and block other kingdoms; destroying a wall or gate opens a breach.
+
+The four resource totals have small production charts underneath. Rates measure **gross resources delivered per game minute**, including harvesting/fishing, trade-route gold and relic income. Spending, refunds and market exchanges do not count as production. Go samples every five game seconds, showing a rolling one-minute rate and five minutes of history. Pausing freezes the series, and saves preserve its samples and partial bucket.
+
+Gameplay and entity histories are private to the authenticated member. Each event carries an immutable user identity and kingdom ID. Seeing an enemy does not grant access to its activity log; your own discovery and damage reports remain in your history. Reclaiming another member's seat does not reveal their records.
 
 ## Saved games
 
@@ -126,7 +132,16 @@ Server restart restores unfinished games **paused**, with no offline time. Check
 
 **Ctrl+C or SIGTERM** starts graceful shutdown. The server freezes game mutations, rejects new requests, and closes live snapshot streams. HTTP requests get **5 seconds** to drain before remaining connections are closed. Final checkpoints use a separate **15-second I/O budget**, retry transient SQLite lock contention, and finish before SQLite closes. A request authorized before shutdown cannot change a game after its final save. Repeated signals do not interrupt that save. Shutdown logs the result and exits with status **1** if draining or saving fails; a failed checkpoint leaves the previous committed save intact. Forced termination (`kill -9`) or power loss can still lose progress since the last successful checkpoint.
 
-To back up games, stop the server gracefully and copy the database, or use SQLite's online backup facility. Do not copy a live WAL database without its associated state. The SQLite format is versioned; unsupported checkpoints fail explicitly rather than starting a replacement game.
+Each game's file contains its checkpoint, full immutable journal, production history, roster, credential hashes, browser recovery bindings, command receipts, and saved move/copy archives. Existing combined libraries migrate automatically at startup: each full game commits to its own file before its old rows are removed. Interrupted migrations resume after verifying all copied tables. Older shared events and friend-seat records without user IDs remain archived privately, since those seats may have changed hands; they are not exposed as another player's history.
+
+To move a game as a single SQLite file:
+
+1. In **Players & game management → Move or copy this game**, choose **Download SQLite save**, or gracefully stop the source server and copy that game's `.sqlite` file.
+2. Stop the source game/server when relocating it so two hosts do not advance independent copies.
+3. Put the file in the destination's `<catalog-path>.games/` directory (create it if needed), then start that server. No catalog file or SQLite sidecars are required.
+4. Open the destination address and rejoin using each player's private rejoin code. The game opens paused.
+
+Database downloads are owner-only administrative backups containing every kingdom's private state and recovery credentials; keep them private. Downloads use a consistent SQLite snapshot and stream the file. Game files use rollback journals; copy an original file only after a graceful stop, not during a live transaction. The host catalog retains deletion markers so copying a deleted game back onto the same host cannot resurrect it. The SQLite format is versioned; unsupported checkpoints fail explicitly rather than starting a replacement game.
 
 ## Move a game or play on a LAN
 

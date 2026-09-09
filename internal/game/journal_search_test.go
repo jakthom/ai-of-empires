@@ -84,8 +84,8 @@ func TestJournalIdentitySearchAndVisibility(t *testing.T) {
 	w.refreshVisibility()
 	w.entityEvent(enemy, "order", "Visible quarry orders", 0)
 	page, _ = w.Log(1, LogQuery{Search: "quarry"})
-	if len(page.Events) != 1 || page.Events[0].Message != "Visible quarry orders" {
-		t.Fatal("discovery changed access to previously hidden history")
+	if len(page.Events) != 0 {
+		t.Fatal("foreign activity became searchable after discovery")
 	}
 	empty, _ := w.Log(1, LogQuery{EntityID: worker.ID, Search: "no match"})
 	if len(empty.Events) != 0 || empty.LatestCursor != 0 || empty.Entity == nil || !empty.Entity.Present {
@@ -95,8 +95,8 @@ func TestJournalIdentitySearchAndVisibility(t *testing.T) {
 		_, _ = w.Log(1, LogQuery{Search: fmt.Sprintf("absent%d", i)})
 	}
 	page, _ = w.Log(1, LogQuery{Search: "quarry"})
-	if len(page.Events) != 1 || page.Events[0].Message != "Visible quarry orders" {
-		t.Fatal("switching searches lost retained history")
+	if len(page.Events) != 0 {
+		t.Fatal("switching searches exposed foreign activity")
 	}
 }
 

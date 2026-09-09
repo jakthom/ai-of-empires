@@ -222,7 +222,7 @@ func (a *Access) Start(req GameControl) (GameInfo, error) {
 		}
 		roster := []game.Kingdom{}
 		for _, s := range r.Seats {
-			roster = append(roster, game.Kingdom{Name: s.Name, Civilization: s.Civilization, Human: s.Controller == "human"})
+			roster = append(roster, game.Kingdom{UserID: s.MemberID, Name: s.Name, Civilization: s.Civilization, Human: s.Controller == "human"})
 		}
 		w, err := game.NewWorldForRoster(r.Config, roster)
 		if err != nil {
@@ -419,21 +419,7 @@ func (s *Service) DeleteGame(a *Access, req GameControl) error {
 		}
 	}
 	if s.db != nil {
-		tx, err := s.db.Begin()
-		if err != nil {
-			return err
-		}
-		defer tx.Rollback()
-		if _, err = tx.Exec("INSERT INTO tombstones(game_id,epoch) VALUES(?,?) ON CONFLICT(game_id) DO NOTHING", m.id, m.room.Epoch); err != nil {
-			return err
-		}
-		if _, err = tx.Exec("UPDATE imported_transfers SET receipt='' WHERE game_id=?", m.id); err != nil {
-			return err
-		}
-		if _, err = tx.Exec("DELETE FROM sessions WHERE id=?", m.id); err != nil {
-			return err
-		}
-		if err = tx.Commit(); err != nil {
+		if err := s.deleteDatabase(m, m.room.Epoch); err != nil {
 			return err
 		}
 	}

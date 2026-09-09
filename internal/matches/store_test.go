@@ -3,6 +3,7 @@ package matches
 import (
 	"context"
 	"errors"
+	"os"
 	"path/filepath"
 	"reflect"
 	"testing"
@@ -103,6 +104,9 @@ func TestSQLiteRestartResumesByTokenNameAndID(t *testing.T) {
 	if err = s.db.QueryRow("SELECT count(*) FROM events").Scan(&events); err != nil || events != 0 {
 		t.Fatal("deleted session retained events")
 	}
+	if _, err = os.Stat(filepath.Join(path+".games", seat.MatchID+".sqlite")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("deleted game database remained: %v", err)
+	}
 }
 
 func TestAutosaveAndAtomicFailure(t *testing.T) {
@@ -132,7 +136,7 @@ func TestAutosaveAndAtomicFailure(t *testing.T) {
 	if saved != m.world.NextEvent || m.world.Tick == 0 {
 		t.Fatal("periodic save did not run")
 	}
-	_, err = s.db.Exec("CREATE TRIGGER reject_events BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT,'disk unavailable'); END;")
+	_, err = m.db.Exec("CREATE TRIGGER reject_events BEFORE INSERT ON events BEGIN SELECT RAISE(ABORT,'disk unavailable'); END;")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -153,10 +157,10 @@ func TestAutosaveAndAtomicFailure(t *testing.T) {
 	}
 	m.mu.Unlock()
 	var metadata []byte
-	if err = s.db.QueryRow("SELECT metadata FROM sessions WHERE id=?", seat.MatchID).Scan(&metadata); err != nil {
+	if err = m.db.QueryRow("SELECT metadata FROM sessions WHERE id=?", seat.MatchID).Scan(&metadata); err != nil {
 		t.Fatal(err)
 	}
-	if _, err = s.db.Exec("DROP TRIGGER reject_events"); err != nil {
+	if _, err = m.db.Exec("DROP TRIGGER reject_events"); err != nil {
 		t.Fatal(err)
 	}
 	if _, err = s.Save(seat.MatchID, m, false); err != nil {

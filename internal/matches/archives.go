@@ -278,7 +278,7 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 					err = errors.New("invalid checkpoint")
 				}
 			}()
-			world, err = game.Restore(payload.Checkpoint.World, payload.Journal)
+			world, err = game.RestoreForUsers(payload.Checkpoint.World, payload.Journal, storedUsers(payload.Checkpoint.Room))
 		}()
 		if err != nil {
 			return result, ruleError("invalid_archive", "The game's checkpoint cannot be restored.")
@@ -304,7 +304,11 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 	if !req.Copy {
 		var old importedTransfer
 		if s.db != nil {
-			_ = s.db.QueryRow("SELECT transfer_id,game_id,receipt FROM imported_transfers WHERE transfer_id=?", payload.Manifest.TransferID).Scan(&old.ID, &old.GameID, &old.Receipt)
+			for _, db := range s.stores {
+				if db.QueryRow("SELECT transfer_id,game_id,receipt FROM imported_transfers WHERE transfer_id=?", payload.Manifest.TransferID).Scan(&old.ID, &old.GameID, &old.Receipt) == nil {
+					break
+				}
+			}
 		} else {
 			old = s.imported[payload.Manifest.TransferID]
 		}
@@ -333,7 +337,9 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 		}
 		var exists int
 		if s.db != nil {
-			_ = s.db.QueryRow("SELECT (SELECT count(*) FROM sessions WHERE id=?)+(SELECT count(*) FROM tombstones WHERE game_id=?)", id, id).Scan(&exists)
+			if s.stores[id] != nil || s.deleted[id] {
+				exists = 1
+			}
 		}
 		if exists > 0 || s.matches[id] != nil || s.deleted[id] {
 			return result, ruleError("game_exists", "This host already has this game or its deletion marker. Import a new copy instead.")
@@ -356,7 +362,12 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 			return result, err
 		}
 	}
-	m := &Match{id: id, db: s.db, room: r, world: world, commands: map[string]cachedCommand{}, accumulator: payload.Checkpoint.Accumulator, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
+	db, err := s.newGameDatabase(id)
+	if err != nil {
+		return result, err
+	}
+	defer s.discardUncreated(id)
+	m := &Match{id: id, db: db, room: r, world: world, commands: map[string]cachedCommand{}, accumulator: payload.Checkpoint.Accumulator, lastAccess: time.Now(), lifecycle: statemachine.NewInstance(leaseMachine, leaseOpen)}
 	oldOwner := r.OwnerID
 	var owner *seat
 	for _, p := range r.Seats {
@@ -404,6 +415,19 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 	session, err := m.issueCredentials(owner, req.Copy)
 	if err != nil {
 		return result, err
+	}
+	if world != nil && req.Copy {
+		for _, p := range r.Seats {
+			user := p.MemberID
+			if p.State.State() != seatClaimed {
+				user = "vacant:" + p.ID
+			}
+			if p == owner {
+				world.AdoptUser(p.PlayerID, user)
+			} else {
+				world.BindUser(p.PlayerID, user)
+			}
+		}
 	}
 	r.OwnerID = owner.MemberID
 	session.Owner = true

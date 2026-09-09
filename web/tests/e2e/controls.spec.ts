@@ -36,10 +36,17 @@ for (const viewport of [{ width: 1440, height: 960 }, { width: 390, height: 640 
     await expect(page.locator('#selection-count')).toHaveText('3 selected');
     const before = await game.snapshot();
     await page.getByRole('button', { name: 'Give order' }).click();
-    await expect(page.locator('#give-order')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#mode-hint')).toContainText('Give order');
     await page.screenshot({ path: info.outputPath('primary-order-targeting.png') });
-    const target = await game.point('berries', 4);
-    const response = await game.command('interact', () => page.mouse.click(target.x, target.y));
+    const bounds = await page.locator('#world canvas').boundingBox();
+    if (!bounds) throw new Error('No battlefield bounds.');
+    let target: { x: number; y: number } | undefined;
+    for (let index = 0; index < 10 && !target; index++) {
+      const candidate = await game.point('berries', index);
+      if (candidate.x > bounds.x + 4 && candidate.x < bounds.x + bounds.width - 4 && candidate.y > bounds.y + 4 && candidate.y < bounds.y + bounds.height - 4) target = candidate;
+    }
+    expect(target, 'find visible berries target').toBeDefined();
+    const response = await game.command('interact', () => page.mouse.click(target!.x, target!.y));
     const intent = response.request().postDataJSON() as Command;
     const resource = before.entities.find(e => e.id === intent.target_id)!;
     expect(resource.resource).toBe('food');
@@ -81,7 +88,7 @@ test('queues primary-click orders and cancels targeting without sending another 
   for (const x of [.64, .69]) {
     const response = await game.command('move', () => field.canvas.click({ position: { x: field.width * x, y: field.height * .48 }, modifiers: ['Shift'] }));
     expect(response.request().postDataJSON().queue).toBe(true);
-    await expect(page.locator('#give-order')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#mode-hint')).toContainText('Give order');
   }
   await page.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(page.locator('#mode-hint')).toBeHidden();
@@ -98,7 +105,7 @@ test('sets a building rally point with primary clicks on a compact display', asy
   await page.setViewportSize({ width: 390, height: 640 });
   await game.start();
   const field = await battlefield(page);
-  for (const name of ['Give order', 'Pan view', 'Zoom in', 'Zoom out', 'Reset view']) await expect(page.getByRole('button', { name })).toBeInViewport({ ratio: 1 });
+  for (const name of ['Pan view', 'Zoom in', 'Zoom out', 'Reset view']) await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
   await page.getByRole('button', { name: 'Give order' }).click();
   await expect(page.getByRole('button', { name: 'Cancel', exact: true })).toBeInViewport({ ratio: 1 });
   await page.screenshot({ path: info.outputPath('compact-primary-order.png') });
@@ -108,7 +115,54 @@ test('sets a building rally point with primary clicks on a compact display', asy
   await expect(page.locator('#mode-hint')).toBeHidden();
 });
 
-test('pans with primary drag and zooms with buttons without ordering units', async ({ page, game }, info) => {
+test('keeps the battlefield free of a floating toolbar on compact displays', async ({ page, game }) => {
+  await page.setViewportSize({ width: 390, height: 640 });
+  await game.start();
+  for (const name of ['Pan view', 'Zoom in', 'Zoom out', 'Reset view']) {
+    await expect(page.getByRole('button', { name, exact: true })).toHaveCount(0);
+  }
+});
+
+test('renders server production rates and sparklines for all four resources', async ({ page, game }) => {
+  await game.start();
+  await game.command('speed', () => page.locator('#speed').click());
+  await expect.poll(async () => (await game.snapshot()).player.production.history.length, { timeout: 8_000 }).toBeGreaterThan(0);
+  const production = (await game.snapshot()).player.production;
+  expect(production.window_seconds).toBe(60);
+  expect(production.sample_seconds).toBe(5);
+  for (const resource of ['food', 'wood', 'gold', 'stone'] as const) {
+    expect(Number.isFinite(production.rates[resource])).toBe(true);
+    const chart = page.locator(`#production-${resource}`);
+    await expect(chart).toHaveAttribute('role', 'img');
+    await expect(chart).toHaveAttribute('aria-label', new RegExp(`^${resource}: \\+`));
+    await expect(chart.locator('.production-line')).toHaveAttribute('d', /M/);
+  }
+});
+
+test('keyboard zoom reaches beyond the former 30 unit limit and scales Giant worlds', async ({ page, game }) => {
+  await game.start();
+  const canvas = page.locator('#world canvas');
+  await canvas.focus();
+  for (let i = 0; i < 5; i++) await page.keyboard.press('-');
+  const smallAtFormerLimit = await canvas.screenshot();
+  for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+  const smallAtNewLimit = await canvas.screenshot();
+  expect(smallAtNewLimit.equals(smallAtFormerLimit)).toBe(false);
+
+  await page.getByRole('button', { name: 'Match menu', exact: true }).click();
+  await page.getByRole('button', { name: 'Start a new match', exact: true }).click();
+  await expect(page.locator('#start-dialog')).toBeVisible();
+  await page.getByRole('combobox', { name: 'World size', exact: true }).selectOption('giant');
+  await game.start();
+  await canvas.focus();
+  for (let i = 0; i < 20; i++) await page.keyboard.press('-');
+  const giantAtSmallLimit = await canvas.screenshot();
+  for (let i = 0; i < 40; i++) await page.keyboard.press('-');
+  const giantAtScaledLimit = await canvas.screenshot();
+  expect(giantAtScaledLimit.equals(giantAtSmallLimit)).toBe(false);
+});
+
+test('pans with P and zooms with +/- without ordering units', async ({ page, game }, info) => {
   await game.start();
   await game.command('pause', () => page.getByRole('button', { name: 'Pause match', exact: true }).click());
   await expect(page.locator('#paused')).toBeVisible();
@@ -116,20 +170,18 @@ test('pans with primary drag and zooms with buttons without ordering units', asy
   const field = await battlefield(page);
   await field.canvas.focus();
   const before = await field.canvas.screenshot();
-  await page.getByRole('button', { name: 'Pan view', exact: true }).click();
+  await battlefieldKey(page, 'p');
   await page.mouse.move(field.width * .7, field.y + field.height * .6);
   await page.mouse.down();
   await page.mouse.move(field.width * .8, field.y + field.height * .7, { steps: 8 });
   await page.mouse.up();
-  await expect(page.locator('#pan-view')).toHaveAttribute('aria-pressed', 'true');
-  await page.getByRole('button', { name: 'Cancel', exact: true }).click();
+  await expect(page.locator('#mode-hint')).toContainText('Pan view');
+  await battlefieldKey(page, 'Escape');
   await expect.poll(async () => (await field.canvas.screenshot()).equals(before)).toBe(false);
   const panned = await field.canvas.screenshot();
-  await page.getByRole('button', { name: 'Zoom in', exact: true }).click();
-  await page.mouse.move(2, 2); // Keep toolbar hover out of the pixel comparison.
+  await battlefieldKey(page, '+');
   await expect.poll(async () => (await field.canvas.screenshot()).equals(panned)).toBe(false);
-  await page.getByRole('button', { name: 'Zoom out', exact: true }).click();
-  await page.mouse.move(2, 2);
+  await battlefieldKey(page, '-');
   await expect.poll(async () => (await field.canvas.screenshot()).equals(panned)).toBe(true);
   await expect(page.locator('#selected-name')).toHaveText('Town Center');
   expect(commands).toEqual([]);
@@ -152,6 +204,33 @@ test('leaves browser and OS shortcuts out of game input', async ({ page, game })
   expect((await game.snapshot()).paused).toBe(false);
   expect(commands).toEqual([]);
 });
+
+for (const viewport of [{ width: 390, height: 640 }, { width: 320, height: 640 }]) {
+  test(`keeps removal confirmation usable with the event log open at ${viewport.width}px`, async ({ page, game }, info) => {
+    await page.setViewportSize(viewport);
+    await game.start();
+    await battlefieldKey(page, '.');
+    await expect(page.locator('#selection-count')).toHaveText('3 selected');
+    await page.getByRole('button', { name: 'Expand event log', exact: true }).click();
+    const commands = observeCommands(page);
+    const remove = page.locator('#actions').getByRole('button', { name: /Delete/ });
+    await remove.click();
+    const confirm = page.getByRole('button', { name: 'Confirm removal', exact: true });
+    const cancel = page.getByRole('button', { name: 'Cancel', exact: true });
+    await expect(confirm).toBeInViewport({ ratio: 1 });
+    await expect(cancel).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: info.outputPath('compact-removal-confirmation.png') });
+    await cancel.click();
+    await expect(confirm).toBeHidden();
+    expect(commands).toEqual([]);
+
+    await remove.click();
+    await expect(confirm).toBeInViewport({ ratio: 1 });
+    await game.command('delete', () => confirm.click());
+    await expect.poll(async () => (await game.snapshot()).player.workers).toBe(0);
+    expect(commands.filter(command => command.kind === 'delete')).toHaveLength(1);
+  });
+}
 
 for (const confirmation of ['button', 'Mac Backspace']) {
   test(`confirms removal with ${confirmation} and preserves Cmd control groups`, async ({ page, game }) => {

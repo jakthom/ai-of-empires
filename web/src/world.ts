@@ -82,6 +82,12 @@ export class WorldRenderer {
   }
   private positionCamera() {
     const distance = this.zoom / Math.tan(THREE.MathUtils.degToRad(this.camera.fov / 2));
+    this.camera.far = Math.max(350, distance * 3);
+    this.camera.updateProjectionMatrix();
+    if (this.scene.fog instanceof THREE.Fog) {
+      this.scene.fog.near = Math.max(65, distance * 1.7);
+      this.scene.fog.far = Math.max(160, distance * 3);
+    }
     const horizontal = distance * Math.cos(this.tilt);
     this.camera.position.copy(this.target).add(new THREE.Vector3(horizontal * Math.sin(this.yaw), distance * Math.sin(this.tilt), horizontal * Math.cos(this.yaw)));
     this.camera.lookAt(this.target); this.camera.updateMatrixWorld();
@@ -92,7 +98,9 @@ export class WorldRenderer {
   }
   focus(position: Vec) { this.target.set(position.x, this.elevation(position), position.y); this.positionCamera(); }
   zoomBy(delta: number, cursor?: { x: number; y: number }) {
-    const zoom = THREE.MathUtils.clamp(this.zoom + delta, 5, 30);
+    // Allow a strategic overview of even Giant worlds. Projection and fog
+    // scale with distance; gameplay and fog of war remain server-owned.
+    const zoom = THREE.MathUtils.clamp(this.zoom + delta, 5, Math.max(90, (this.snapshot?.map.width ?? 72) * .8));
     if (zoom === this.zoom) return;
     const anchor = cursor ? this.groundHit(cursor.x, cursor.y) : null;
     this.zoom = zoom; this.resize();
@@ -145,7 +153,7 @@ export class WorldRenderer {
       if (e.container) continue;
       alive.add(e.id);
       const biome = map.tiles[Math.floor(e.position.y)*map.width+Math.floor(e.position.x)]?.biome || map.biome;
-      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
+      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
       let rendered = this.entities.get(e.id);
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
@@ -232,20 +240,27 @@ export class WorldRenderer {
     return { x: (p.x + 1) / 2 * r.width + r.left, y: (-p.y + 1) / 2 * r.height + r.top };
   }
   preview(entity: EntityView | null, point?: Vec, valid?: boolean) {
+    this.previewMany(entity && point ? [{ ...entity, position: point }] : [], valid);
+  }
+  previewMany(entities: EntityView[], valid?: boolean) {
     if (this.ghost) { this.removeModel(this.ghost); this.ghost = undefined; }
-    if (!entity || !point) return;
-    this.ghost = makeModel(entity);
-    const center = { x: Math.floor(point.x) + .5, y: Math.floor(point.y) + .5 };
-    let height = this.elevation(center);
-    if (this.terrain) {
-      if (entity.type === 'farm') groundFarm(this.ghost, center, this.terrain);
-      else if (entity.kind === 'building' && entity.type !== 'dock') {
-        const foundation = new BuildingFoundation(entity); this.ghost.add(foundation);
-        height = foundation.fit(center, this.terrain);
+    if (!entities.length) return;
+    this.ghost = new THREE.Group();
+    for (const entity of entities) {
+      const model = makeModel(entity);
+      const center = { x: Math.floor(entity.position.x) + .5, y: Math.floor(entity.position.y) + .5 };
+      let height = this.elevation(center);
+      if (this.terrain) {
+        if (entity.type === 'farm') groundFarm(model, center, this.terrain);
+        else if (entity.kind === 'building' && entity.type !== 'dock') {
+          const foundation = new BuildingFoundation(entity); model.add(foundation);
+          height = foundation.fit(center, this.terrain);
+        }
       }
+      model.position.set(center.x, height, center.y);
+      model.traverse(o => { if (o instanceof THREE.Mesh) { if (o.userData.privateMaterial) (o.material as THREE.Material).dispose(); o.material = new THREE.MeshBasicMaterial({ color: valid === false ? '#d77f66' : valid === true ? '#c2d6a0' : '#d5c79e', transparent: true, opacity: .5 }); o.userData.privateMaterial = true; } });
+      this.ghost.add(model);
     }
-    this.ghost.position.set(center.x, height, center.y);
-    this.ghost.traverse(o => { if (o instanceof THREE.Mesh) { if (o.userData.privateMaterial) (o.material as THREE.Material).dispose(); o.material = new THREE.MeshBasicMaterial({ color: valid === false ? '#d77f66' : valid === true ? '#c2d6a0' : '#d5c79e', transparent: true, opacity: .5 }); o.userData.privateMaterial = true; } });
     this.scene.add(this.ghost);
   }
   orderMarker(point: Vec) {

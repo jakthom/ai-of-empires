@@ -1,6 +1,7 @@
 package game
 
 import (
+	"fmt"
 	"github.com/open-ships/statemachine"
 	"math"
 	"sort"
@@ -68,6 +69,7 @@ func New(cfg Config) *World {
 		}
 		w.Players[id] = &Player{ID: id, Start: starts[id-1], Name: name, Civilization: civ, Resources: Resources{Food: 200, Wood: 200, Gold: 100, Stone: 200}, Technologies: map[string]bool{}, lifecycle: statemachine.NewInstance(playerMachine, PlayerCompeting), AI: id > 1, Explored: make([]bool, len(w.Tiles)), Visible: make([]bool, len(w.Tiles)), Memory: map[int]EntityView{}}
 		w.Players[id].strategy = statemachine.NewInstance(aiMachine, aiDeveloping)
+		w.Players[id].UserID = fmt.Sprintf("kingdom:%d", id)
 		w.Players[id].Temperament = initialTemperament(cfg, id)
 	}
 	w.initializeRelations()
@@ -158,6 +160,9 @@ func (w *World) spawnWithLife(typ string, owner int, pos Vec, initial LifeState)
 		e.HP = 1
 	}
 	w.Entities[e.ID] = e
+	if barrier(typ) {
+		w.barriers = nil
+	}
 	w.IDs = append(w.IDs, e.ID)
 	if typ == "farm" {
 		e.Resource = "food"
@@ -248,6 +253,9 @@ func (w *World) remove(id int) {
 	}
 }
 func (w *World) cleanupEntity(e *Entity) {
+	if barrier(e.Type) {
+		w.barriers = nil
+	}
 	mustFire(e.production, LoseProduction, &entityContext{World: w, Actor: e})
 	if e.Relic {
 		w.resource("relic", e.Position)

@@ -17,6 +17,7 @@ func NewWorld(cfg Config) (*World, error) {
 // Kingdom describes the finalized seats. Controllers are supplied by the
 // authenticated session service, never by gameplay commands.
 type Kingdom struct {
+	UserID       string `json:"-"`
 	Name         string `json:"name"`
 	Civilization string `json:"civilization"`
 	Human        bool   `json:"human"`
@@ -95,6 +96,10 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		p := &Player{ID: id, Start: start, Name: names[i], Civilization: civ, Resources: Resources{Food: 200, Wood: 200, Gold: 100, Stone: 200}, Technologies: map[string]bool{}, AI: id > 1, Explored: make([]bool, len(w.Tiles)), Visible: make([]bool, len(w.Tiles)), Memory: map[int]EntityView{}, lifecycle: statemachine.NewInstance(playerMachine, PlayerCompeting), strategy: statemachine.NewInstance(aiMachine, aiDeveloping), Temperament: initialTemperament(cfg, id)}
 		if roster != nil {
 			p.Name, p.Civilization, p.AI = roster[i].Name, roster[i].Civilization, !roster[i].Human
+			p.UserID = roster[i].UserID
+		}
+		if p.UserID == "" {
+			p.UserID = fmt.Sprintf("kingdom:%d", id)
 		}
 		if cfg.Mode == "sandbox" {
 			p.Resources = Resources{Food: 2000, Wood: 2000, Gold: 1500, Stone: 1500}
