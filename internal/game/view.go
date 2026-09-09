@@ -20,7 +20,7 @@ func (w *World) View(player int) Snapshot {
 		Status: string(w.match.State()), Winner: w.Winner,
 		Player:    PlayerView{ID: p.ID, Name: p.Name, Civilization: p.Civilization, Resources: p.Resources, Age: p.Age, AgeName: Ages[p.Age], Population: n, Capacity: capacity, Limit: 200, Technologies: sortedKeys(p.Technologies), Defeated: (p.lifecycle.State() == PlayerDefeated), Kills: p.Kills},
 		Opponents: []OpponentView{}, Entities: []EntityView{}, Projectiles: []ProjectileView{}, Events: []Event{}, BuildOptions: []Action{},
-		Map: MapView{Width: w.Width, Height: w.Height, Biome: w.WorldOptions().Biome, Tiles: make([]Tile, len(w.Tiles)), Fog: make([]int, len(w.Tiles))},
+		Map: w.mapView(p),
 	}
 	v.Player.Production = p.Production.view()
 	for id := 1; id <= w.Config.Settlements; id++ {
@@ -31,16 +31,6 @@ func (w *World) View(player int) Snapshot {
 				preference = "Player controlled"
 			}
 			v.Opponents = append(v.Opponents, OpponentView{ID: other.ID, Name: other.Name, Civilization: other.Civilization, Defeated: other.lifecycle.State() == PlayerDefeated, Relation: string(w.relation(player, id)), Temperament: preference})
-		}
-	}
-	for i, t := range w.Tiles {
-		v.Map.Tiles[i] = Tile{Terrain: "unknown"}
-		if p.Explored[i] {
-			v.Map.Fog[i] = 1
-			v.Map.Tiles[i] = t
-		}
-		if p.Visible[i] {
-			v.Map.Fog[i] = 2
 		}
 	}
 	seen := map[int]bool{}

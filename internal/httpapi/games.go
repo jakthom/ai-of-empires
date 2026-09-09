@@ -316,7 +316,13 @@ func (s *Server) gameEvents(w http.ResponseWriter, r *http.Request) {
 		_ = controller.SetWriteDeadline(time.Now())
 	}()
 	defer func() { close(finished); <-interrupted }()
-	ticker := time.NewTicker(100 * time.Millisecond)
+	delta := r.URL.Query().Get("format") == "delta-v1"
+	interval := 100 * time.Millisecond
+	if delta {
+		interval = 50 * time.Millisecond
+	}
+	stream, started := game.SnapshotStream{}, time.Now()
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 	for {
 		_ = controller.SetWriteDeadline(time.Now().Add(10 * time.Second))
@@ -334,11 +340,17 @@ func (s *Server) gameEvents(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		data, err := json.Marshal(v)
+		var payload any = v
+		event, sequence := "snapshot", v.Tick
+		if delta {
+			frame := stream.Next(v, float64(time.Since(started))/float64(time.Millisecond))
+			payload, event, sequence = frame, "frame", frame.Sequence
+		}
+		data, err := json.Marshal(payload)
 		if err != nil {
 			return
 		}
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: snapshot\ndata: %s\n\n", v.Tick, data); err != nil {
+		if _, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", sequence, event, data); err != nil {
 			return
 		}
 		if err = controller.Flush(); err != nil {

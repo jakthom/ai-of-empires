@@ -161,11 +161,10 @@ func (s *Service) access(id, token, browser string, hold bool) (*Access, error) 
 	if found == "" {
 		return nil, ErrUnauthorized
 	}
-	m, err := s.load(id)
+	m, err := s.loadLocked(id)
 	if err != nil {
 		return nil, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	a := &Access{match: m, memberID: found, epoch: c.Epoch, version: version}
 	if _, err = a.valid(false); err != nil {

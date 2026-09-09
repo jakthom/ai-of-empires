@@ -985,6 +985,26 @@
         ],
         "type": "object"
       },
+      "MapCell": {
+        "additionalProperties": false,
+        "properties": {
+          "fog": {
+            "type": "integer"
+          },
+          "index": {
+            "type": "integer"
+          },
+          "tile": {
+            "$ref": "#/components/schemas/Tile"
+          }
+        },
+        "required": [
+          "index",
+          "tile",
+          "fog"
+        ],
+        "type": "object"
+      },
       "MapView": {
         "additionalProperties": false,
         "properties": {
@@ -1675,6 +1695,122 @@
           "events",
           "event_cursor",
           "build_options"
+        ],
+        "type": "object"
+      },
+      "SnapshotDelta": {
+        "additionalProperties": false,
+        "properties": {
+          "build_options": {
+            "items": {
+              "$ref": "#/components/schemas/Action"
+            },
+            "type": "array"
+          },
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/MapCell"
+            },
+            "type": "array"
+          },
+          "control_revision": {
+            "type": "integer"
+          },
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/EntityView"
+            },
+            "type": "array"
+          },
+          "event_cursor": {
+            "type": "integer"
+          },
+          "events": {
+            "items": {
+              "$ref": "#/components/schemas/Event"
+            },
+            "type": "array"
+          },
+          "opponents": {
+            "items": {
+              "$ref": "#/components/schemas/OpponentView"
+            },
+            "type": "array"
+          },
+          "paused": {
+            "type": "boolean"
+          },
+          "player": {
+            "$ref": "#/components/schemas/PlayerView"
+          },
+          "projectiles": {
+            "items": {
+              "$ref": "#/components/schemas/ProjectileView"
+            },
+            "type": "array"
+          },
+          "removed_entities": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "speed": {
+            "type": "number"
+          },
+          "status": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "time": {
+            "type": "number"
+          },
+          "treaty_remaining": {
+            "type": "number"
+          },
+          "winner": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "control_revision",
+          "tick",
+          "time",
+          "speed",
+          "paused",
+          "status",
+          "winner",
+          "treaty_remaining",
+          "projectiles",
+          "event_cursor"
+        ],
+        "type": "object"
+      },
+      "SnapshotFrame": {
+        "additionalProperties": false,
+        "properties": {
+          "base": {
+            "type": "integer"
+          },
+          "delta": {
+            "$ref": "#/components/schemas/SnapshotDelta"
+          },
+          "sample_ms": {
+            "type": "number"
+          },
+          "sequence": {
+            "type": "integer"
+          },
+          "snapshot": {
+            "$ref": "#/components/schemas/Snapshot"
+          }
+        },
+        "required": [
+          "sequence",
+          "base",
+          "sample_ms"
         ],
         "type": "object"
       },
@@ -3126,6 +3262,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Omit for 10 Hz complete snapshots. delta-v1 sends 20 Hz SnapshotFrame observations: a full snapshot first, then entity replacements/removals and changed map cells. base must equal the last sequence; reconnect on a gap. sample_ms is monotonic wall time within this connection, independent of game speed. No historical replay or unobserved positions.",
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "enum": [
+                "delta-v1"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -3137,7 +3284,7 @@
                 }
               }
             },
-            "description": "SSE snapshot frames; fresh authenticated state on reconnect"
+            "description": "SSE event snapshot (Snapshot, id=tick) by default; event frame (SnapshotFrame, id=sequence) for format=delta-v1. Every reconnect starts with a fresh, authenticated full snapshot. Authorization and fog filtering apply before differencing."
           },
           "503": {
             "content": {
@@ -5307,6 +5454,17 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "description": "Omit for 10 Hz complete snapshots. delta-v1 sends 20 Hz SnapshotFrame observations: a full snapshot first, then entity replacements/removals and changed map cells. base must equal the last sequence; reconnect on a gap. sample_ms is monotonic wall time within this connection, independent of game speed. No historical replay or unobserved positions.",
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "enum": [
+                "delta-v1"
+              ],
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -5318,7 +5476,7 @@
                 }
               }
             },
-            "description": "SSE event `snapshot`, id = simulation tick; JSON data conforms to Snapshot. Bearer auth through fetch streaming."
+            "description": "SSE event snapshot (Snapshot, id=tick) by default; event frame (SnapshotFrame, id=sequence) for format=delta-v1. Every reconnect starts with a fresh, authenticated full snapshot. Authorization and fog filtering apply before differencing."
           },
           "503": {
             "content": {

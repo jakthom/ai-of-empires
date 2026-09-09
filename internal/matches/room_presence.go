@@ -2,7 +2,6 @@ package matches
 
 import (
 	"context"
-	"crowns/internal/game"
 	"github.com/open-ships/statemachine"
 	"time"
 )
@@ -150,20 +149,13 @@ func (m *Match) pulseRoom(ctx context.Context, now time.Time) bool {
 	if r.Session.State() == sessionDeleting || r.Session.State() == sessionDeleted {
 		return false
 	}
-	if m.db != nil && (now.Sub(m.lastSaveAttempt) >= AutosaveInterval || (unload && m.activeRequests == 0)) {
+	if m.db != nil && unload && m.activeRequests == 0 {
 		if err := m.saveContext(ctx, now); err != nil {
 			return false
 		}
 		if unload && m.activeRequests == 0 {
 			m.fireLease(releaseLease, now)
 			return true
-		}
-	}
-	if !unload && r.Runtime.State() == runtimeServing && r.Session.State() == sessionOpen && m.world != nil && m.world.Status() == "running" {
-		m.accumulator += .05 * m.world.Speed
-		for m.accumulator >= game.Step && ctx.Err() == nil {
-			m.world.Update()
-			m.accumulator -= game.Step
 		}
 	}
 	return false

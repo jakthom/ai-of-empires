@@ -272,6 +272,12 @@ export interface LogFilter {
   name: string;
 }
 
+export interface MapCell {
+  index: number;
+  tile: Tile;
+  fog: number;
+}
+
 export interface MapView {
   width: number;
   height: number;
@@ -459,6 +465,34 @@ export interface Snapshot {
   events: Event[];
   event_cursor: number;
   build_options: Action[];
+}
+
+export interface SnapshotDelta {
+  control_revision: number;
+  tick: number;
+  time: number;
+  speed: number;
+  paused: boolean;
+  status: string;
+  winner: number;
+  treaty_remaining: number;
+  player?: PlayerView;
+  opponents?: OpponentView[];
+  cells?: MapCell[];
+  entities?: EntityView[];
+  removed_entities?: number[];
+  projectiles: ProjectileView[];
+  events?: Event[];
+  event_cursor: number;
+  build_options?: Action[];
+}
+
+export interface SnapshotFrame {
+  sequence: number;
+  base: number;
+  sample_ms: number;
+  snapshot?: Snapshot;
+  delta?: SnapshotDelta;
 }
 
 export interface Task {

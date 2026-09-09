@@ -2,11 +2,13 @@ import * as THREE from 'three';
 import type { EntityView, Snapshot, Vec } from './api.generated';
 import { makeModel, ownerColor } from './models';
 import { biomePalette } from './biomes';
+import { observationTime } from './snapshot-stream';
+import { ObservationClock, ObservedMotion } from './interpolation';
 import { BattlefieldTerrain } from './terrain';
 import { terrainAnchorOffset } from './camera';
 import { BuildingFoundation, GroundRing, groundFarm } from './grounding';
 
-type RenderEntity = { object: THREE.Group; foundation?: BuildingFoundation; animated: THREE.Object3D[]; from: THREE.Vector3; to: THREE.Vector3; at: number; signature: string; view: EntityView };
+type RenderEntity = { object: THREE.Group; foundation?: BuildingFoundation; animated: THREE.Object3D[]; motion?: ObservedMotion; signature: string; view: EntityView };
 // THESIS: a miniature landscape with real perspective and readable relief.
 // OWN-WORLD: limestone, timber, terracotta, sage terrain, and soft daylight.
 // STORY: hold to grab the land; hold both mouse buttons to inspect its volume.
@@ -27,7 +29,9 @@ export class WorldRenderer {
   private snapshot?: Snapshot;
   private rings = new THREE.Group();
   private projectiles = new THREE.Group();
-  private projectileMeshes = new Map<number, THREE.Mesh>();
+  private projectileMeshes = new Map<number, { mesh: THREE.Mesh; motion: ObservedMotion }>();
+  private observationClock = new ObservationClock();
+  private localEpoch = {};
   private projectileGeometry = { stone: new THREE.SphereGeometry(.12, 5, 4), arrow: new THREE.BoxGeometry(.035, .035, .4) };
   private projectileMaterial = { stone: new THREE.MeshBasicMaterial({ color: '#c2baa3' }), arrow: new THREE.MeshBasicMaterial({ color: '#604323' }) };
   private hovered: number | null = null;
@@ -149,12 +153,17 @@ export class WorldRenderer {
     if (!this.terrain) { this.terrain = new BattlefieldTerrain(map); this.scene.add(this.terrain.group); }
     else this.terrain.update(map);
     const alive = new Set<number>(), now = performance.now();
+    const observation = observationTime(snapshot);
+    const sampleMS = observation?.sampleMS ?? now;
+    const reset = this.observationClock.observe(sampleMS, observation?.receivedMS ?? now, observation?.epoch ?? this.localEpoch);
+    const mapChanged = previous?.map !== map;
     for (const e of snapshot.entities) {
       if (e.container) continue;
       alive.add(e.id);
+      let rendered = this.entities.get(e.id);
+      if (rendered?.view === e && !mapChanged && e.kind !== 'unit' && !reset) continue;
       const biome = map.tiles[Math.floor(e.position.y)*map.width+Math.floor(e.position.x)]?.biome || map.biome;
       const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
-      let rendered = this.entities.get(e.id);
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
         const object = makeModel(e, biome); this.scene.add(object);
@@ -164,27 +173,32 @@ export class WorldRenderer {
         const pos = new THREE.Vector3(e.position.x, this.elevation(e.position), e.position.y);
         const animated: THREE.Object3D[] = [];
         object.traverse(o => { if (['leg', 'tool', 'windmill', 'flag'].includes(o.name)) animated.push(o); });
-        rendered = { object, foundation, animated, from: pos.clone(), to: pos.clone(), at: now, signature, view: e }; this.entities.set(e.id, rendered);
+        object.position.copy(pos);
+        rendered = { object, foundation, animated, motion: e.kind === 'unit' ? new ObservedMotion() : undefined, signature, view: e }; this.entities.set(e.id, rendered);
       }
       if (e.kind === 'building') rendered.object.scale.y = e.type === 'farm' ? 1 : .2 + .8 * e.progress;
       const height = rendered.foundation?.fit(e.position, this.terrain, rendered.object.scale.y) ?? this.elevation(e.position);
-      rendered.from.copy(rendered.object.position); rendered.to.set(e.position.x, height, e.position.y);
-      if (rendered.at === now) rendered.from.copy(rendered.to);
-      rendered.at = now; rendered.view = e;
+      if (rendered.motion) rendered.motion.add(sampleMS, { x: e.position.x, y: height, z: e.position.y }, reset || snapshot.paused);
+      if (!rendered.motion || reset || snapshot.paused) rendered.object.position.set(e.position.x, height, e.position.y);
+      rendered.view = e;
     }
     for (const [id, e] of this.entities) if (!alive.has(id)) { this.removeModel(e.object); this.entities.delete(id); this.selected.delete(id); }
     this.updateRings();
     const projectiles = new Set(snapshot.projectiles.map(p => p.id));
-    for (const [id, mesh] of this.projectileMeshes) if (!projectiles.has(id)) { this.projectiles.remove(mesh); this.projectileMeshes.delete(id); }
-    const previousProjectiles = new Map(previous?.projectiles.map(p => [p.id, p]));
+    for (const [id, p] of this.projectileMeshes) if (!projectiles.has(id)) { this.projectiles.remove(p.mesh); this.projectileMeshes.delete(id); }
     for (const p of snapshot.projectiles) {
-      let mesh = this.projectileMeshes.get(p.id);
-      if (!mesh) { const kind = p.kind === 'stone' ? 'stone' : 'arrow'; mesh = new THREE.Mesh(this.projectileGeometry[kind], this.projectileMaterial[kind]); this.projectileMeshes.set(p.id, mesh); this.projectiles.add(mesh); }
-      mesh.position.set(p.position.x, this.elevation(p.position) + 1.1, p.position.y);
-      const last = previousProjectiles.get(p.id);
-      if (last) mesh.lookAt(2 * p.position.x - last.position.x, mesh.position.y, 2 * p.position.y - last.position.y);
+      let rendered = this.projectileMeshes.get(p.id);
+      const position = { x: p.position.x, y: this.elevation(p.position) + 1.1, z: p.position.y };
+      if (!rendered) {
+        const kind = p.kind === 'stone' ? 'stone' : 'arrow';
+        const mesh = new THREE.Mesh(this.projectileGeometry[kind], this.projectileMaterial[kind]);
+        mesh.position.set(position.x, position.y, position.z);
+        rendered = { mesh, motion: new ObservedMotion() }; this.projectileMeshes.set(p.id, rendered); this.projectiles.add(mesh);
+      }
+      rendered.motion.add(sampleMS, position, reset || snapshot.paused);
     }
   }
+
   private removeModel(object: THREE.Group) {
     this.scene.remove(object);
     object.traverse(o => { if (o instanceof THREE.Mesh && o.userData.privateMaterial) (o.material as THREE.Material).dispose(); if (o instanceof THREE.Mesh && o.userData.privateGeometry) o.geometry.dispose(); if (o instanceof THREE.InstancedMesh) o.dispose(); });
@@ -211,7 +225,7 @@ export class WorldRenderer {
     for (const e of this.entities.values()) this.removeModel(e.object);
     this.entities.clear(); this.updateRings(); this.projectiles.clear(); this.projectileMeshes.clear();
     if (this.terrain) { this.scene.remove(this.terrain.group); this.terrain.dispose(); this.terrain = undefined; }
-    this.snapshot = undefined; this.target.set(19, 0, 42); this.resetView();
+    this.snapshot = undefined; this.observationClock = new ObservationClock(); this.localEpoch = {}; this.target.set(19, 0, 42); this.resetView();
   }
   private setRay(clientX: number, clientY: number) {
     const rect = this.canvas.getBoundingClientRect(); this.raycaster.setFromCamera(new THREE.Vector2((clientX - rect.left) / rect.width * 2 - 1, -(clientY - rect.top) / rect.height * 2 + 1), this.camera);
@@ -278,12 +292,12 @@ export class WorldRenderer {
       if (this.keys.has('Shift')) this.orbitBy(dx * dt * 150, dy * dt * 150);
       else this.pan(dx * dt * 480, dy * dt * 480);
     }
+    const observedAt = this.observationClock.time(now);
     for (const e of this.entities.values()) {
-      const t = THREE.MathUtils.clamp((now - e.at) / 100, 0, 1);
-      e.object.position.lerpVectors(e.from, e.to, t);
-      e.object.position.y = e.view.kind === 'building' ? e.to.y : this.elevation({ x: e.object.position.x, y: e.object.position.z });
-      const moving = e.from.distanceToSquared(e.to) > .0001;
-      if (moving && e.view.kind === 'unit') e.object.rotation.y = Math.atan2(e.to.x - e.from.x, e.to.z - e.from.z) + Math.PI;
+      const x = e.object.position.x, z = e.object.position.z;
+      const moving = e.motion?.sample(observedAt, e.object.position) ?? false;
+      if (e.motion) e.object.position.y = this.elevation({ x: e.object.position.x, y: e.object.position.z });
+      if (moving && Math.hypot(e.object.position.x - x, e.object.position.z - z) > .00001) e.object.rotation.y = Math.atan2(e.object.position.x - x, e.object.position.z - z) + Math.PI;
       e.animated.forEach(o => {
         if (this.reducedMotion.matches || this.snapshot?.paused) { if (o.name === 'leg' || o.name === 'tool') o.rotation.x = 0; return; }
         if (o.name === 'windmill') o.rotation.z = now * .00025;
@@ -291,6 +305,12 @@ export class WorldRenderer {
         if (o.name === 'leg') o.rotation.x = moving ? Math.sin(now * .012 + o.position.x * 10) * .35 : 0;
         if (o.name === 'tool') o.rotation.x = ['gathering', 'constructing', 'repairing', 'attacking'].includes(e.view.state) ? Math.sin(now * .008) * .4 : 0;
       });
+    }
+    for (const { mesh, motion } of this.projectileMeshes.values()) {
+      const x = mesh.position.x, z = mesh.position.z;
+      const moving = motion.sample(observedAt, mesh.position);
+      mesh.position.y = this.elevation({ x: mesh.position.x, y: mesh.position.z }) + 1.1;
+      if (moving) mesh.lookAt(2 * mesh.position.x - x, mesh.position.y, 2 * mesh.position.z - z);
     }
     this.rings.children.forEach(r => { const e = this.entities.get(r.userData.forEntity); if (e) (r as GroundRing).place({ x: e.object.position.x, y: e.object.position.z }, Math.max(.5, e.view.radius + .12), this.terrain); });
     if (this.marker && this.markerPoint) {

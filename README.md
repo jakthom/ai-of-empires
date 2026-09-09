@@ -183,7 +183,7 @@ This is an initial playable ruleset. Its values and civilization availability ar
 
 Up to 16 games can be loaded at once, with up to six human/AI kingdoms each; unloaded saved games remain in SQLite. Browser-only offline simulation is excluded by the Go authority requirement. Current deterministic checks cover checkpoint continuation and repeat runs of this Go implementation; cross-platform replay equivalence is not established, and simulation quantities currently use `float64`. Pre-persistence builds cannot export their in-memory games into the new checkpoint format.
 
-Slowdown fixes include respecting failed-route retry timers, spatially indexing path obstacles, caching the static catalog when projecting snapshots, reusing rings and projectile meshes, batching farm crops, and animating only moving model parts. Browser history pages remain bounded; complete immutable journals intentionally accumulate in the backend and database. See [performance measurements](docs/PERFORMANCE.md).
+High speeds use independent game clocks with small fixed-step batches, background autosave encoding and disk writes, and a 20 Hz stream of changed observations. The renderer buffers observed movement, caches minimap terrain, and updates only changed terrain chunks. Fully revealed maps skip redundant fog-memory projections. Earlier fixes include failed-route retry timers, spatial path obstacles, shared catalogs, reusable rings/projectiles, and batched farm crops. Browser history pages remain bounded; complete immutable journals intentionally accumulate in the backend and database. See [performance measurements](docs/PERFORMANCE.md).
 
 ## Validate
 

@@ -281,6 +281,10 @@ func (w *World) cleanupEntity(e *Entity) {
 	delete(w.Entities, e.ID)
 }
 func (w *World) refreshVisibility() {
+	fullVisibility := w.Config.World.Reveal == "all"
+	// All observers share the same public last-seen representation. Compute it
+	// once per entity per refresh, while keeping each player's memory private.
+	observed := map[int]EntityView{}
 	for _, p := range w.Players {
 		clear(p.Visible)
 		if w.Config.World.Reveal == "explored" || w.Config.World.Reveal == "all" {
@@ -292,7 +296,7 @@ func (w *World) refreshVisibility() {
 	}
 	for _, id := range w.IDs {
 		e := w.Entities[id]
-		if e == nil || e.Owner == 0 || e.Container != 0 {
+		if fullVisibility || e == nil || e.Owner == 0 || e.Container != 0 {
 			continue
 		}
 		p := w.Players[e.Owner]
@@ -312,6 +316,12 @@ func (w *World) refreshVisibility() {
 	}
 	for player := 1; player <= w.Config.Settlements; player++ {
 		p := w.Players[player]
+		// In a permanently revealed world every current entity is observable;
+		// fog memory cannot add information. Avoid rebuilding thousands of
+		// duplicate resource views for every kingdom on every visibility tick.
+		if fullVisibility {
+			clear(p.Memory)
+		}
 		for id, v := range p.Memory {
 			if w.visible(p.ID, v.Position) {
 				delete(p.Memory, id)
@@ -325,9 +335,13 @@ func (w *World) refreshVisibility() {
 			if len(w.journal.entities[p.ID][id]) == 0 {
 				w.record(Event{Kind: "discovered", Message: definitions[e.Type].Name + " discovered"}, e, p.ID)
 			}
-			if definitions[e.Type].Kind != "unit" {
-				v := w.entityView(e, 0)
-				v.Visible = false
+			if !fullVisibility && definitions[e.Type].Kind != "unit" {
+				v, exists := observed[id]
+				if !exists {
+					v = w.entityView(e, 0)
+					v.Visible = false
+					observed[id] = v
+				}
 				p.Memory[id] = v
 			}
 		}

@@ -14,7 +14,7 @@ import { WorldRenderer } from './world';
 import { EventLog } from './journal';
 import { ownerColor } from './models';
 import { initializeWorldSetup, readWorldOptions, worldDescription } from './world-setup';
-import { biomePalette } from './biomes';
+import { MinimapTerrain } from './minimap';
 import { renderProduction } from './resource-rates';
 import type { Action, Catalog, Command, EntityView, Resources, Snapshot, Vec } from './api.generated';
 
@@ -188,13 +188,11 @@ function refreshSelection() {
   }
   tasks.forEach((task, i) => { const bar = el('queue').querySelectorAll('i')[i]; if (bar) bar.style.width = `${(1 - task.remaining / task.duration) * 100}%`; });
 }
+const minimapTerrain = new MinimapTerrain();
 function minimap() {
   if (!snapshot) return;
   const canvas = el<HTMLCanvasElement>('minimap'), ctx = canvas.getContext('2d')!, map = snapshot.map, sx = canvas.width / map.width, sy = canvas.height / map.height;
-  // Clear the previous camera outline before drawing fractional tile edges.
-  ctx.fillStyle = '#202d24'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-  map.tiles.forEach((tile, i) => { const palette = biomePalette(tile.biome || map.biome); ctx.globalAlpha = map.fog[i] === 1 ? .45 : 1; ctx.fillStyle = !map.fog[i] ? '#202d24' : palette[tile.terrain] ?? palette.grass; ctx.fillRect((i % map.width) * sx, Math.floor(i / map.width) * sy, sx + .3, sy + .3); });
-  ctx.globalAlpha = 1;
+  minimapTerrain.draw(ctx, map, canvas.width, canvas.height);
   for (const e of snapshot.entities) { if (e.container) continue; ctx.fillStyle = e.owner > 0 ? ownerColor(e.owner) : e.type === 'tree' ? '#455c35' : e.resource === 'gold' ? '#e3c576' : '#cdc7a4'; const r = e.kind === 'building' ? 2.5 : 1.3; ctx.fillRect(e.position.x * sx - r / 2, e.position.y * sy - r / 2, r, r); }
   const rect = world.canvas.getBoundingClientRect();
   const corners = [[rect.left, rect.top], [rect.right, rect.top], [rect.right, rect.bottom], [rect.left, rect.bottom]].map(([x, y]) => world.groundPoint(x, y));
@@ -203,6 +201,7 @@ function minimap() {
   ctx.closePath(); ctx.stroke();
 }
 function receive(next: Snapshot) {
+  const previous = snapshot;
   snapshot = next; world.update(next);
   if(api.room && next.control_revision!==undefined && next.control_revision>=api.room.revision){api.room.revision=next.control_revision;api.room.match_status=next.status;}
   const tooltip = document.getElementById('building-tooltip');
@@ -213,7 +212,7 @@ function receive(next: Snapshot) {
   }
   selection = selection.filter(id => next.entities.some(e => e.id === id));
   for (const resource of Object.keys(symbols)) text(`res-${resource}`, Math.floor(next.player.resources[resource as keyof Resources]).toLocaleString());
-  renderProduction(next.player.production);
+  if (previous?.player.production !== next.player.production) renderProduction(next.player.production);
   text('population', `${next.player.population} / ${next.player.capacity}`); el('population').classList.toggle('capped', next.player.population >= next.player.capacity);
   text('age', next.player.age_name); text('age-symbol', ['I', 'II', 'III', 'IV'][next.player.age]); text('clock', time(next.time)); text('speed', `${next.speed}×`);
   el('treaty-clock').hidden = next.treaty_remaining <= 0; text('treaty-clock', `Peace ${time(next.treaty_remaining)}`);

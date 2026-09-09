@@ -60,6 +60,9 @@ func freezeMatches(_ context.Context, s *Service) error {
 	for _, m := range s.matches {
 		m.mu.Lock()
 		m.fireLease(freezeLease, time.Now())
+		if m.autosave != nil {
+			m.autosave.cancel()
+		}
 		m.mu.Unlock()
 	}
 	return nil
