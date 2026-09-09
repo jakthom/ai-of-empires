@@ -206,6 +206,67 @@ func TestSnapshotStreamStartsWithAuthorizedFullState(t *testing.T) {
 	t.Fatalf("stream ended without snapshot: %v", scanner.Err())
 }
 
+func TestDeltaStreamAdvancesSequenceWhilePausedAndRevokesOldCredentials(t *testing.T) {
+	s := testServer()
+	session := createSession(t, s)
+	server := httptest.NewServer(s)
+	defer server.Close()
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+	r, _ := http.NewRequestWithContext(ctx, "GET", server.URL+"/api/v1/matches/"+session.MatchID+"/events?format=delta-v1", nil)
+	r.Header.Set("Authorization", "Bearer "+session.Token)
+	response, err := http.DefaultClient.Do(r)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer response.Body.Close()
+	scanner := bufio.NewScanner(response.Body)
+	scanner.Buffer(make([]byte, 4096), 4<<20)
+	read := func() game.SnapshotFrame {
+		t.Helper()
+		for scanner.Scan() {
+			if !strings.HasPrefix(scanner.Text(), "data: ") {
+				continue
+			}
+			var frame game.SnapshotFrame
+			if err := json.Unmarshal([]byte(strings.TrimPrefix(scanner.Text(), "data: ")), &frame); err != nil {
+				t.Fatal(err)
+			}
+			return frame
+		}
+		t.Fatalf("stream ended: %v", scanner.Err())
+		return game.SnapshotFrame{}
+	}
+	first := read()
+	if first.Snapshot == nil || first.Sequence != 1 || first.Base != 0 || first.Snapshot.Player.ID != session.PlayerID {
+		t.Fatal("missing authorized keyframe")
+	}
+	decodeResponse[matches.Receipt](t, request(t, s, "POST", "/api/v1/matches/"+session.MatchID+"/commands", session.Token, game.Command{ID: "pause-stream", Kind: "pause"}), 200)
+	previous := first
+	for {
+		frame := read()
+		if frame.Delta == nil || frame.Base != previous.Sequence || frame.Sequence != previous.Sequence+1 || frame.SampleMS < previous.SampleMS {
+			t.Fatal("broken delta sequence")
+		}
+		if frame.Delta.Tick != first.Snapshot.Tick {
+			t.Fatal("read advanced simulation")
+		}
+		previous = frame
+		if frame.Delta.Paused {
+			break
+		}
+	}
+	// Legacy token rotation must close even an already-open delta stream.
+	if _, err := s.matches.Resume(session.MatchID); err != nil {
+		t.Fatal(err)
+	}
+	for scanner.Scan() {
+	}
+	if scanner.Err() != nil || ctx.Err() != nil {
+		t.Fatalf("revoked stream did not close promptly: %v", scanner.Err())
+	}
+}
+
 func TestSchedulerAndHTTPSerializeConcurrentCommands(t *testing.T) {
 	service := matches.NewService()
 	s := New(service, fstest.MapFS{})

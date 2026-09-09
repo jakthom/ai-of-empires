@@ -144,39 +144,45 @@ func (m *Match) saveContext(ctx context.Context, now time.Time) error {
 	return m.checkpoint(ctx, now, nil)
 }
 
-func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserWrite) (result error) {
+func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserWrite) error {
+	// An older background save must finish before this newer transaction. The
+	// worker never needs m.mu, so controls and shutdown can safely join it.
+	m.collectAutosave(true)
+	p, err := m.prepareCheckpoint(ctx, now, browser)
+	if err == nil {
+		err = p.write(ctx)
+	}
+	m.completeCheckpoint(p, err)
+	return err
+}
+
+// Preparation owns the mutation lock. The resulting packet contains no live
+// simulation or membership references; only the packet is used by the writer.
+func (m *Match) prepareCheckpoint(ctx context.Context, now time.Time, browser *browserWrite) (*checkpointWrite, error) {
 	if m.room != nil && m.room.Session.State() == sessionDeleted {
-		return ErrNotFound
+		return nil, ErrNotFound
 	}
 	m.lastSaveAttempt = now
-	defer func() {
-		if result != nil {
-			m.saveError = "Autosave failed. Your game is still in memory; try saving again."
-		}
-	}()
 	if err := ctx.Err(); err != nil {
-		return err
+		return nil, err
 	}
 	if m.db == nil && m.archiveCapture == nil {
-		m.savedAt = now.UTC().Format(time.RFC3339Nano)
-		m.saveError = ""
-		return nil
+		info := m.info()
+		info.SavedAt = now.UTC().Format(time.RFC3339Nano)
+		return &checkpointWrite{info: info, cursor: infoCursor(m.world)}, nil
 	}
-	var world []byte
-	var err error
+	var world *game.CheckpointData
 	if m.world != nil {
-		world, err = m.world.Checkpoint()
-		if err != nil {
-			return err
-		}
+		captured := m.world.CaptureCheckpoint()
+		world = &captured
 	}
-	c := storedMatch{World: world, TokenHash: m.tokenHash, Accumulator: m.accumulator, Commands: map[string]storedCommand{}}
+	c := storedMatch{TokenHash: m.tokenHash, Accumulator: m.accumulator, Commands: map[string]storedCommand{}}
 	if m.room != nil {
 		c.Room = m.room.stored()
 	}
 	for id, cmd := range m.commands {
 		if err := ctx.Err(); err != nil {
-			return err
+			return nil, err
 		}
 		stored := storedCommand{Hash: cmd.hash, Receipt: cmd.receipt}
 		if cmd.err != nil && !errors.As(cmd.err, &stored.Error) {
@@ -188,80 +194,150 @@ func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserW
 		}
 		c.Commands[id] = stored
 	}
-	data, err := json.Marshal(c)
-	if err != nil {
-		return err
-	}
 	info := m.info()
 	info.SavedAt = now.UTC().Format(time.RFC3339Nano)
 	info.Active = false
 	info.SaveError = ""
-	metadata, err := json.Marshal(info)
-	if err != nil {
-		return err
-	}
 	var archive []byte
 	if m.archiveCapture != nil {
+		var err error
+		if world != nil {
+			c.World, err = world.Encode()
+			if err != nil {
+				return nil, err
+			}
+			world = nil
+		}
 		archive, err = m.capture(c)
+		if err != nil {
+			return nil, err
+		}
+	}
+	p := &checkpointWrite{id: m.id, db: m.db, now: now, info: info, state: c, world: world, archive: archive, browser: browser}
+	if m.world != nil {
+		p.records = m.world.JournalSince(m.savedCursor)
+		p.cursor = m.world.NextEvent
+	}
+	if m.archiveCapture != nil {
+		p.transferID = m.archiveCapture.TransferID
+	}
+	if m.importReceipt != nil {
+		v := *m.importReceipt
+		p.importReceipt = &v
+	}
+	return p, nil
+}
+
+func (p *checkpointWrite) write(ctx context.Context) error {
+	if p.db == nil {
+		return ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if p.world != nil {
+		world, err := p.world.Encode()
 		if err != nil {
 			return err
 		}
+		p.state.World = world
 	}
-	if m.db == nil {
-		if m.archives == nil {
-			m.archives = map[string][]byte{}
+	data, err := json.Marshal(p.state)
+	if err != nil {
+		return err
+	}
+	metadata, err := json.Marshal(p.info)
+	if err != nil {
+		return err
+	}
+	// SQLite's long busy timeout does not promptly honor context cancellation.
+	// Lease this connection while using short busy waits, retry transactionally,
+	// then restore its setting before readers or another checkpoint can use it.
+	ctx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	conn, err := p.db.Conn(ctx)
+	if err != nil {
+		return err
+	}
+	defer conn.Close()
+	var busy int
+	if err := conn.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&busy); err != nil {
+		return err
+	}
+	if busy > 100 {
+		if _, err := conn.ExecContext(ctx, "PRAGMA busy_timeout=100"); err != nil {
+			return err
 		}
-		m.archives[m.archiveCapture.TransferID] = archive
-		m.archiveCapture = nil
-		m.savedAt = info.SavedAt
-		m.saveError = ""
-		return nil
+		defer func() { _, _ = conn.ExecContext(context.Background(), fmt.Sprintf("PRAGMA busy_timeout=%d", busy)) }()
 	}
-	tx, err := m.db.BeginTx(ctx, nil)
+	for {
+		err := p.commit(ctx, conn, data, metadata)
+		if err == nil {
+			return nil
+		}
+		if ctx.Err() != nil {
+			return errors.Join(err, ctx.Err())
+		}
+		var sqliteErr interface{ Code() int }
+		if !errors.As(err, &sqliteErr) || (sqliteErr.Code()&0xff != sqlite3.SQLITE_BUSY && sqliteErr.Code()&0xff != sqlite3.SQLITE_LOCKED) {
+			return err
+		}
+		timer := time.NewTimer(10 * time.Millisecond)
+		select {
+		case <-ctx.Done():
+			timer.Stop()
+			return errors.Join(err, ctx.Err())
+		case <-timer.C:
+		}
+	}
+}
+
+func (p *checkpointWrite) commit(ctx context.Context, conn *sql.Conn, data, metadata []byte) error {
+	tx, err := conn.BeginTx(ctx, nil)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback()
 	var deleted int
-	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM tombstones WHERE game_id=?", m.id).Scan(&deleted); err != nil {
+	if err = tx.QueryRowContext(ctx, "SELECT count(*) FROM tombstones WHERE game_id=?", p.id).Scan(&deleted); err != nil {
 		return err
 	}
 	if deleted != 0 {
 		return ErrNotFound
 	}
-	nameKey := strings.ToLower(info.Name)
-	if m.room != nil {
-		nameKey = m.id
+	nameKey := strings.ToLower(p.info.Name)
+	if p.state.Room != nil {
+		nameKey = p.id
 	}
 	_, err = tx.ExecContext(ctx, `INSERT INTO sessions(id,name_key,metadata,checkpoint,saved_at) VALUES(?,?,?,?,?)
-	 ON CONFLICT(id) DO UPDATE SET name_key=excluded.name_key, metadata=excluded.metadata, checkpoint=excluded.checkpoint, saved_at=excluded.saved_at`, m.id, nameKey, metadata, data, now.UnixNano())
+	 ON CONFLICT(id) DO UPDATE SET name_key=excluded.name_key, metadata=excluded.metadata, checkpoint=excluded.checkpoint, saved_at=excluded.saved_at`, p.id, nameKey, metadata, data, p.now.UnixNano())
 	if err != nil {
 		if strings.Contains(err.Error(), "UNIQUE constraint failed: sessions.name_key") {
 			return ErrNameExists
 		}
 		return err
 	}
-	if c.Room != nil {
-		roomData, err := json.Marshal(c.Room)
+	if p.state.Room != nil {
+		roomData, err := json.Marshal(p.state.Room)
 		if err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "UPDATE sessions SET room=? WHERE id=?", roomData, m.id); err != nil {
+		if _, err = tx.ExecContext(ctx, "UPDATE sessions SET room=? WHERE id=?", roomData, p.id); err != nil {
 			return err
 		}
-		if _, err = tx.ExecContext(ctx, "DELETE FROM game_secrets WHERE game_id=?", m.id); err != nil {
+		if _, err = tx.ExecContext(ctx, "DELETE FROM game_secrets WHERE game_id=?", p.id); err != nil {
 			return err
 		}
-		for _, seat := range c.Room.Seats {
+		for _, seat := range p.state.Room.Seats {
 			if seat.State == seatClaimed {
-				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", seat.RejoinHash), "rejoin", m.id); err != nil {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", seat.RejoinHash), "rejoin", p.id); err != nil {
 					return err
 				}
 			}
 		}
-		for _, invite := range c.Room.Invites {
+		for _, invite := range p.state.Room.Invites {
 			if invite.State == inviteIssued {
-				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", invite.Hash), "invite", m.id); err != nil {
+				if _, err = tx.ExecContext(ctx, "INSERT INTO game_secrets(hash,kind,game_id) VALUES(?,?,?)", fmt.Sprintf("%x", invite.Hash), "invite", p.id); err != nil {
 					return err
 				}
 			}
@@ -272,11 +348,7 @@ func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserW
 		return err
 	}
 	defer stmt.Close()
-	var records []game.JournalRecord
-	if m.world != nil {
-		records = m.world.JournalSince(m.savedCursor)
-	}
-	for _, record := range records {
+	for _, record := range p.records {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -284,36 +356,50 @@ func (m *Match) checkpoint(ctx context.Context, now time.Time, browser *browserW
 		if err != nil {
 			return err
 		}
-		if _, err = stmt.ExecContext(ctx, m.id, record.Event.ID, encoded); err != nil {
+		if _, err = stmt.ExecContext(ctx, p.id, record.Event.ID, encoded); err != nil {
 			return err
 		}
 	}
-	if m.archiveCapture != nil {
-		if _, err = tx.ExecContext(ctx, "INSERT INTO game_archives(game_id,transfer_id,payload) VALUES(?,?,?)", m.id, m.archiveCapture.TransferID, archive); err != nil {
+	if p.transferID != "" {
+		if _, err = tx.ExecContext(ctx, "INSERT INTO game_archives(game_id,transfer_id,payload) VALUES(?,?,?)", p.id, p.transferID, p.archive); err != nil {
 			return err
 		}
 	}
-	if m.importReceipt != nil {
-		v := m.importReceipt
+	if p.importReceipt != nil {
+		v := p.importReceipt
 		if _, err = tx.ExecContext(ctx, "INSERT INTO imported_transfers(transfer_id,game_id,receipt) VALUES(?,?,?)", v.ID, v.GameID, v.Receipt); err != nil {
 			return err
 		}
 	}
-	if browser != nil {
-		b := browser.Binding
-		if _, err = tx.ExecContext(ctx, `INSERT INTO browser_members(browser_hash,game_id,member_id,version) VALUES(?,?,?,?) ON CONFLICT(browser_hash,game_id) DO UPDATE SET member_id=excluded.member_id,version=excluded.version`, browser.Hash, b.GameID, b.MemberID, b.Version); err != nil {
+	if p.browser != nil {
+		b := p.browser.Binding
+		if _, err = tx.ExecContext(ctx, `INSERT INTO browser_members(browser_hash,game_id,member_id,version) VALUES(?,?,?,?) ON CONFLICT(browser_hash,game_id) DO UPDATE SET member_id=excluded.member_id,version=excluded.version`, p.browser.Hash, b.GameID, b.MemberID, b.Version); err != nil {
 			return err
 		}
 	}
 	if err = tx.Commit(); err != nil {
 		return err
 	}
-	m.archiveCapture = nil
-	m.savedAt, m.saveError = info.SavedAt, ""
-	if m.world != nil {
-		m.savedCursor = m.world.NextEvent
-	}
 	return nil
+}
+
+// Hold the registry lock throughout admission and return the game locked. A
+// clock worker may have closed an idle lease while waiting to remove it from
+// the registry. Replace that lease from its durable save before admitting a
+// new request; retained old handles and old streams still reject the lease.
+func (s *Service) loadLocked(id string) (*Match, error) {
+	for {
+		m, err := s.load(id)
+		if err != nil {
+			return nil, err
+		}
+		m.mu.Lock()
+		if m.lifecycle.State() != leaseClosed {
+			return m, nil
+		}
+		m.mu.Unlock()
+		delete(s.matches, id)
+	}
 }
 
 // The service lock protects loading and unloading; the match lock protects
@@ -490,11 +576,10 @@ func (s *Service) Resume(identifier string) (Session, error) {
 			}
 		}
 	}
-	m, err := s.load(id)
+	m, err := s.loadLocked(id)
 	if err != nil {
 		return Session{}, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	token, err := randomID(32)
 	if err != nil {

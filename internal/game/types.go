@@ -267,6 +267,7 @@ type World struct {
 	peacePeriod  *statemachine.Instance[treatyState, treatyEvent, *World]
 	landRegions  []int
 	waterRegions []int
+	viewMaps     map[int]MapView
 	barriers     map[Vec]*Entity
 }
 

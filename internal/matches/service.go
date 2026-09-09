@@ -3,7 +3,6 @@
 package matches
 
 import (
-	"context"
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
@@ -12,7 +11,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -74,6 +72,9 @@ type Match struct {
 	window          time.Time
 	windowCommands  int
 	lifecycle       *statemachine.Instance[leaseState, leaseEvent, *leaseContext]
+	lastStepAt      time.Time
+	lastMaintenance time.Time
+	autosave        *checkpointJob
 	accumulator     float64
 }
 type Service struct {
@@ -184,15 +185,16 @@ func (s *Service) authorized(id, token string, load bool) (*Match, error) {
 	m := s.matches[id]
 	var err error
 	if load {
-		m, err = s.load(id)
+		m, err = s.loadLocked(id)
 	} else if m == nil {
 		err = ErrNotFound
+	} else {
+		m.mu.Lock()
 	}
 	s.mu.Unlock()
 	if err != nil {
 		return nil, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	if m.room != nil {
 		return nil, ErrUnauthorized
@@ -291,66 +293,6 @@ func (m *Match) Placement(p Placement) PlacementResult {
 	return v
 }
 
-// One scheduler serializes fixed steps for each match. A delayed scheduler slows
-// wall-clock playback; it never changes Step or invents a larger physics delta.
-func (s *Service) Run(ctx context.Context) {
-	ticker := time.NewTicker(50 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case now := <-ticker.C:
-			s.mu.Lock()
-			if ctx.Err() != nil || s.lifecycle.State() != serviceServing {
-				s.mu.Unlock()
-				return
-			}
-			for id, m := range s.matches {
-				if ctx.Err() != nil {
-					break
-				}
-				m.mu.Lock()
-				if m.room != nil {
-					unload := m.pulseRoom(ctx, now)
-					m.mu.Unlock()
-					if unload {
-						delete(s.matches, id)
-					}
-					continue
-				}
-				// Save before closing a durable lease; failed writes keep the
-				// only authoritative copy alive and are retried next interval.
-				expiring := leaseExpired(nil, &leaseContext{m, now}) == nil
-				if s.db != nil && (now.Sub(m.lastSaveAttempt) >= AutosaveInterval || expiring) {
-					if err := m.saveContext(ctx, now); err != nil {
-						if ctx.Err() != nil {
-							m.mu.Unlock()
-							break
-						}
-						slog.Error("checkpoint failed", "match", id, "error", err)
-						m.lastAccess = now
-						m.mu.Unlock()
-						continue
-					}
-				}
-				m.fireLease(leasePulse, now)
-				if m.lifecycle.State() == leaseClosed {
-					delete(s.matches, id)
-					m.mu.Unlock()
-					continue
-				}
-				m.accumulator += .05 * m.world.Speed
-				for m.accumulator >= game.Step && ctx.Err() == nil {
-					m.world.Update()
-					m.accumulator -= game.Step
-				}
-				m.mu.Unlock()
-			}
-			s.mu.Unlock()
-		}
-	}
-}
 func (s *Service) String() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()

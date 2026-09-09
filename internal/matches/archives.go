@@ -313,11 +313,10 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 			old = s.imported[payload.Manifest.TransferID]
 		}
 		if old.ID != "" {
-			m, e := s.load(old.GameID)
+			m, e := s.loadLocked(old.GameID)
 			if e != nil {
 				return result, ruleError("game_deleted", "The imported game was deleted. Import a new copy instead.")
 			}
-			m.mu.Lock()
 			defer m.mu.Unlock()
 			for _, p := range m.room.Seats {
 				if p.MemberID == m.room.OwnerID && hashEqual(p.RejoinHash, tokenHash(req.RejoinCode)) {

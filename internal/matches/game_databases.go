@@ -145,6 +145,10 @@ func (s *Service) discardUncreated(id string) {
 // Tombstone commits first: a crash or failed unlink cannot resurrect a deleted
 // game on this host. A stale Match is also fenced by its own database marker.
 func (s *Service) deleteDatabase(m *Match, epoch string) error {
+	if m.autosave != nil {
+		m.autosave.cancel()
+		m.collectAutosave(true)
+	}
 	if !s.deleted[m.id] {
 		tx, err := m.db.Begin()
 		if err != nil {

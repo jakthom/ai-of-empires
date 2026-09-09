@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import type { MapView, Vec } from './api.generated';
 import { biomePalette } from './biomes';
+import { changedMapCells } from './snapshot-stream';
 
 // Relief is presentation of Go's observations, never a second terrain model
 // for movement or combat. Unknown cells acquire heights only when Go reveals them.
@@ -116,8 +117,11 @@ export class BattlefieldTerrain {
   }
 
   update(map: MapView) {
+    if (map === this.map) return;
+    const indices = changedMapCells(map, this.map);
     const changed = new Set<number>(), geometry = new Set<number>(), fog = new Set<number>();
-    map.tiles.forEach((tile,i) => {
+    const inspect = (i: number) => {
+      const tile = map.tiles[i];
       const old = this.map.tiles[i], x = i % map.width, z = Math.floor(i/map.width);
       if (tile.terrain !== old.terrain || tile.elevation !== old.elevation) {
         // A newly revealed neighbor changes joined corners and bordering walls.
@@ -128,7 +132,9 @@ export class BattlefieldTerrain {
         }
       }
       if (tile.biome !== old.biome || map.biome !== this.map.biome || map.fog[i] !== this.map.fog[i]) fog.add(this.chunkAt(x,z));
-    });
+    };
+    if (indices && map.biome === this.map.biome) indices.forEach(inspect);
+    else for (let i = 0; i < map.tiles.length; i++) inspect(i);
     this.map = map;
     changed.forEach(i => { this.corners[i] = cornerHeights(map,i); });
     geometry.forEach(id => this.rebuild(id));

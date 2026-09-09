@@ -51,7 +51,7 @@ func (w *World) JournalSince(after int) []JournalRecord {
 	return records
 }
 
-func (w *World) Checkpoint() ([]byte, error) {
+func (w *World) checkpointState() checkpoint {
 	c := checkpoint{Version: 4, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
 	for id, e := range w.Entities {
 		c.Entities[id] = entityStates{e.behavior.State(), e.life.State(), e.production.State(), e.siege.State()}
@@ -67,8 +67,21 @@ func (w *World) Checkpoint() ([]byte, error) {
 	for key, relation := range w.Relations {
 		c.Relations[key] = relation.lifecycle.State()
 	}
-	return json.Marshal(c)
+	return c
 }
+
+func (w *World) Checkpoint() ([]byte, error) { return json.Marshal(w.checkpointState()) }
+
+// CheckpointData is a detached persistence value, never a running simulation.
+// Capture while holding the game lock; Encode can run concurrently with play.
+type CheckpointData struct{ state checkpoint }
+
+func (w *World) CaptureCheckpoint() CheckpointData {
+	c := w.checkpointState()
+	c.World = w.freezeCheckpointWorld()
+	return CheckpointData{state: c}
+}
+func (c CheckpointData) Encode() ([]byte, error) { return json.Marshal(c.state) }
 
 func Restore(data []byte, journal []JournalRecord) (*World, error) {
 	return RestoreForUsers(data, journal, nil)

@@ -109,3 +109,96 @@ Giant contains 82,944 terrain cells, so snapshots, fog updates, generation and
 checkpoints cost more than on Small. Terrain remains chunked and culled by the
 camera. The short rendering sample does not establish a long-game memory bound
 or guarantee 32× simulation with a developed six-kingdom economy.
+
+## High-speed scheduling and delivery — September 8, 2026
+
+A second investigation compared commit `0afec69` with this change on the same
+Apple M1 Pro and installed Chrome. The public-UI scenario uses seed 82731, six
+settlements, Huge (224×224), Mountain Lakes, Mixed Regions, Everything visible,
+and Peaceful practice. After an eight-second warmup it samples 15 seconds at
+16×, followed by 15 seconds at 32×. Both versions have 1,376 entities: 24 units,
+seven buildings, and 1,345 resources. One villager moves 18.35 map units during
+the first segment; it is stationary in the second. This is a light opening
+workload, not a developed economy or battle.
+
+| Measurement | Before | After |
+|---|---:|---:|
+| Existing SSE stream bytes, 15 seconds at 16× | 551.32 MB | 0.526 MB |
+| Existing SSE stream bytes, 15 seconds at 32× | 512.29 MB | 0.543 MB |
+| Stream delivery gap, p95 at 16× | 98.85 ms | 50.93 ms |
+| Stream delivery gap, p95 at 32× | 110.48 ms | 50.92 ms |
+| Observed simulation/wall time at 32× | about 30× | about 32× |
+| Animation-frame interval, p95 | 16.7 ms | 16.7 ms |
+| Animation frames above 50 ms / long tasks | 0 / 0 | 0 / 0 |
+
+Byte counts come from Chrome CDP `Network.dataReceived` on the UI's existing
+SSE connection during the sample, without opening a duplicate stream. They
+exclude the initial full snapshot and other HTTP requests. CDP reports transport
+chunks rather than complete SSE messages, so the old stream can have several
+arrivals per frame. Clock estimates use HTTP snapshots bracketing the browser
+sample and include a small request-timing error. Animation-frame timing alone
+does not establish smooth unit movement; separate presentation checks exercise
+jitter, observed turns, stalled delivery, and reconnection.
+
+The CPU profile also identified rebuilding fog-memory views for every resource
+and kingdom on each visibility refresh. Permanently revealed worlds now use
+current observations directly; fogged worlds share each refresh's immutable
+public entity projection while keeping each player's memory separate. In the
+Huge simulation microbenchmark, mean tick cost fell from **1.544 ms to 0.785 ms**
+and allocations from **793,049 to 16,023 bytes per tick**. Capturing a detached
+Huge-world checkpoint takes about **0.832 ms**, with encoding and database I/O
+performed afterward, outside the simulation lock. These averages are not bounds
+on a particular pathfinding, combat, or autosave operation.
+
+The changes address different parts of the pipeline:
+
+- Each loaded game has one clock worker using elapsed wall time, unchanged
+  50 ms physics steps, batches of at most eight ticks / roughly 4 ms, and at most
+  250 ms of wall-time debt. One physics tick remains atomic; an overloaded host
+  slows playback instead of changing mechanics or attempting unlimited catch-up.
+- The UI opts into 20 Hz `delta-v1` frames. Only changed entities and map cells
+  cross the wire after the complete initial view. Defaults remain compatible
+  with the original 10 Hz full-snapshot API. Each subscriber owns one private
+  baseline, and reconnects always start with current authenticated state.
+- Rendering keeps at most eight position observations per moving entity or
+  projectile and uses a 100–300 ms adaptive delay. It never predicts beyond the
+  last position. Removed/hidden entities disappear immediately.
+- Terrain skips unchanged cells and the minimap reuses a cached bitmap when
+  drawing camera outlines and unit markers. Patch metadata uses numeric base
+  IDs so it cannot retain a chain of old full maps.
+- Each game has at most one periodic checkpoint writer. It captures detached
+  data under the game lock, then encodes and commits outside it. Explicit saves,
+  membership changes, shutdown, and deletion join the older writer before
+  committing newer state. Leased SQLite connections use 100 ms busy waits and
+  retry complete transactions, allowing cancellation during lock contention.
+- Request admission replaces a finished lease from its saved checkpoint before
+  authorizing a new request. This closes the resume race between a game's clock
+  finishing its unload and removing it from the shared registry.
+
+Reproduce the isolated browser measurement (one worker, no competing benchmarks):
+
+```sh
+npm --prefix web run test:chrome -- high-speed.spec.ts --workers=1
+```
+
+The report attaches `high-speed-baseline.json` and a gameplay screenshot.
+`web/.browser-artifacts/high-speed-final.log` contains the local final sample.
+Use a detached `0afec69` checkout with the same harness for the old baseline.
+For the backend measurements:
+
+```sh
+go test ./internal/game -run '^$' \
+  -bench 'BenchmarkHugeSimulation|BenchmarkHugeSnapshotStream|BenchmarkHugeCheckpointCapture' \
+  -benchtime=2s -count=1
+```
+
+Validation includes the Go race suite, cancellation while SQLite is locked,
+newer saves winning over older autosaves, deterministic checkpoint capture,
+private delta reconstruction, independent game clocks, stalled presentation,
+and resume during lease removal. The full Chrome run passed 139 checks and
+exposed a resume race plus a flaky reload check; after the admission fix all
+37 affected world, difficulty, session, and multiplayer checks passed.
+
+Large armies, expensive routes, many simultaneous hosted games, and long-lived
+journals can still exhaust a host's CPU or memory. The four-hour full-army soak
+remains outside these measurements.

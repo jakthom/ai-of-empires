@@ -1,4 +1,6 @@
-import type { Catalog, Command, Config, MemberSession, GameInfo, GameLibrary, ConnectionInfo, Invitation, ImportResult, TransferInfo, GameControl, EventPage, PlacementResult, Receipt, SavedGame, Session, Snapshot, Vec } from './api.generated';
+import type { Catalog, Command, Config, MemberSession, GameInfo, GameLibrary, ConnectionInfo, Invitation, ImportResult, TransferInfo, GameControl, EventPage, PlacementResult, Receipt, SavedGame, Session, Snapshot, SnapshotFrame, Vec } from './api.generated';
+
+import { SnapshotAssembler } from './snapshot-stream';
 
 export type LogQuery = { after?: number; before?: number; limit?: number; q?: string; category?: string };
 
@@ -161,7 +163,7 @@ export class GameAPI {
         try {
           await this.ensureConnection();
           if(controller.signal.aborted)return;
-          const query=this.session?.membership_id ? `?connection=${encodeURIComponent(this.connectionID)}` : '';
+          const query=this.session?.membership_id ? `?format=delta-v1&connection=${encodeURIComponent(this.connectionID)}` : '?format=delta-v1';
           const response = await fetch(`/api/v1${this.path()}/events${query}`, {
             headers: this.session?.token ? { Authorization: `Bearer ${this.session.token}` } : {}, signal: controller.signal,
           });
@@ -170,16 +172,19 @@ export class GameAPI {
           onConnection('connected'); attempts = 0;
           const reader = response.body.getReader(), decoder = new TextDecoder();
           let pending = '';
+          const assembler = new SnapshotAssembler();
           try {
             while (!controller.signal.aborted) {
-              const { value, done } = await reader.read(); if (done) break;
+              const { value, done } = await reader.read(); if (done || controller.signal.aborted) break;
               pending += decoder.decode(value, { stream: true });
-              let boundary: number;
+              let boundary: number, latest: Snapshot | undefined;
               while ((boundary = pending.indexOf('\n\n')) >= 0) {
                 const event = pending.slice(0, boundary); pending = pending.slice(boundary + 2);
                 const data = event.split('\n').filter(line => line.startsWith('data: ')).map(line => line.slice(6)).join('\n');
-                if (data) onSnapshot(JSON.parse(data) as Snapshot);
+                if (data) latest = assembler.apply(JSON.parse(data) as SnapshotFrame);
               }
+              // Coalesce frames already delivered together after a busy tab.
+              if (latest) onSnapshot(latest);
             }
           } finally { await reader.cancel().catch(() => {}); }
         } catch (error) {

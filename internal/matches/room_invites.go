@@ -144,11 +144,10 @@ func (s *Service) InspectInvite(secret string) (Invitation, error) {
 	if err != nil {
 		return Invitation{}, err
 	}
-	m, err := s.load(id)
+	m, err := s.loadLocked(id)
 	if err != nil {
 		return Invitation{}, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	i, err := m.validInvite(secret)
 	if err != nil {
@@ -183,11 +182,10 @@ func (s *Service) ClaimInvite(req ClaimInvite, browser string) (MemberSession, e
 	if err != nil {
 		return MemberSession{}, err
 	}
-	m, err := s.load(id)
+	m, err := s.loadLocked(id)
 	if err != nil {
 		return MemberSession{}, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	i, err := m.validInvite(req.Secret)
 	if err != nil {
@@ -260,11 +258,10 @@ func (s *Service) Rejoin(req RejoinRequest, browser string) (MemberSession, erro
 	if err != nil {
 		return MemberSession{}, err
 	}
-	m, err := s.load(id)
+	m, err := s.loadLocked(id)
 	if err != nil {
 		return MemberSession{}, err
 	}
-	m.mu.Lock()
 	defer m.mu.Unlock()
 	for _, p := range m.room.Seats {
 		if p.State.State() != seatClaimed || !hashEqual(p.RejoinHash, tokenHash(code)) {

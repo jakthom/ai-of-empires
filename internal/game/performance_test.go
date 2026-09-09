@@ -1,6 +1,9 @@
 package game
 
-import "testing"
+import (
+	"encoding/json"
+	"testing"
+)
 
 // An unreachable order is common after construction closes a route. It must
 // remain cheap while a unit waits to retry, even in a long-running match.
@@ -25,5 +28,41 @@ func BenchmarkPopulatedSnapshot(b *testing.B) {
 	b.ResetTimer()
 	for range b.N {
 		_ = w.View(1)
+	}
+}
+
+func performanceHugeWorld() *World {
+	return New(Config{Difficulty: "peaceful", Seed: 82731, Settlements: 6, World: WorldOptions{Type: "mountain_lakes", Biome: "mixed", Size: "huge", Reveal: "all"}})
+}
+
+func BenchmarkHugeSimulation(b *testing.B) {
+	w := performanceHugeWorld()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		w.Update()
+	}
+}
+
+func BenchmarkHugeSnapshotStream(b *testing.B) {
+	w := performanceHugeWorld()
+	var s SnapshotStream
+	s.Next(w.View(1), 0)
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := range b.N {
+		f := s.Next(w.View(1), float64(i+1)*50)
+		if _, err := json.Marshal(f); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
+
+func BenchmarkHugeCheckpointCapture(b *testing.B) {
+	w := performanceHugeWorld()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = w.CaptureCheckpoint()
 	}
 }
