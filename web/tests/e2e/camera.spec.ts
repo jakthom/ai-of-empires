@@ -177,6 +177,110 @@ test('pans after a short left hold and keeps selection and perspective unchanged
   await page.screenshot({ path: info.outputPath('primary-drag-pan.png') });
 });
 
+test('pans an armed Give order after the hold delay without issuing a command', async ({ page, game }) => {
+  await game.start();
+  const f = await field(page), minimap = page.locator('#minimap');
+  const worker = await game.point('villager');
+  await page.mouse.click(worker.x, worker.y);
+  await expect(page.locator('#selected-name')).toHaveText('Villager');
+  const start = { x: f.x + f.width * .68, y: f.y + f.height * .56 };
+  const end = { x: start.x + 90, y: start.y + 35 };
+  const before = await minimap.screenshot();
+  const commands = commandsFrom(page);
+  await page.getByRole('button', { name: 'Give order' }).click();
+  await expect(page.locator('#mode-hint')).toContainText('Give order');
+  await drag(page, start, end);
+  expect((await minimap.screenshot()).equals(before)).toBe(false);
+  await expect(page.locator('#selected-name')).toHaveText('Villager');
+  await expect(page.locator('#mode-hint')).toContainText('Give order');
+  expect(commands).toEqual([]);
+});
+
+for (const viewport of [{ name: 'desktop', width: 1440, height: 960 }, { name: 'compact', width: 390, height: 640 }]) {
+  for (const selection of ['villager', 'scout', 'group'] as const) {
+    test(`ordinary hold-pan keeps the ${selection} selection at ${viewport.name} size`, async ({ page, game }) => {
+      await page.setViewportSize(viewport);
+      await game.start();
+      const f = await field(page), minimap = page.locator('#minimap');
+      if (selection === 'group') {
+        const workers = await Promise.all([0, 1, 2].map(index => game.point('villager', index)));
+        await page.mouse.click(workers[0].x, workers[0].y);
+        await page.keyboard.down('Shift');
+        for (const point of workers.slice(1)) await page.mouse.click(point.x, point.y);
+        await page.keyboard.up('Shift');
+        await expect(page.locator('#selection-count')).toHaveText('3 selected');
+      } else {
+        const point = await game.point(selection);
+        await page.mouse.click(point.x, point.y);
+        await expect(page.locator('#selection-count')).toHaveText('1 selected');
+        await expect(page.locator('#selected-name')).toContainText(selection === 'scout' ? 'Scout' : 'Villager');
+      }
+      const before = await minimap.screenshot(), commands = commandsFrom(page);
+      await drag(page, { x: f.x + f.width * .68, y: f.y + f.height * .56 }, { x: f.x + f.width * .78, y: f.y + f.height * .61 });
+      await expect.poll(async () => (await minimap.screenshot()).equals(before)).toBe(false);
+      expect(commands).toEqual([]);
+      if (selection === 'group') await expect(page.locator('#selection-count')).toHaveText('3 selected');
+      else await expect(page.locator('#selection-count')).toHaveText('1 selected');
+    });
+  }
+}
+
+for (const viewport of [{ name: 'desktop', width: 1440, height: 960 }, { name: 'compact', width: 390, height: 640 }]) {
+  for (const action of ['Give order', 'Move'] as const) {
+    test(`armed ${action} hold-pan keeps selection and remains armed at ${viewport.name} size`, async ({ page, game }, info) => {
+      await page.setViewportSize(viewport);
+      await game.start();
+      const f = await field(page), minimap = page.locator('#minimap');
+      const worker = await game.point('villager');
+      const workerID = (await game.snapshot()).entities.find(entity => entity.type === 'villager' && entity.owner === 1)!.id;
+      await page.mouse.click(worker.x, worker.y);
+      await expect(page.locator('#selected-name')).toHaveText('Villager');
+      const before = await minimap.screenshot(), commands = commandsFrom(page);
+      const button = action === 'Give order' ? page.locator('#actions').getByRole('button', { name: /^Give order/ }) : page.locator('#actions').getByRole('button', { name: /^.*Move Command$/ });
+      await button.click();
+      await expect(page.locator('#mode-hint')).toContainText(action);
+      await drag(page, { x: f.x + f.width * .68, y: f.y + f.height * .56 }, { x: f.x + f.width * .78, y: f.y + f.height * .61 });
+      await expect.poll(async () => (await minimap.screenshot()).equals(before)).toBe(false);
+      await expect(page.locator('#selected-name')).toHaveText('Villager');
+      await expect(page.locator('#mode-hint')).toContainText(action);
+      expect(commands).toEqual([]);
+      await page.screenshot({ path: info.outputPath('armed-pan-selection.png') });
+      const target = { x: f.x + f.width * .78, y: f.y + f.height * .72 };
+      const response = await game.command('move', () => page.mouse.click(target.x, target.y));
+      expect((response.request().postDataJSON() as Command).entity_ids).toEqual([workerID]);
+      expect(commands.filter(command => command.kind === 'move')).toHaveLength(1);
+      await expect(page.locator('#mode-hint')).toBeHidden();
+    });
+  }
+}
+
+test('a long stationary armed click still issues its intended order', async ({ page, game }) => {
+  await game.start();
+  const f = await field(page);
+  const worker = await game.point('villager');
+  await page.mouse.click(worker.x, worker.y);
+  await page.locator('#actions').getByRole('button', { name: /^Give order/ }).click();
+  const target = { x: f.x + f.width * .55, y: f.y + f.height * .48 };
+  await game.command('move', async () => {
+    await page.mouse.move(target.x, target.y);
+    await page.mouse.down();
+    await page.waitForTimeout(260);
+    await page.mouse.up();
+  });
+  await expect(page.locator('#mode-hint')).toBeHidden();
+});
+
+test('an armed drag before the pan hold delay sends no command', async ({ page, game }) => {
+  await game.start();
+  const f = await field(page), commands = commandsFrom(page);
+  const worker = await game.point('villager');
+  await page.mouse.click(worker.x, worker.y);
+  await page.locator('#actions').getByRole('button', { name: /^Give order/ }).click();
+  await drag(page, { x: f.x + f.width * .68, y: f.y + f.height * .56 }, { x: f.x + f.width * .78, y: f.y + f.height * .61 }, 40);
+  expect(commands).toEqual([]);
+  await expect(page.locator('#mode-hint')).toContainText('Give order');
+});
+
 test('selects on a single click, then pans on a held second click without rotating', async ({ page, game }) => {
   await game.start();
   const minimap = page.locator('#minimap'), before = await minimap.screenshot();
