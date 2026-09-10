@@ -22,6 +22,12 @@ func (w *World) View(player int) Snapshot {
 		Opponents: []OpponentView{}, Entities: []EntityView{}, Projectiles: []ProjectileView{}, Events: []Event{}, BuildOptions: []Action{},
 		Map: w.mapView(p),
 	}
+	v.Effects = []BattlefieldEffectView{}
+	for _, effect := range w.Aftermath {
+		if w.visible(player, effect.View.Position) {
+			v.Effects = append(v.Effects, effect.View)
+		}
+	}
 	v.Player.Production = p.Production.view()
 	v.Marketplace = w.marketplaceView(player)
 	for id := 1; id <= w.Config.Settlements; id++ {
@@ -87,6 +93,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	d := w.stats(e)
 	v := EntityView{ID: e.ID, Type: e.Type, Kind: d.Kind, Name: d.Name, Owner: e.Owner, Position: e.Position, HP: e.HP, MaxHP: d.HP, Radius: d.Radius, Progress: e.Progress, Amount: e.Amount, Resource: e.Resource, State: string(e.behavior.State()), Visible: true, Actions: []Action{}, Tasks: []Task{}, Passengers: []int{}, Deployed: e.siege.State() == SiegeDeployed, Container: e.Container, Relic: e.Relic}
 	v.Activity = w.activity(e)
+	v.DamageStage = w.damageStage(e)
 	v.Connections = w.barrierLinks(e, player)
 	if d.Kind == "building" {
 		if owner := w.Players[e.Owner]; owner != nil {
@@ -98,6 +105,9 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	}
 	if e.Owner != player || player == 0 {
 		return observedEntity(v)
+	}
+	if e.Order.Kind == "guard" {
+		v.GuardTarget = e.Order.Target
 	}
 	v.Cargo = e.Cargo
 	v.Stance = e.Stance
@@ -138,7 +148,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 			cost, time := agePrice(p.Age)
 			v.Actions = append(v.Actions, action("age", "", Ages[p.Age+1], "Advance your entire kingdom to the next age.", cost, time, w.canAge(p)))
 		}
-		if e.Type == "market" {
+		if tradingPost(e) {
 			for _, resource := range []string{"food", "wood", "stone"} {
 				for _, offer := range []struct{ kind, label string }{{"market_sell", "Sell "}, {"market_buy", "Buy "}} {
 					q, err := w.quoteExchange(p, e, offer.kind, resource)
@@ -161,12 +171,12 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 		if e.Type == "fishing_ship" {
 			v.Actions = append(v.Actions, action("gather", "", "Fish", "Choose a fish shoal. This ship brings its catch to your nearest reachable Dock as food.", Resources{}, 0, nil))
 		}
-		if e.Type == "trade_cart" {
+		if tradeCarrier(e) {
 			var err error
 			if w.tradeHome(e) == nil {
-				err = rule("market_required", "Build a Market on this landmass to receive trade gold.")
+				err = rule("market_required", "Build a reachable home Market or Dock to receive trade.")
 			}
-			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Start beside your Market. Choose an explored neutral Market to sell 100 surplus goods. The Marketplace shows local prices, purchases, and repeat controls.", Resources{}, 0, err))
+			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Start beside your home Market or Dock. The Marketplace shows funded cart and ship routes, local prices, purchases, and repeat controls.", Resources{}, 0, err))
 		}
 		if e.Type == "villager" {
 			for _, building := range defs {
@@ -178,7 +188,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 		for _, cmd := range []struct {
 			event                    UnitEvent
 			kind, label, description string
-		}{{OrderMove, "move", "Move", "Choose a destination."}, {OrderAttack, "attack_move", "Attack move", "Move and attack other kingdoms along the way. This can start a conflict."}, {StopOrder, "stop", "Stop", "Cancel the current order."}} {
+		}{{OrderGuard, "guard", "Guard", "Follow a friendly unit or trading post, protect it from nearby attackers, then return to formation."}, {OrderMove, "move", "Move", "Choose a destination."}, {OrderAttack, "attack_move", "Attack move", "Move and attack other kingdoms along the way. This can start a conflict."}, {StopOrder, "stop", "Stop", "Cancel the current order."}} {
 			// Query only player commands. Permitted also evaluates pulse guards,
 			// which require the full simulation context (targets, cargo, RNG roll).
 			// Next checks the command guard without firing any transition effects.
@@ -227,6 +237,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 // A visible building does not reveal its production, and a moving unit does
 // not reveal its destination, queued intent, cargo or recovery timers.
 func observedEntity(v EntityView) EntityView {
+	v.GuardTarget = 0
 	v.State, v.Activity = "observed", "Observed"
 	if v.Kind == "resource" {
 		v.Activity = "Available"

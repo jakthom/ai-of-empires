@@ -67,6 +67,18 @@ export interface AuditPage {
   events: AuditEvent[];
 }
 
+export interface BattlefieldEffectView {
+  id: number;
+  kind: string;
+  type: string;
+  owner: number;
+  position: Vec;
+  radius: number;
+  appearance_age: number;
+  started_at: number;
+  duration: number;
+}
+
 export interface BiomeEconomy {
   biome: string;
   deposits: Resources;
@@ -188,6 +200,8 @@ export interface Difficulty {
 }
 
 export interface EntityView {
+  guard_target?: number;
+  damage_stage?: number;
   connections?: Vec[];
   appearance_age?: number;
   id: number;
@@ -580,6 +594,7 @@ export interface Session {
 }
 
 export interface Snapshot {
+  effects: BattlefieldEffectView[];
   marketplace: MarketplaceView;
   control_revision?: number;
   version: string;
@@ -604,6 +619,7 @@ export interface Snapshot {
 }
 
 export interface SnapshotDelta {
+  effects: BattlefieldEffectView[];
   marketplace?: MarketplaceView;
   control_revision: number;
   tick: number;

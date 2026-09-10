@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import type { EntityView } from './api.generated';
 import { dressBuilding } from './building-materials';
+import { decorateDamage } from './damage';
 
 const materials = new Map<string, THREE.MeshStandardMaterial>();
 function material(color: string) {
@@ -57,12 +58,19 @@ function bakeStaticMeshes(g: THREE.Group) {
   }
   for (const [m,meshes] of batches) {
     if (meshes.length < 2) continue;
-    const parts = meshes.map(mesh => { mesh.updateMatrix(); return mesh.geometry.clone().applyMatrix4(mesh.matrix); });
+    const mixedIndices = meshes.some(mesh => !mesh.geometry.index) && meshes.some(mesh => !!mesh.geometry.index);
+    const parts = meshes.map(mesh => {
+      mesh.updateMatrix();
+      // Rubble and wall fractures share a material but use different index
+      // formats. Normalize this batch before merging their static geometry.
+      const geometry = mixedIndices && mesh.geometry.index ? mesh.geometry.toNonIndexed() : mesh.geometry.clone();
+      return geometry.applyMatrix4(mesh.matrix);
+    });
     const geometry = mergeGeometries(parts);
     parts.forEach(part => part.dispose());
     if (!geometry) throw new Error('Unable to assemble battlefield geometry.');
-    meshes.forEach(mesh => g.remove(mesh));
-    const mesh = new THREE.Mesh(geometry,m); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.privateGeometry = true; g.add(mesh);
+    meshes.forEach(mesh => {g.remove(mesh);if(mesh.userData.privateGeometry)mesh.geometry.dispose()});
+    const mesh = new THREE.Mesh(geometry,m); mesh.castShadow = true; mesh.receiveShadow = true; mesh.userData.privateGeometry = true; mesh.userData.privateMaterial = meshes.some(part=>part.userData.privateMaterial); g.add(mesh);
   }
 }
 function flag(g: THREE.Group, owner: number, x: number, y: number, z: number, scale = 1) {
@@ -223,11 +231,14 @@ function building(g: THREE.Group, e: EntityView) {
 }
 function unit(g: THREE.Group, e: EntityView) {
   const color = ownerColor(e.owner), type = e.type;
-  if (['galley', 'fishing_ship', 'fire_ship', 'transport'].includes(type)) {
+  if (['galley', 'fishing_ship', 'fire_ship', 'transport', 'trade_ship'].includes(type)) {
     box(g, '#71543e', 0, .2, 0, .65, .35, 1.8);
     const bow = shape(g, cone, '#71543e', 0, .2, -.9, .46, .5, .46); bow.rotation.x = Math.PI / 2;
     box(g, palette.wood, 0, .9, 0, .04, 1.5, .04);
-    box(g, type === 'fire_ship' ? color : '#d9cfac', .27, 1.1, 0, .55, .8, .025); return;
+    const sail=box(g, type === 'fire_ship' ? color : '#d9cfac', .27, 1.1, 0, .55, .8, .025);
+    if((e.damage_stage??0)>=3){sail.scale.y*=.6;sail.rotation.z=.24}
+    if(type==='trade_ship'){for(const z of [-.55,.5])box(g,'#b5a47c',0,.48,z,.48,.24,.38);flag(g,e.owner,-.24,.35,.7,.3)}
+    return;
   }
   if (['ram', 'mangonel', 'trebuchet', 'bombard_cannon', 'trade_cart', 'supply_cart'].includes(type)) {
     box(g, palette.wood, 0, .35, 0, .8, .35, 1.2);
@@ -314,7 +325,22 @@ export function makeModel(e: EntityView, biome = 'temperate') {
     for (const x of [-e.radius, e.radius]) for (const z of [-e.radius, e.radius]) box(g, '#a8905b', x, 1, z, .07, 2, .07);
   }
   if (e.kind === 'building') dressBuilding(g, e);
+  decorateDamage(g,e,roofGeometry);
   bakeStaticMeshes(g);
-  if (!e.visible) g.traverse(o => { if (o instanceof THREE.Mesh) { const m = (o.material as THREE.MeshStandardMaterial).clone(); m.color.multiplyScalar(.4); o.material = m; o.userData.privateMaterial = true; } });
+  if (!e.visible) {
+    const faded = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+    g.traverse(o => {
+      if (!(o instanceof THREE.Mesh)) return;
+      const source = o.material as THREE.MeshStandardMaterial;
+      let m = faded.get(source);
+      if (!m) {
+        // Damaged models already own their materials. Reuse those copies so
+        // a remembered building does not abandon its first set of materials.
+        m = o.userData.privateMaterial ? source : source.clone();
+        m.color.multiplyScalar(.4); faded.set(source, m);
+      }
+      o.material = m; o.userData.privateMaterial = true;
+    });
+  }
   return g;
 }

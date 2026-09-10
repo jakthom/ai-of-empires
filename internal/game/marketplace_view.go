@@ -78,7 +78,7 @@ type TradeShipmentView struct {
 func (w *World) marketplaceView(player int) MarketplaceView {
 	v := MarketplaceView{Markets: []RegionalMarketView{}, Offers: []TradeOfferView{}, Shipments: []TradeShipmentView{}, Capacity: tradeCapacity, MaxLots: maxOfferLots, MaxOffers: maxOpenOffers}
 	var market *Entity
-	for _, e := range w.entities(player, "market") {
+	for _, e := range w.tradingPosts(player) {
 		if e.life.State() == Active {
 			market = e
 			break
@@ -96,8 +96,8 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 			v.Merchants.Actions = append(v.Merchants.Actions, a)
 		}
 	}
-	carts := w.entities(player, "trade_cart")
-	for _, neutral := range w.entities(0, "market") {
+	carts := w.tradeCarriers(player)
+	for _, neutral := range w.tradingPosts(0) {
 		// Regional prices are available at the observed market. Moving out of
 		// sight never gives a subscription to another trader's hidden activity.
 		if !w.visibleEntity(player, neutral) {
@@ -200,7 +200,7 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 				view.Status = "Paused — resume the caravan to continue"
 				view.CanResume = s.Buyer == player
 			} else if s.lifecycle.State() != shipmentOutbound && w.tradeHome(cart) == nil {
-				view.Status = "Waiting for a reachable home Market"
+				view.Status = "Waiting for a reachable home trading post"
 			} else if len(cart.Path) == 0 && cart.Repath > 0 && cart.Position.Distance(cart.PathGoal) > definitions["market"].Radius+.8 {
 				view.Status = "Route blocked — waiting for a clear path"
 			}

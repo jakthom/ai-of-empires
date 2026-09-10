@@ -8,7 +8,7 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 
 | Concern | Main states | Transition definitions |
 |---|---|---|
-| Unit behavior | Idle, moving, work, approach, attack windup/cooldown, garrisoned | `internal/game/machines.go`, `movement.go`, `economy.go`, `combat.go`, `monks.go` |
+| Unit behavior | Idle, guarding, moving, work, approach, attack windup/cooldown, garrisoned | `internal/game/machines.go`, `guard.go`, `movement.go`, `economy.go`, `combat.go`, `monks.go` |
 | Entity life | Foundation, active, exhausted, destroyed | `internal/game/lifecycle.go` |
 | Production | Idle, working, blocked | `internal/game/production.go` |
 | Siege deployment | Packed, deploying, deployed, packing | `internal/game/lifecycle.go` |
@@ -19,6 +19,8 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 | Naval expedition | Idle, boarding, sailing, landing, returning | `internal/game/ai_naval.go` |
 | Market offer | Draft, open, filled, cancelled | `internal/game/trade_offers.go` |
 | Commodity delivery | Reserved, outbound, returning, returning payment, delivered, recalled, lost | `internal/game/trade_shipments.go` |
+| Merchant supply | Preparing, travelling | `internal/game/merchant_regions.go` |
+| Destruction remains | Present, expired | `internal/game/aftermath.go` |
 | Pairwise relationship | Peaceful, hostile | `internal/game/diplomacy.go` |
 | Match | Running, paused, finished | `internal/game/lifecycle.go` |
 | Server session lease | Open, draining, closed | `internal/matches/lifecycle.go` |
@@ -130,7 +132,7 @@ Naval expeditions own a transport, crew roster, observed destination and deadlin
 
 The `reseed_farm` command and automatic farmers share the existing Exhausted → Foundation `ReseedFarm` transition. A read-only plan chooses the assigned farmer or nearest idle villager on connected land; the farm effect charges wood and restores yield once, and the worker receives a normal build order. Interruption leaves a resumable foundation. Checkpoint restoration does not repeat the payment.
 
-Fishing uses the ordinary seeking, gathering, returning and natural-resource depletion lifecycles, with naval reachability and Dock delivery. Market exchanges are instantaneous validated transactions, not additional lifecycles. Snapshot actions and command execution share the quote function. Repeating trade-cart trips use Trading and ReturningTrade; loss of a reachable owned Market ends the route.
+Fishing uses the ordinary seeking, gathering, returning and natural-resource depletion lifecycles, with naval reachability and Dock delivery. Market exchanges are instantaneous validated transactions, not additional lifecycles. Snapshot actions and command execution share the quote function. New funded cart and ship deliveries use the shipment machine described below; Trading and ReturningTrade only drain legacy cargo from older checkpoints.
 
 ## Private game sessions and portability
 
@@ -142,10 +144,18 @@ State effects freeze or mutate in-memory state. SQLite I/O happens afterward und
 
 ## Marketplace ownership
 
-Each listing owns one offer instance. Post reserves all offered lots; fill transfers one lot into a new shipment; cancel releases only unclaimed lots. Each shipment owns one delivery instance. Its effects load payment, move the assigned cart, exchange cargo at the partner Market, return goods, recall payment, or settle loss. The unit behavior instance owns whether the cart is following the caravan intention or interrupted by a normal move/stop. It does not duplicate the delivery phase. The simulation emits shipment pulses after unit/projectile updates; continuation commands dispatch only after delivery commits.
+Each listing owns one offer instance. Post reserves all offered lots; fill transfers one lot into a new shipment; cancel releases only unclaimed lots. Each shipment owns one delivery instance. Its effects load payment, move the assigned cart or ship, exchange cargo at the matching partner Market or Dock, return goods, recall payment, or settle loss. The unit behavior instance owns whether the cart is following the caravan intention or interrupted by a normal move/stop. It does not duplicate the delivery phase. The simulation emits shipment pulses after unit/projectile updates; continuation commands dispatch only after delivery commits.
 
-Guards only inspect funds, terms, ownership, observations, route connectivity and lifecycle state. Inventory, price formulas and movement are ordinary data/math, not additional state machines. Checkpoint version 6 stores offer, shipment and supply states separately, deep-copies records for background encoding, and restores without replaying payments, refunds or replenishment. Version-5 merchant inventory is distributed without duplication; older checkpoints initialize regional merchants without regenerating resource deposits.
+Guards only inspect funds, terms, ownership, observations, route connectivity and lifecycle state. Inventory, price formulas and movement are ordinary data/math, not additional state machines. Checkpoint version 7 stores offer, shipment, supply and destruction-remains states separately, deep-copies records for background encoding, and restores without replaying payments, refunds or replenishment. Version-5 merchant inventory is distributed without duplication; older checkpoints initialize regional merchants without regenerating resource deposits.
 
 Each merchant region owns one supply instance: Preparing → Travelling on a due, feasible departure; Travelling → Preparing on arrival or loss. Named effects create the physical neutral caravan, move it through normal pathfinding, deliver bounded output, settle bounded consumer purchases, or discard lost cargo. The region holds the sole in-transit payload authority, keyed to its physical cart. No second timer restocks its warehouse. New trips wait 90 seconds after arrival or loss; a blocked trip cannot overlap or accrue catch-up deliveries. The cart's ordinary unit lifecycle stays idle; the supply lifecycle alone owns this journey and movement.
 
 Merchant shipments use the existing delivery machine with a separate guarded merchant-launch event. Launch reserves the regional stock and loads the accepting player's cart in one effect. Collection credits the local merchant, then returning cargo settles at home. Recall/loss releases only uncollected reserved goods. Inbound and refundable warehouse commitments are derived from active shipment states. Repetition is dispatched through `World.Apply` after delivery commits and honors current local prices and the stored limit. The former distance-gold route only drains already-loaded legacy cargo once; new routes cannot enter it through a trade command.
+
+## Escorts, captured cargo and destruction
+
+A Guard order remains owned by the unit behavior instance. `Order.Target` is the protected entity and `Order.Threat` is the temporary combat target. Guarding enters Chasing through a named engagement effect; the existing combat windup and cooldown rows execute attacks. Higher-priority guarded rows return to Guarding when the enemy leaves sight or pursuit range, and end the order when its charge becomes invalid. There is no second combat controller, duplicated suspended order, or nested self-fire. Normal command queuing dispatches after the current event commits. The owner alone receives `guard_target` in snapshots.
+
+A lethal `DamageEntity` transition captures carried resources before removing the entity. Its source owner comes from the attack or projectile, not client input. Regular cargo is cleared once, and shipment loss releases only goods never collected. For a regional supply cart, the lethal effect fires the region’s `raided` event: Travelling → Preparing awards and clears the region’s sole authoritative cargo, records the loss and schedules the next departure. This supply effect does not remove its actor or re-enter the actor’s life instance; the original lethal transition completes removal afterward.
+
+Go derives damage stage from current health rather than storing a second mutable condition. Confirmed lethal damage creates one world-owned aftermath instance, Present → Expired on a game-clock pulse. Renderer poses, flames, smoke and crumbling are projections of these authenticated observations. Effects obey ordinary sight and are persisted with their lifecycle state, without replaying the lethal transition or spoils on restore. Pause stops expiry; deletion and fog disappearance never create battle remains.

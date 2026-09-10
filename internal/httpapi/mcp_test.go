@@ -322,6 +322,23 @@ func TestMCPVisibleOpponentsDoNotExposePrivatePlans(t *testing.T) {
 	host := httptest.NewServer(f.server)
 	t.Cleanup(host.Close)
 	owner, friend := connectMCP(t, host, f.owner), connectMCP(t, host, f.friend)
+	view := f.view(t, f.friend)
+	scout, worker := ownEntity(t, view, "scout"), ownEntity(t, view, "villager")
+	escort := game.Command{ID: "private-escort", Kind: "guard", EntityIDs: []int{scout.ID}, TargetID: worker.ID}
+	first := mcpOutput[matches.Receipt](t, friend, "command", escort)
+	if replay := mcpOutput[matches.Receipt](t, friend, "command", escort); first != replay {
+		t.Fatal("guard retry changed its receipt")
+	}
+	guard := mcpOutput[Observation](t, friend, "observe", ObserveRequest{EntityIDs: []int{scout.ID}})
+	if len(guard.Snapshot.Entities) != 1 || guard.Snapshot.Entities[0].GuardTarget != worker.ID || guard.Snapshot.Entities[0].State != "guarding" {
+		t.Fatal("agent could not issue and observe its escort")
+	}
+	observed := mcpOutput[Observation](t, owner, "observe", ObserveRequest{EntityIDs: []int{scout.ID}})
+	if len(observed.Snapshot.Entities) != 1 || observed.Snapshot.Entities[0].GuardTarget != 0 {
+		t.Fatal("visible foreign escort disclosed its private order")
+	}
+	escort.ID = "foreign-escort"
+	mcpRefusal(t, owner, "command", escort, "invalid_selection")
 	foreign := ownEntity(t, f.view(t, f.friend), "town_center")
 	mcpOutput[matches.Receipt](t, friend, "command", game.Command{ID: "secret-production", Kind: "research", EntityIDs: []int{foreign.ID}, Product: "loom"})
 	v := mcpOutput[Observation](t, owner, "observe", ObserveRequest{EntityIDs: []int{foreign.ID}})
@@ -430,7 +447,7 @@ func TestMCPDiscoveryStrictInputsAndBoundedReads(t *testing.T) {
 	catalog := mcpOutput[game.Catalog](t, client, "catalog", struct{}{})
 	properties := commandSchema["properties"].(map[string]any)
 	kinds := properties["kind"].(map[string]any)["enum"].([]any)
-	if len(kinds) != len(catalog.Commands) || len(kinds) != 32 || commandSchema["additionalProperties"] != false {
+	if len(kinds) != len(catalog.Commands) || len(kinds) != 33 || commandSchema["additionalProperties"] != false {
 		t.Fatal("command schema missing catalogue coverage or strict field validation")
 	}
 	for _, c := range catalog.Commands {

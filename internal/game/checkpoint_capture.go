@@ -72,6 +72,10 @@ func (w *World) freezeCheckpointWorld() *World {
 	for id, incidents := range w.Incidents {
 		c.Incidents[id] = maps.Clone(incidents)
 	}
+	c.Aftermath = slices.Clone(w.Aftermath)
+	for i := range c.Aftermath {
+		c.Aftermath[i].lifecycle = nil
+	}
 	c.Projectiles = slices.Clone(w.Projectiles)
 	for i := range c.Projectiles {
 		c.Projectiles[i].flight = nil

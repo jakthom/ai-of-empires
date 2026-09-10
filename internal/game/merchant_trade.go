@@ -11,11 +11,11 @@ import (
 
 func (w *World) knowsNeutralMarket(player, id int) bool {
 	e := w.Entities[id]
-	if e != nil && e.Type == "market" && e.Owner == 0 && w.visibleEntity(player, e) {
+	if tradingPost(e) && e.Owner == 0 && w.visibleEntity(player, e) {
 		return true
 	}
 	m, ok := w.Players[player].Memory[id]
-	return ok && m.Type == "market" && m.Owner == 0
+	return ok && (m.Type == "market" || m.Type == "dock") && m.Owner == 0
 }
 
 func (w *World) merchantTradeQuote(player, market int, product, mode string, cart *Entity) (exchangeQuote, error) {
@@ -36,25 +36,25 @@ func (w *World) merchantTradeQuote(player, market int, product, mode string, car
 	if target.Owner != 0 {
 		return q, rule("invalid_target", "Choose a neutral Market.")
 	}
-	if cart == nil || cart.Owner != player || cart.Type != "trade_cart" || cart.life.State() != Active || cart.Container != 0 || cart.behavior.State() != Idle || len(cart.Orders) > 0 || cart.Cargo > 0 || w.cartShipment(cart.ID) != nil {
-		return q, rule("cart_required", "Use an idle, empty Trade Cart without queued orders or an active delivery.")
+	if cart == nil || cart.Owner != player || !tradeCarrier(cart) || cart.life.State() != Active || cart.Container != 0 || cart.behavior.State() != Idle || len(cart.Orders) > 0 || cart.Cargo > 0 || w.cartShipment(cart.ID) != nil {
+		return q, rule("cart_required", "Use an idle, empty Trade Cart or Trade Ship without queued orders or an active delivery.")
 	}
 	home := w.tradeHome(cart)
 	if home == nil {
-		return q, rule("market_required", "Build a Market on this landmass to receive deliveries.")
+		return q, rule("market_required", "Build a reachable home Market for a cart or Dock for a Trade Ship.")
 	}
-	if cart.Position.Distance(home.Position) > definitions["market"].Radius+1.1 {
-		return q, rule("cart_at_market", "Move the Trade Cart beside your Market to load its payment or exports.")
+	if cart.Position.Distance(home.Position) > tradeRadius(home)+1.1 {
+		return q, rule("cart_at_market", "Move your carrier beside its home Market or Dock to load payment or exports.")
 	}
-	if !w.reachableFootprint(cart, target.Position, definitions["market"].Radius+.7) {
-		return q, rule("unreachable_market", "This trade needs Markets connected by land.")
+	if target.Type != tradePostType(cart) || !w.reachableFootprint(cart, target.Position, tradeRadius(target)+.7) {
+		return q, rule("unreachable_market", "Carts need Markets connected by land; Trade Ships need Docks connected by water.")
 	}
 	return q, nil
 }
 
 func (w *World) startMerchantTrade(player int, c Command) error {
 	if len(c.EntityIDs) != 1 || c.Queue {
-		return rule("invalid_selection", "Select one Trade Cart; start this route beside your Market without queueing it.")
+		return rule("invalid_selection", "Select one Trade Cart or Trade Ship; start beside its home trading post without queueing.")
 	}
 	mode := c.TradeMode
 	if mode == "" {

@@ -69,14 +69,14 @@ Rejoining rotates the membership credentials and invalidates its existing MCP to
 
 ## Tools and gameplay coverage
 
-All **32 implemented multiplayer command kinds** are reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
+All **33 implemented multiplayer command kinds** are reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
 
 | Gameplay | Command kinds / API |
 |---|---|
 | Movement and work orders | `move`, `attack_move`, `interact`, `stop`, `stance`; optional queued orders |
 | Economy and construction | `gather` (including fishing), `build` (including wall routes/gates), `repair`, `reseed_farm` |
 | Production and progression | `train`, `research`, `age`, `cancel`, `rally` |
-| Combat and monks | `attack`, `heal`, `convert`, `relic`, `deposit_relic`, `deploy` |
+| Combat, escorts and monks | `attack`, `guard`, `heal`, `convert`, `relic`, `deposit_relic`, `deploy` |
 | Garrison and sea transport | `garrison`, `unload`; ship movement uses `move` |
 | Trade | `market_buy`, `market_sell`, `trade`, `market_post`, `market_accept`, `market_cancel`, `market_resume`, `market_recall` |
 | Removal and defeat | `delete`, `resign` |
@@ -143,4 +143,6 @@ The backend uses the [official Go MCP SDK](https://github.com/modelcontextprotoc
 
 Run `make check`. Tests use real MCP clients over HTTP and cover different member URLs, scope-restricted credentials, fog and history isolation, visible enemy privacy, malformed inputs, bounded reads, shared controls, concurrent/cross-transport retries, cancellation refunds, presence ownership, restart and credential revocation. No test-only gameplay authority is exposed.
 
-Local commerce uses the same `marketplace` tool and `command` endpoint. `merchants` is your private home inventory; `markets` lists currently visible neutral prices, supply status, output/demand and server-authored import/export quotes. Send `trade` with one idle cart at your Market, a neutral `target_id`, `product`, `trade_mode` (`buy` or `sell`), optional gold `trade_limit`, quote `market_revision`, and `repeat`. Payment and goods are reserved for each trip; repeated trips reprice. Supplies and consumer purchases run on Go lifecycles, without agent-facing clock or stock mutation tools. See [local economy rules](MARKETPLACE.md).
+Local commerce uses the same `marketplace` tool and `command` endpoint. `merchants` is your private home inventory; `markets` lists currently visible neutral prices, supply status, output/demand and server-authored import/export quotes. Send `trade` with one idle Trade Cart at your Market or Trade Ship at your Dock, a matching neutral `target_id`, `product`, `trade_mode` (`buy` or `sell`), optional gold `trade_limit`, quote `market_revision`, and `repeat`. Payment and goods are reserved for each trip; repeated trips reprice. Supplies and consumer purchases run on Go lifecycles, without agent-facing clock or stock mutation tools. See [local economy rules](MARKETPLACE.md).
+
+Agents issue `guard` with owned military `entity_ids` and an observed friendly `target_id`. Soldiers follow land targets; warships escort naval units or Docks. The owner sees `guard_target`; foreign observations omit this private assignment. Combat and pursuit use ordinary sight, treaties and the guard’s stance. Captured cargo appears in the attacker’s private `spoils` log entries. `observe` includes Go-authored `damage_stage` and visible, short-lived `effects` for confirmed destruction; disappearing into fog does not report a death.

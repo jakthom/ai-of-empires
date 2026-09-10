@@ -13,11 +13,11 @@ const sampleSnapshot = (): Snapshot => ({
     production: { rates: { food: 0, wood: 0, gold: 0, stone: 0 }, history: [], sample_seconds: 5, window_seconds: 60 },
     age: 0, age_name: 'Dark Age', population: 0, capacity: 5, limit: 200, idle: 0, workers: 0, military: 0, technologies: [], defeated: false, kills: 0 },
   map: { width: 2, height: 1, biome: 'temperate', tiles: [{ terrain: 'grass', elevation: 0 }, { terrain: 'unknown', elevation: 0 }], fog: [2, 0] },
-  entities: [], events: [], event_cursor: 0, opponents: [], projectiles: [], build_options: [],
+  entities: [], events: [], event_cursor: 0, opponents: [], projectiles: [], effects: [], build_options: [],
 });
 const sampleDelta = (values: Partial<SnapshotDelta> = {}): SnapshotDelta => ({
   control_revision: 0, tick: 1, time: .05, speed: 1, paused: false, status: 'running', winner: 0,
-  treaty_remaining: 0, event_cursor: 0, projectiles: [], ...values,
+  treaty_remaining: 0, event_cursor: 0, projectiles: [], effects: [], ...values,
 });
 
 test('stream assembly preserves unchanged views and never changes an older map', () => {

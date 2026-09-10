@@ -94,6 +94,7 @@ func restorePeace(_ context.Context, c *relationContext) error {
 }
 
 func (w *World) noteAggression(source, owner int, target *Entity) {
+	w.observeGuardAttack(source, owner, target)
 	if target == nil || owner == 0 || target.Owner == 0 || owner == target.Owner {
 		return
 	}

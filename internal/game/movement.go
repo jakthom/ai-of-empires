@@ -9,6 +9,12 @@ import (
 // Unit ticking is an event, not a switch that chooses a next state.
 func (w *World) behave(e *Entity) {
 	c := &unitContext{World: w, Actor: e, Target: w.Entities[e.Order.Target], Roll: 1}
+	if e.Order.Kind == "guard" {
+		c.Target = w.Entities[e.Order.Threat]
+		if e.behavior.State() == Guarding {
+			c.Candidate = w.guardThreat(e)
+		}
+	}
 	if e.behavior.State() == Converting && e.Work >= 4 {
 		c.Roll = w.random()
 	}

@@ -18,6 +18,7 @@ type entityStates struct {
 	Siege      SiegeState
 }
 type checkpoint struct {
+	Aftermath             []aftermathState
 	Supplies              map[int]supplyState
 	Offers                map[int]offerState
 	Shipments             map[int]shipmentState
@@ -55,7 +56,10 @@ func (w *World) JournalSince(after int) []JournalRecord {
 }
 
 func (w *World) checkpointState() checkpoint {
-	c := checkpoint{Version: 6, Supplies: map[int]supplyState{}, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c := checkpoint{Version: 7, Supplies: map[int]supplyState{}, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	for _, e := range w.Aftermath {
+		c.Aftermath = append(c.Aftermath, e.lifecycle.State())
+	}
 	for id, e := range w.Entities {
 		c.Entities[id] = entityStates{e.behavior.State(), e.life.State(), e.production.State(), e.siege.State()}
 	}
@@ -110,7 +114,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
 	}
-	if (c.Version < 1 || c.Version > 6) || c.Rules != RulesVersion {
+	if (c.Version < 1 || c.Version > 7) || c.Rules != RulesVersion {
 		return nil, fmt.Errorf("unsupported checkpoint version %d / %q", c.Version, c.Rules)
 	}
 	w := c.World
@@ -136,7 +140,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	w.aiClock, w.visibleClock, w.rng = c.AIClock, c.VisibleClock, c.RNG
 	for id, e := range w.Entities {
 		s := c.Entities[id]
-		if e == nil || e.ID != id || definitions[e.Type].ID == "" || !e.Position.Finite() || !slices.Contains([]UnitState{Idle, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, ApproachingConvert, RecoveringFaith, ApproachingRelic, ApproachingDeposit, Healing, Converting, CollectingRelic, DepositingRelic, Trading, ReturningTrade, Caravanning, Embarking, Garrisoned}, s.Behavior) || !slices.Contains([]LifeState{Foundation, Active, Destroyed, Exhausted}, s.Life) || !slices.Contains([]ProductionState{ProductionIdle, ProductionWorking, ProductionBlocked}, s.Production) || !slices.Contains([]SiegeState{SiegePacked, SiegeDeploying, SiegeDeployed, SiegePacking}, s.Siege) {
+		if e == nil || e.ID != id || definitions[e.Type].ID == "" || !e.Position.Finite() || !slices.Contains([]UnitState{Idle, Guarding, Moving, SeekingResource, Gathering, Returning, Constructing, Repairing, Chasing, Attacking, AttackCooldown, ApproachingHeal, ApproachingConvert, RecoveringFaith, ApproachingRelic, ApproachingDeposit, Healing, Converting, CollectingRelic, DepositingRelic, Trading, ReturningTrade, Caravanning, Embarking, Garrisoned}, s.Behavior) || !slices.Contains([]LifeState{Foundation, Active, Destroyed, Exhausted}, s.Life) || !slices.Contains([]ProductionState{ProductionIdle, ProductionWorking, ProductionBlocked}, s.Production) || !slices.Contains([]SiegeState{SiegePacked, SiegeDeploying, SiegeDeployed, SiegePacking}, s.Siege) {
 			return nil, fmt.Errorf("invalid checkpoint entity %d", id)
 		}
 		e.behavior = statemachine.NewInstance(unitMachine, s.Behavior)
@@ -249,6 +253,9 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	}
 	w.indexPrivateJournal()
 	if err := w.restoreMarketplace(c); err != nil {
+		return nil, err
+	}
+	if err := w.restoreAftermath(c); err != nil {
 		return nil, err
 	}
 	return w, nil

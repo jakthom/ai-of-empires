@@ -11,8 +11,11 @@ type exchangeQuote struct {
 }
 
 func (w *World) tradeHome(cart *Entity) *Entity {
+	if cart == nil {
+		return nil
+	}
 	return w.nearest(cart.Position, func(t *Entity) bool {
-		return t.Type == "market" && t.Owner == cart.Owner && t.life.State() == Active && w.reachableFootprint(cart, t.Position, definitions[t.Type].Radius+.7)
+		return t.Type == tradePostType(cart) && t.Owner == cart.Owner && t.life.State() == Active && w.reachableFootprint(cart, t.Position, definitions[t.Type].Radius+.7)
 	})
 }
 
@@ -49,8 +52,11 @@ func (w *World) quoteMerchant(p *Player, region *merchantRegion, market *Entity,
 	default:
 		return q, rule("invalid_exchange", "Choose a market purchase or sale.")
 	}
-	if market == nil || market.Type != "market" || (market.Owner != p.ID && market.Owner != 0) || market.life.State() != Active {
+	if !tradingPost(market) || (market.Owner != p.ID && market.Owner != 0) || market.life.State() != Active {
 		return q, rule("invalid_producer", "Build or select a completed Market.")
+	}
+	if market.Type == "dock" && p.Age < 1 {
+		return q, rule("age_required", "Dock trade requires the Feudal Age.")
 	}
 	if !region.Stock.CanPay(q.Gain) {
 		return q, rule("merchant_stock", "This Market cannot fund the lot. Try another partner or wait for supplies.")

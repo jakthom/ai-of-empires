@@ -57,7 +57,7 @@ func (w *World) apply(player int, c Command) error {
 	if w.match.State() == MatchPaused {
 		return rule("paused", "Resume the match before issuing an order.")
 	}
-	if c.Kind == "trade" || c.Kind == "interact" && len(c.EntityIDs) == 1 && w.Entities[c.EntityIDs[0]] != nil && w.Entities[c.EntityIDs[0]].Type == "trade_cart" && w.Entities[c.TargetID] != nil && w.Entities[c.TargetID].Type == "market" && w.Entities[c.TargetID].Owner == 0 {
+	if c.Kind == "trade" || c.Kind == "interact" && len(c.EntityIDs) == 1 && w.Entities[c.EntityIDs[0]] != nil && tradeCarrier(w.Entities[c.EntityIDs[0]]) && w.Entities[c.TargetID] != nil && tradingPost(w.Entities[c.TargetID]) && w.Entities[c.TargetID].Owner == 0 {
 		return w.startMerchantTrade(player, c)
 	}
 	if slices.Contains([]string{"market_post", "market_cancel", "market_accept", "market_resume", "market_recall"}, c.Kind) {
@@ -80,7 +80,7 @@ func (w *World) apply(player int, c Command) error {
 	}
 	first := es[0]
 	for _, e := range es {
-		if e.Type == "trade_cart" && w.cartShipment(e.ID) != nil && !slices.Contains([]string{"move", "stop", "delete", "stance"}, c.Kind) {
+		if tradeCarrier(e) && w.cartShipment(e.ID) != nil && !slices.Contains([]string{"move", "stop", "delete", "stance"}, c.Kind) {
 			return rule("active_shipment", "This cart has a delivery. Move or stop it, then resume or recall it from the Marketplace.")
 		}
 	}
@@ -266,8 +266,8 @@ func (w *World) apply(player int, c Command) error {
 				o.Kind = "convert"
 			case e.Type == "monk" && target.Owner == player && td.Kind == "unit":
 				o.Kind = "heal"
-			case e.Type == "trade_cart" && target.Type == "market" && target.Owner == 0:
-				o.Kind = "trade"
+			case tradeCarrier(e) && tradingPost(target) && target.Owner == 0:
+				return rule("invalid_selection", "Arrange one funded carrier at a time through Trade route.")
 			case e.Type == "villager" && target.Owner == player && target.Progress < 1:
 				o.Kind = "build"
 			case d.Class == "worker" && target.Resource != "" && (td.Kind == "resource" || target.Type == "farm") && (target.Owner == 0 || target.Owner == player):
@@ -296,6 +296,14 @@ func (w *World) apply(player int, c Command) error {
 			if e.Type == "trebuchet" && e.siege.State() != SiegePacked {
 				return rule("deployed", "Pack the trebuchet before moving.")
 			}
+		case "guard":
+			if err := guardUnit(nil, &unitContext{World: w, Actor: e}); err != nil {
+				return err
+			}
+			if err := w.guardTarget(e, target); err != nil {
+				return err
+			}
+			o.TargetPlayer = target.Owner
 		case "attack":
 			if w.treatyInForce() {
 				return rule("peace_period", "Attacks are disabled until the initial peace period ends.")

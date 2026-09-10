@@ -10,7 +10,11 @@ import (
 func combatTransitions() []unitRow {
 	rows := []unitRow{}
 	for _, state := range []UnitState{Chasing, Attacking, AttackCooldown} {
-		rows = append(rows, unitRow{From: state, Event: UnitPulse, To: Idle, Guard: combatTargetLost, Do: finishUnitOrder})
+		rows = append(rows,
+			unitRow{From: state, Event: UnitPulse, To: Idle, Guard: guardLost, Do: finishUnitOrder},
+			unitRow{From: state, Event: UnitPulse, To: Guarding, Guard: guardCombatEnded, Do: endGuardCombat},
+			unitRow{From: state, Event: UnitPulse, To: Guarding, Guard: guardCannotPursue, Do: endGuardCombat},
+			unitRow{From: state, Event: UnitPulse, To: Idle, Guard: combatTargetLost, Do: finishUnitOrder})
 	}
 	return append(rows,
 		unitRow{From: Chasing, Event: UnitPulse, To: Idle, Guard: cannotPursue, Do: finishUnitOrder},
@@ -28,6 +32,9 @@ func combatTargetLost(_ context.Context, c *unitContext) error {
 }
 
 func (w *World) mayContinueAttack(e, target *Entity) bool {
+	if e.Order.Kind == "guard" {
+		return w.guardMayFight(e, target)
+	}
 	if w.treatyInForce() {
 		return false
 	}
@@ -111,9 +118,9 @@ func (w *World) hit(target *Entity, owner int, damage float64) {
 	w.hitFrom(target, owner, 0, damage)
 }
 func (w *World) hitFrom(target *Entity, owner, source int, damage float64) {
-	if target != nil && !(w.treatyInForce() && owner > 0 && target.Owner > 0 && owner != target.Owner) {
+	if target != nil && w.Entities[target.ID] == target && !(w.treatyInForce() && owner > 0 && target.Owner > 0 && owner != target.Owner) {
 		w.noteAggression(source, owner, target)
-		mustFire(target.life, DamageEntity, &entityContext{World: w, Actor: target, Amount: damage, SourceOwner: owner})
+		mustFire(target.life, DamageEntity, &entityContext{World: w, Actor: target, Amount: damage, SourceOwner: owner, SourceID: source})
 	}
 }
 
