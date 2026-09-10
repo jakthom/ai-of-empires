@@ -115,6 +115,7 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		w.seedSettlement(i+1, start)
 	}
 	w.seedCountryside(starts, rng)
+	w.seedTradingDocks(starts)
 	w.initializeMerchantRegions()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")

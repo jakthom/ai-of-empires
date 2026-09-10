@@ -117,6 +117,7 @@ type Tile struct {
 	Elevation float64 `json:"elevation"`
 }
 type Order struct {
+	Threat       int    `json:"threat,omitempty"`
 	Shipment     int    `json:"shipment,omitempty"`
 	Kind         string `json:"kind"`
 	Target       int    `json:"target,omitempty"`
@@ -244,6 +245,7 @@ type Config struct {
 	World        WorldOptions `json:"world,omitempty"`
 }
 type World struct {
+	Aftermath    []aftermath
 	Marketplace  marketplace
 	Config       Config
 	Tick         int
@@ -314,6 +316,8 @@ type Action struct {
 	Reason      string     `json:"reason,omitempty"`
 }
 type EntityView struct {
+	GuardTarget   int      `json:"guard_target,omitempty"`
+	DamageStage   int      `json:"damage_stage,omitempty"`
 	Connections   []Vec    `json:"connections,omitempty"`
 	AppearanceAge int      `json:"appearance_age,omitempty"`
 	ID            int      `json:"id"`
@@ -377,7 +381,8 @@ type MapView struct {
 	Fog    []int  `json:"fog"`
 }
 type Snapshot struct {
-	Marketplace MarketplaceView `json:"marketplace"`
+	Effects     []BattlefieldEffectView `json:"effects"`
+	Marketplace MarketplaceView         `json:"marketplace"`
 	// Filled by the session boundary for shared control concurrency.
 	ControlRevision int              `json:"control_revision,omitempty"`
 	Version         string           `json:"version"`

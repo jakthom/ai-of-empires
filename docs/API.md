@@ -70,7 +70,7 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | Kind | Additional fields |
 |---|---|
 | `move`, `attack_move` | `entity_ids`, `position`, optional `queue` |
-| `interact`, `attack`, `gather`, `heal`, `convert`, `repair`, `relic`, `deposit_relic`, `garrison` | `entity_ids`, `target_id`, optional `queue` |
+| `interact`, `attack`, `guard`, `gather`, `heal`, `convert`, `repair`, `relic`, `deposit_relic`, `garrison` | `entity_ids`, `target_id`, optional `queue` |
 | `build` | Villager `entity_ids`, building `product`, `position`, optional `queue`; walls/palisades also accept `end_position` |
 | `train`, `research` | One producer in `entity_ids`, catalog `product` |
 | `age` | One Town Center in `entity_ids` |
@@ -80,16 +80,20 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | `stop`, `delete` | `entity_ids` |
 | `stance` | `entity_ids`, `product`: `defensive` (default), `stand_ground`, `passive`, or `aggressive` |
 | `reseed_farm` | One owned, depleted farm in `entity_ids`; pays 60 wood and assigns its farmer or the nearest idle villager on connected land |
-| `market_buy`, `market_sell` | One market in `entity_ids`, `product`: `food`, `wood`, or `stone`; optional `market_revision` requires the displayed merchant quote |
-| `trade` | One idle cart at an owned Market, neutral `target_id`, `product`, optional `trade_mode` (`sell`/`buy`), `trade_limit`, `market_revision`, `repeat`; no queued or multi-cart funding |
-| `market_post` | One owned Market in `entity_ids`; `offer` supplies give/want resource and amount, lots and optional private `target_player` |
-| `market_accept` | One idle Trade Cart at your Market in `entity_ids`, `offer_id`, optional `repeat` |
+| `market_buy`, `market_sell` | One owned Market or Feudal-age Dock in `entity_ids`, `product`: `food`, `wood`, or `stone`; optional `market_revision` requires the displayed merchant quote |
+| `trade` | One idle Trade Cart at an owned Market or Trade Ship at an owned Dock, matching neutral `target_id`, `product`, optional `trade_mode` (`sell`/`buy`), `trade_limit`, `market_revision`, `repeat`; no queued or multiple-carrier funding |
+| `market_post` | One owned Market or Feudal-age Dock in `entity_ids`; `offer` supplies give/want resource and amount, lots and optional private `target_player` |
+| `market_accept` | One idle Trade Cart at your Market or Trade Ship at your Dock in `entity_ids`, `offer_id`, optional `repeat` |
 | `market_cancel` | Your `offer_id`; refunds unclaimed lots |
 | `market_resume`, `market_recall` | Your `shipment_id`; resume interruption or recall before pickup |
 | `resign` | No entity selection; resign only your own kingdom |
 | `speed` (legacy adapter only; multiplayer uses `/speed`) | `value`: 1, 1.7, 3.4, 8, 16, or 32; supported values also come from `catalog.speeds` |
 
 `interact` resolves the appropriate action on the server. To resume work on an existing foundation, use `interact` with its `target_id`; `build` creates a new site. Solid buildings cannot be placed on units. `pause` is a legacy single-player toggle; multiplayer uses explicit `/pause` and `/resume` controls. `deploy` toggles deployment/packing when its lifecycle permits it. Faster speeds run more fixed 50 ms simulation steps; they never increase the physics delta. Attainable wall-clock speed depends on server capacity.
+
+`guard` accepts mobile armed units and an observable friendly unit, Market, Dock, or neutral Supply Caravan. Workers and trebuchets cannot serve as escorts. Land/sea eligibility, ownership and the entire selection are validated before any order changes. The existing unit machine follows the target, engages nearby hostile forces or witnessed attackers within a bounded leash, and returns to guarding afterward. Hold fire suppresses automatic escort combat. Losing sight of a foreign charge, its death, garrison entry or conversion ends the assignment. Only the owner receives `EntityView.guard_target`; foreign views retain ordinary observed position and condition.
+
+`damage_stage` is computed in Go from health (0 healthy, 1 below 85%, 2 below 50%, 3 below 25%). Construction uses health relative to completed progress. Visible foreign units expose their observed condition; remembered buildings retain their last observation. `Snapshot.effects` and each delta’s replacement `effects` array contain only visible, server-confirmed destruction remains with `started_at` and `duration` in game seconds. Effects expire after 12 seconds for buildings and six for units, stop with the game clock, and confer no collision or damage. Absence from a snapshot never implies death. A lethal attack transfers carried resources to the attacker exactly once and records private `spoils` events; no extra claim endpoint or privileged MCP action is needed.
 
 `reseed_farm` fires the farm lifecycle from Exhausted to Foundation, charges once, and assigns construction through the villager lifecycle. Repeating it on the new foundation is refused. It reports `farm_not_depleted`, `insufficient_resources`, or `no_available_villager` when appropriate. Existing `interact` orders on depleted farms and automatic reseeding continue to use the same lifecycle.
 

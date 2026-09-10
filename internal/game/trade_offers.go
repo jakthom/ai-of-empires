@@ -100,7 +100,7 @@ func (w *World) knowsTradingMarket(player int, o *tradeOffer) bool {
 		return true
 	}
 	m, ok := w.Players[player].Memory[o.Market]
-	return ok && m.Owner == o.Owner && m.Type == "market" && m.Progress >= 1
+	return ok && m.Owner == o.Owner && (m.Type == "market" || m.Type == "dock") && m.Progress >= 1
 }
 
 func (w *World) canAcceptOffer(player int, o *tradeOffer, cart *Entity) error {
@@ -116,15 +116,15 @@ func (w *World) canAcceptOffer(player int, o *tradeOffer, cart *Entity) error {
 	if w.relation(player, o.Owner) != atPeace {
 		return rule("trade_conflict", "Trade requires peace between the two kingdoms.")
 	}
-	if cart == nil || cart.Owner != player || cart.Type != "trade_cart" || cart.life.State() != Active || cart.Container != 0 || cart.behavior.State() != Idle || len(cart.Orders) > 0 || cart.Cargo > 0 || w.cartShipment(cart.ID) != nil {
-		return rule("cart_required", "Use an idle, empty Trade Cart without an active delivery.")
+	if cart == nil || cart.Owner != player || !tradeCarrier(cart) || cart.life.State() != Active || cart.Container != 0 || cart.behavior.State() != Idle || len(cart.Orders) > 0 || cart.Cargo > 0 || w.cartShipment(cart.ID) != nil {
+		return rule("cart_required", "Use an idle, empty Trade Cart or Trade Ship without an active delivery.")
 	}
 	home := w.tradeHome(cart)
-	if home == nil || cart.Position.Distance(home.Position) > definitions["market"].Radius+1.1 {
-		return rule("cart_at_market", "Move the Trade Cart beside your completed Market to load payment.")
+	if home == nil || cart.Position.Distance(home.Position) > tradeRadius(home)+1.1 {
+		return rule("cart_at_market", "Move your carrier beside its completed home Market or Dock to load payment.")
 	}
-	if !w.reachableFootprint(cart, w.Entities[o.Market].Position, definitions["market"].Radius+.7) {
-		return rule("unreachable_market", "This trade needs Markets connected by land.")
+	if w.Entities[o.Market].Type != tradePostType(cart) || !w.reachableFootprint(cart, w.Entities[o.Market].Position, tradeRadius(w.Entities[o.Market])+.7) {
+		return rule("unreachable_market", "Carts need Markets connected by land; Trade Ships need Docks connected by water.")
 	}
 	if !w.Players[player].Resources.CanPay(resourceAmount(o.Terms.WantResource, float64(o.Terms.WantAmount))) {
 		return rule("insufficient_resources", "You cannot afford this offer's requested payment.")

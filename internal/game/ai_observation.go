@@ -42,7 +42,7 @@ func (w *World) aiObserve(player int) *aiContext {
 		}
 		d := definitions[e.Type]
 		if e.Owner == player {
-			if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" && !d.Naval && d.Attack > 0 && e.Container == 0 && !p.voyaging(e.ID) {
+			if d.Kind == "unit" && d.Class != "worker" && d.Class != "trader" && !d.Naval && d.Attack > 0 && e.Container == 0 && !p.voyaging(e.ID) && e.Order.Kind != "guard" {
 				c.Army = append(c.Army, e)
 			}
 			continue
@@ -196,6 +196,9 @@ func aiChooseOpportunity(c *aiContext) *aiOpportunity {
 		if d.Kind == "building" {
 			value = 30 + (d.Cost.Food+d.Cost.Wood+d.Cost.Gold+d.Cost.Stone)*.22
 		}
+		if d.Class == "trader" {
+			value = 80
+		} // Cargo is private; value the trade opportunity, never its hidden quantity.
 		if d.Class == "worker" {
 			value = 65 // Denying production is more useful than chasing soldiers.
 		}

@@ -196,6 +196,12 @@ func (w *World) activity(e *Entity) string {
 	if e.Type == "trebuchet" && e.siege.State() != SiegePacked {
 		return strings.ReplaceAll(string(e.siege.State()), "_", " ")
 	}
+	if e.Order.Kind == "guard" {
+		if e.Order.Threat != 0 {
+			return "Defending escort target"
+		}
+		return "Guarding"
+	}
 	target := w.Entities[e.Order.Target]
 	work := "Gathering"
 	if target != nil {

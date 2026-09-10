@@ -91,7 +91,7 @@ func shipmentPartnerLost(_ context.Context, c *shipmentContext) error {
 	return applicable(!w.ownMarket(s.Seller, s.Market) || w.Players[s.Seller].lifecycle.State() == PlayerDefeated || w.relation(s.Seller, s.Buyer) != atPeace)
 }
 func shipmentAtSeller(_ context.Context, c *shipmentContext) error {
-	return applicable(c.moving() && c.cart().Position.Distance(c.World.Entities[c.Shipment.Market].Position) <= definitions["market"].Radius+.8)
+	return applicable(c.moving() && c.cart().Position.Distance(c.World.Entities[c.Shipment.Market].Position) <= tradeRadius(c.World.Entities[c.Shipment.Market])+.8)
 }
 func collectShipment(_ context.Context, c *shipmentContext) error {
 	s, cart := c.Shipment, c.cart()
@@ -104,14 +104,14 @@ func collectShipment(_ context.Context, c *shipmentContext) error {
 }
 func moveShipmentToSeller(_ context.Context, c *shipmentContext) error {
 	if c.moving() {
-		c.World.move(c.cart(), c.World.Entities[c.Shipment.Market].Position, definitions["market"].Radius+.7, Step)
+		c.World.move(c.cart(), c.World.Entities[c.Shipment.Market].Position, tradeRadius(c.World.Entities[c.Shipment.Market])+.7, Step)
 	}
 	return nil
 }
 func (c *shipmentContext) home() *Entity {
-	if c.World.ownMarket(c.Shipment.Buyer, c.Shipment.Home) {
+	if c.World.ownMarket(c.Shipment.Buyer, c.Shipment.Home) && c.World.Entities[c.Shipment.Home].Type == tradePostType(c.cart()) {
 		home := c.World.Entities[c.Shipment.Home]
-		if c.World.reachableFootprint(c.cart(), home.Position, definitions["market"].Radius+.7) {
+		if c.World.reachableFootprint(c.cart(), home.Position, tradeRadius(home)+.7) {
 			return home
 		}
 	}
@@ -122,12 +122,12 @@ func shipmentAtHome(_ context.Context, c *shipmentContext) error {
 		return applicable(false)
 	}
 	home := c.home()
-	return applicable(home != nil && c.cart().Position.Distance(home.Position) <= definitions["market"].Radius+.8)
+	return applicable(home != nil && c.cart().Position.Distance(home.Position) <= tradeRadius(home)+.8)
 }
 func moveShipmentHome(_ context.Context, c *shipmentContext) error {
 	if c.moving() {
 		if home := c.home(); home != nil {
-			c.World.move(c.cart(), home.Position, definitions["market"].Radius+.7, Step)
+			c.World.move(c.cart(), home.Position, tradeRadius(home)+.7, Step)
 		}
 	}
 	return nil

@@ -13,6 +13,7 @@ type entityContext struct {
 	Actor       *Entity
 	Amount      float64
 	SourceOwner int
+	SourceID    int
 	Task        *Task
 	Index       int
 	Refund      bool
@@ -117,6 +118,8 @@ func applyDamage(_ context.Context, c *entityContext) error {
 }
 func destroyFromDamage(ctx context.Context, c *entityContext) error {
 	c.Actor.HP = 0
+	c.World.captureSpoils(c)
+	c.World.leaveAftermath(c.Actor)
 	if p := c.World.Players[c.SourceOwner]; p != nil && c.Actor.Owner != c.SourceOwner {
 		p.Kills++
 	}

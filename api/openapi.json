@@ -225,6 +225,50 @@
         ],
         "type": "object"
       },
+      "BattlefieldEffectView": {
+        "additionalProperties": false,
+        "properties": {
+          "appearance_age": {
+            "type": "integer"
+          },
+          "duration": {
+            "type": "number"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "owner": {
+            "type": "integer"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "radius": {
+            "type": "number"
+          },
+          "started_at": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "type",
+          "owner",
+          "position",
+          "radius",
+          "appearance_age",
+          "started_at",
+          "duration"
+        ],
+        "type": "object"
+      },
       "BiomeEconomy": {
         "additionalProperties": false,
         "properties": {
@@ -704,11 +748,17 @@
           "container": {
             "type": "integer"
           },
+          "damage_stage": {
+            "type": "integer"
+          },
           "deployed": {
             "type": "boolean"
           },
           "faith": {
             "type": "number"
+          },
+          "guard_target": {
+            "type": "integer"
           },
           "hp": {
             "type": "number"
@@ -2095,6 +2145,12 @@
           "difficulty": {
             "$ref": "#/components/schemas/Difficulty"
           },
+          "effects": {
+            "items": {
+              "$ref": "#/components/schemas/BattlefieldEffectView"
+            },
+            "type": "array"
+          },
           "entities": {
             "items": {
               "$ref": "#/components/schemas/EntityView"
@@ -2163,6 +2219,7 @@
           }
         },
         "required": [
+          "effects",
           "marketplace",
           "version",
           "difficulty",
@@ -2203,6 +2260,12 @@
           },
           "control_revision": {
             "type": "integer"
+          },
+          "effects": {
+            "items": {
+              "$ref": "#/components/schemas/BattlefieldEffectView"
+            },
+            "type": "array"
           },
           "entities": {
             "items": {
@@ -2266,6 +2329,7 @@
           }
         },
         "required": [
+          "effects",
           "control_revision",
           "tick",
           "time",

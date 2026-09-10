@@ -1,6 +1,7 @@
 import * as THREE from 'three';
-import type { EntityView, Snapshot, Vec } from './api.generated';
+import type { BattlefieldEffectView, EntityView, Snapshot, Vec } from './api.generated';
 import { makeModel, ownerColor } from './models';
+import { DamagePlume, makeRubble, woundStride } from './damage';
 import { biomePalette } from './biomes';
 import { observationTime } from './snapshot-stream';
 import { ObservationClock, ObservedMotion } from './interpolation';
@@ -29,6 +30,10 @@ export class WorldRenderer {
   private snapshot?: Snapshot;
   private rings = new THREE.Group();
   private projectiles = new THREE.Group();
+  private remains = new Map<number,{object:THREE.Group;view:BattlefieldEffectView}>();
+  private effectFrustum=new THREE.Frustum();
+  private effectMatrix=new THREE.Matrix4();
+  private effectSphere=new THREE.Sphere();
   private projectileMeshes = new Map<number, { mesh: THREE.Mesh; motion: ObservedMotion }>();
   private observationClock = new ObservationClock();
   private localEpoch = {};
@@ -163,7 +168,7 @@ export class WorldRenderer {
       let rendered = this.entities.get(e.id);
       if (rendered?.view === e && !mapChanged && e.kind !== 'unit' && !reset) continue;
       const biome = map.tiles[Math.floor(e.position.y)*map.width+Math.floor(e.position.x)]?.biome || map.biome;
-      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
+      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.damage_stage??0}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
       if (!rendered || rendered.signature !== signature) {
         if (rendered) this.removeModel(rendered.object);
         const object = makeModel(e, biome); this.scene.add(object);
@@ -184,6 +189,7 @@ export class WorldRenderer {
     }
     for (const [id, e] of this.entities) if (!alive.has(id)) { this.removeModel(e.object); this.entities.delete(id); this.selected.delete(id); }
     this.updateRings();
+    this.updateAftermath(snapshot);
     const projectiles = new Set(snapshot.projectiles.map(p => p.id));
     for (const [id, p] of this.projectileMeshes) if (!projectiles.has(id)) { this.projectiles.remove(p.mesh); this.projectileMeshes.delete(id); }
     for (const p of snapshot.projectiles) {
@@ -199,9 +205,35 @@ export class WorldRenderer {
     }
   }
 
+  private updateAftermath(snapshot:Snapshot) {
+    const alive=new Set((snapshot.effects??[]).map(e=>e.id));
+    for(const [id,e] of this.remains)if(!alive.has(id)){this.removeModel(e.object);this.remains.delete(id)}
+    for(const v of snapshot.effects??[]) {
+      let remains=this.remains.get(v.id);
+      if(!remains) {
+        const model=makeModel({id:v.id,type:v.type,kind:v.kind,name:'',owner:v.owner,position:v.position,radius:v.radius,appearance_age:v.appearance_age,hp:0,max_hp:1,damage_stage:3,progress:1,state:'destroyed',activity:'Destroyed',visible:true,actions:[],tasks:[],passengers:[],deployed:false,relic:false});
+        if(v.kind==='building'){const rubble=makeRubble(v.radius,v.id);model.add(rubble);model.userData.rubble=rubble}
+        delete model.userData.entityId;this.scene.add(model);remains={object:model,view:v};this.remains.set(v.id,remains);
+      }
+      const age=Math.max(0,snapshot.time-v.started_at),collapse=this.reducedMotion.matches?1:Math.min(1,age/.7),fade=Math.min(1,(v.duration-age)/1.5);
+      const object=remains.object;
+      object.position.set(v.position.x,this.elevation(v.position),v.position.y);
+      if(v.kind==='building'){object.scale.set(fade,Math.max(.08,1-collapse*.92)*fade,fade);object.rotation.z=collapse*.09}
+      else {object.rotation.z=collapse*1.35;object.scale.setScalar(fade);object.position.y+=.12}
+      const plume=object.userData.damagePlume as DamagePlume|undefined;
+      const rubble=object.userData.rubble as THREE.Group|undefined;
+      if(rubble){
+        rubble.scale.set(collapse,collapse/Math.max(.08,1-collapse*.92),collapse);
+        for(const part of object.children)if(part!==rubble&&part!==plume)part.visible=collapse<.9;
+      }
+      if(plume){plume.visible=v.kind==='building'&&age<7;plume.scale.y=1/Math.max(.08,1-collapse*.92);plume.update(snapshot.time,this.reducedMotion.matches,collapse)}
+    }
+  }
+
   private removeModel(object: THREE.Group) {
     this.scene.remove(object);
-    object.traverse(o => { if (o instanceof THREE.Mesh && o.userData.privateMaterial) (o.material as THREE.Material).dispose(); if (o instanceof THREE.Mesh && o.userData.privateGeometry) o.geometry.dispose(); if (o instanceof THREE.InstancedMesh) o.dispose(); });
+    const disposed=new Set<THREE.Material>();
+    object.traverse(o => { if (o instanceof THREE.Mesh && o.userData.privateMaterial && !disposed.has(o.material as THREE.Material)) { (o.material as THREE.Material).dispose();disposed.add(o.material as THREE.Material); } if (o instanceof THREE.Mesh && o.userData.privateGeometry) o.geometry.dispose(); if (o instanceof THREE.InstancedMesh) o.dispose(); });
   }
   private updateRings() {
     const wanted = new Set(this.selected); if (this.hovered !== null) wanted.add(this.hovered);
@@ -222,6 +254,7 @@ export class WorldRenderer {
   resetWorld() {
     this.clearMarker();
     this.preview(null); this.setHovered(null); this.selected.clear();
+    for (const e of this.remains.values()) this.removeModel(e.object);this.remains.clear();
     for (const e of this.entities.values()) this.removeModel(e.object);
     this.entities.clear(); this.updateRings(); this.projectiles.clear(); this.projectileMeshes.clear();
     if (this.terrain) { this.scene.remove(this.terrain.group); this.terrain.dispose(); this.terrain = undefined; }
@@ -293,16 +326,19 @@ export class WorldRenderer {
       else this.pan(dx * dt * 480, dy * dt * 480);
     }
     const observedAt = this.observationClock.time(now);
+    this.effectMatrix.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse);this.effectFrustum.setFromProjectionMatrix(this.effectMatrix);
     for (const e of this.entities.values()) {
       const x = e.object.position.x, z = e.object.position.z;
       const moving = e.motion?.sample(observedAt, e.object.position) ?? false;
       if (e.motion) e.object.position.y = this.elevation({ x: e.object.position.x, y: e.object.position.z });
       if (moving && Math.hypot(e.object.position.x - x, e.object.position.z - z) > .00001) e.object.rotation.y = Math.atan2(e.object.position.x - x, e.object.position.z - z) + Math.PI;
+      const plume=e.object.userData.damagePlume as DamagePlume|undefined;
+      if(plume){this.effectSphere.center.copy(e.object.position);this.effectSphere.radius=e.view.radius+4;plume.visible=e.view.visible&&this.effectFrustum.intersectsSphere(this.effectSphere);if(plume.visible)plume.update(this.snapshot?.time??0,this.reducedMotion.matches)}
       e.animated.forEach(o => {
         if (this.reducedMotion.matches || this.snapshot?.paused) { if (o.name === 'leg' || o.name === 'tool') o.rotation.x = 0; return; }
         if (o.name === 'windmill') o.rotation.z = now * .00025;
         if (o.name === 'flag') o.rotation.y = Math.sin(now * .002 + e.view.id) * .1;
-        if (o.name === 'leg') o.rotation.x = moving ? Math.sin(now * .012 + o.position.x * 10) * .35 : 0;
+        if (o.name === 'leg') o.rotation.x = moving ? woundStride(e.view,o.position.x,now*.001) : 0;
         if (o.name === 'tool') o.rotation.x = ['gathering', 'constructing', 'repairing', 'attacking'].includes(e.view.state) ? Math.sin(now * .008) * .4 : 0;
       });
     }

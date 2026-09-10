@@ -18,6 +18,7 @@ const (
 	supplyWaiting    supplyState = "preparing"
 	supplyTravelling supplyState = "travelling"
 	supplyPulse      supplyEvent = "pulse"
+	supplyRaided     supplyEvent = "raided"
 )
 
 // A region owns its inventory and one replenishment lifecycle. Cargo exists
@@ -37,16 +38,19 @@ type merchantRegion struct {
 	lifecycle          *statemachine.Instance[supplyState, supplyEvent, *supplyContext]
 }
 type supplyContext struct {
-	World  *World
-	Region *merchantRegion
-	Market *Entity
-	Origin *Vec
+	Raider, Source int
+	Victim         *Entity
+	World          *World
+	Region         *merchantRegion
+	Market         *Entity
+	Origin         *Vec
 }
 
 var supplyMachine *statemachine.Machine[supplyState, supplyEvent, *supplyContext]
 
 func init() {
 	supplyMachine = statemachine.MustCompile([]statemachine.Transition[supplyState, supplyEvent, *supplyContext]{
+		{From: supplyTravelling, Event: supplyRaided, To: supplyWaiting, Do: raidSupply},
 		{From: supplyWaiting, Event: supplyPulse, To: supplyTravelling, Guard: supplyReady, Do: launchSupply},
 		{From: supplyWaiting, Event: supplyPulse, To: supplyWaiting},
 		{From: supplyTravelling, Event: supplyPulse, To: supplyWaiting, Guard: supplyLost, Do: loseSupply},
@@ -82,14 +86,14 @@ func (w *World) initializeMerchantRegions() {
 	for id := 1; id <= w.Config.Settlements; id++ {
 		w.addMerchantRegion(-id, w.Players[id].Start)
 	}
-	for _, e := range w.entities(0, "market") {
+	for _, e := range w.tradingPosts(0) {
 		w.addMerchantRegion(e.ID, e.Position)
 	}
 }
 func (w *World) merchantHost(r *merchantRegion) *Entity {
 	if r.ID > 0 {
 		e := w.Entities[r.ID]
-		if e != nil && e.Owner == 0 && e.Type == "market" && e.life.State() == Active {
+		if tradingPost(e) && e.Owner == 0 && e.life.State() == Active {
 			return e
 		}
 		return nil
@@ -98,7 +102,7 @@ func (w *World) merchantHost(r *merchantRegion) *Entity {
 	if p == nil || p.lifecycle.State() == PlayerDefeated {
 		return nil
 	}
-	return w.nearest(p.Start, func(e *Entity) bool { return e.Owner == p.ID && e.Type == "market" && e.life.State() == Active })
+	return w.nearest(p.Start, func(e *Entity) bool { return w.ownMarket(p.ID, e.ID) })
 }
 func (w *World) supplyOrigin(market *Entity) *Vec {
 	if market == nil {
@@ -133,7 +137,7 @@ func supplyLost(_ context.Context, c *supplyContext) error {
 	return applicable(c.Market == nil || cart == nil || cart.Type != "supply_cart" || cart.Owner != 0 || cart.life.State() != Active)
 }
 func supplyArrived(_ context.Context, c *supplyContext) error {
-	return applicable(c.World.Entities[c.Region.Cart].Position.Distance(c.Market.Position) <= definitions["market"].Radius+.8)
+	return applicable(c.World.Entities[c.Region.Cart].Position.Distance(c.Market.Position) <= tradeRadius(c.Market)+.8)
 }
 func finishSupply(c *supplyContext) {
 	c.World.remove(c.Region.Cart)
@@ -169,7 +173,7 @@ func deliverSupply(_ context.Context, c *supplyContext) error {
 	return nil
 }
 func moveSupply(_ context.Context, c *supplyContext) error {
-	c.World.move(c.World.Entities[c.Region.Cart], c.Market.Position, definitions["market"].Radius+.7, Step)
+	c.World.move(c.World.Entities[c.Region.Cart], c.Market.Position, tradeRadius(c.Market)+.7, Step)
 	return nil
 }
 func (w *World) pulseMerchantSupplies() {
@@ -188,4 +192,16 @@ func (w *World) pulseMerchantSupplies() {
 }
 func merchantPrice(r *merchantRegion, resource string) float64 {
 	return math.Max(30, math.Min(200, 100+(1000-r.Stock.Amount(resource))*.08))
+}
+
+// The victim's lethal-damage effect removes the cart after this commit.
+// Removing it here would synchronously re-enter its own entity lifecycle.
+func raidSupply(_ context.Context, c *supplyContext) error {
+	r := c.Region
+	c.World.awardSpoils(c.Raider, c.Source, c.Victim, r.Cargo)
+	r.Cart = 0
+	r.Cargo = Resources{}
+	r.Losses++
+	r.NextSupply = c.World.Time + merchantCycle
+	return nil
 }

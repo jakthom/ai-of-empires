@@ -9,7 +9,7 @@ func (w *World) aiScout(c *aiContext) {
 	plan := &c.Player.AIPlan
 	var scout *Entity
 	for _, e := range c.Army {
-		if c.Player.voyaging(e.ID) || !w.sameRegion(e.Position, c.Home, false) {
+		if e.Order.Kind == "guard" || c.Player.voyaging(e.ID) || !w.sameRegion(e.Position, c.Home, false) {
 			continue
 		}
 		if e.ID == plan.ScoutID {

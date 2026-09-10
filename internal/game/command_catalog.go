@@ -10,6 +10,7 @@ type CommandInfo struct {
 
 func PlayerCommands() []CommandInfo {
 	return []CommandInfo{
+		{"guard", "Escort an observable friendly unit, Market, Dock or neutral supply caravan. Engage nearby threats and return to the protected target. Soldiers escort on land; warships at sea.", []string{"entity_ids", "target_id", "queue?"}},
 		{"move", "Move mobile units to a map-space destination.", []string{"entity_ids", "position", "queue?"}},
 		{"attack_move", "Move and attack; optionally restrict proactive targeting to another kingdom.", []string{"entity_ids", "position", "target_player?", "queue?"}},
 		{"interact", "Resolve a contextual order in Go. Use this to continue an existing foundation.", []string{"entity_ids", "target_id", "queue?"}},
@@ -21,7 +22,7 @@ func PlayerCommands() []CommandInfo {
 		{"relic", "Collect an observable relic with a monk.", []string{"entity_ids", "target_id", "queue?"}},
 		{"deposit_relic", "Deposit a carried relic at your completed monastery.", []string{"entity_ids", "target_id", "queue?"}},
 		{"garrison", "Board your eligible building or transport with land units.", []string{"entity_ids", "target_id", "queue?"}},
-		{"trade", "Ship 100 goods to sell, or gold to buy 100 goods, at an explored neutral Market. Start one idle cart beside your Market. Repeat reprices each completed trip within trade_limit (minimum sale or maximum purchase gold).", []string{"entity_ids", "target_id", "product?", "trade_mode?", "trade_limit?", "market_revision?", "repeat?"}},
+		{"trade", "Ship 100 goods to sell, or gold to buy 100 goods, at an explored neutral trading post. Use one idle Trade Cart at your Market or Trade Ship at your Dock, with a matching destination. Repeat reprices each trip within trade_limit (minimum sale or maximum purchase gold).", []string{"entity_ids", "target_id", "product?", "trade_mode?", "trade_limit?", "market_revision?", "repeat?"}},
 		{"build", "Create a building with villagers. Walls and palisades accept an end position; check_placement plans and prices the route.", []string{"entity_ids", "product", "position", "end_position?", "queue?"}},
 		{"train", "Queue a catalog unit at one producer.", []string{"entity_ids", "product"}},
 		{"research", "Queue a catalog technology at one producer.", []string{"entity_ids", "product"}},
@@ -36,9 +37,9 @@ func PlayerCommands() []CommandInfo {
 		{"reseed_farm", "Reseed one depleted owned farm; Go chooses a worker and charges the cost.", []string{"entity_ids"}},
 		{"market_buy", "Buy 100 food, wood or stone from your home merchants. Stock and prices are local; supplies arrive by caravan. Supply the observed home market revision to require that quote.", []string{"entity_ids", "product", "market_revision?"}},
 		{"market_sell", "Sell 100 food, wood or stone to your home merchants at their current local quote.", []string{"entity_ids", "product", "market_revision?"}},
-		{"market_post", "Post a standing buy, sell or barter offer at your completed Market. Reserves give_amount times lots; optional target_player makes the terms private to that kingdom.", []string{"entity_ids", "offer"}},
+		{"market_post", "Post a standing buy, sell or barter offer at your completed Market or Feudal-age Dock. Reserves give_amount times lots; optional target_player makes the terms private to that kingdom.", []string{"entity_ids", "offer"}},
 		{"market_cancel", "Close your offer and refund its unclaimed lots. Accepted caravans continue.", []string{"offer_id"}},
-		{"market_accept", "Accept one lot using an idle, empty Trade Cart beside your Market. Scout the offering Market first. Payment travels outward and purchased goods return. repeat continues while stock and payment remain available.", []string{"entity_ids", "offer_id", "repeat?"}},
+		{"market_accept", "Accept one lot using an idle, empty Trade Cart at your Market or Trade Ship at your Dock. Scout the matching destination first. Payment travels outward and purchased goods return. repeat continues while stock and payment remain available.", []string{"entity_ids", "offer_id", "repeat?"}},
 		{"market_resume", "Resume your interrupted caravan without paying or reserving goods twice.", []string{"shipment_id"}},
 		{"market_recall", "Recall your caravan before collection. Seller goods are released; your payment returns with the cart.", []string{"shipment_id"}},
 		{"resign", "Resign only your authenticated kingdom.", []string{}},

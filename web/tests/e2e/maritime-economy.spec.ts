@@ -13,6 +13,12 @@ test('trades at quoted prices and explicitly reseeds a depleted farm', async ({p
   await build(page,game,'market','Market');
   await build(page,game,'house','House');
   await build(page,game,'farm','Farm');
+  // A physical supply arrival legitimately changes a pinned quote. Exercise
+  // repeated exchanges at ordinary speed between deliveries, then accelerate
+  // again for the farming portion of this test.
+  await game.command('speed',()=>page.locator('#speed').click());
+  await expect(page.locator('#speed')).toHaveText('1×');
+  await expect.poll(async()=>(await game.snapshot()).marketplace.merchants.supply_state,{timeout:20_000}).toBe('preparing');
   await select(page,game,'farm');
   await expect(page.locator('#actions').getByRole('button',{name:/Reseed farm/})).toHaveAttribute('aria-disabled','true');
   await select(page,game,'market');
@@ -41,6 +47,7 @@ test('trades at quoted prices and explicitly reseeds a depleted farm', async ({p
   await page.screenshot({path:info.outputPath('market-trade-mobile.png')});
   await page.setViewportSize({width:1440,height:960});
   await page.screenshot({path:info.outputPath('market-trade.png')});
+  for(const speed of ['1.7×','3.4×','8×','16×','32×']){await game.command('speed',()=>page.locator('#speed').click());await expect(page.locator('#speed')).toHaveText(speed)}
   await battlefieldKey(page,'1');
   await battlefieldKey(page,'q');
   const farmPoint=await game.point('farm');

@@ -166,7 +166,7 @@ func (w *World) spawnWithLife(typ string, owner int, pos Vec, initial LifeState)
 		w.barriers = nil
 	}
 	w.IDs = append(w.IDs, e.ID)
-	if typ == "market" && owner == 0 {
+	if (typ == "market" || typ == "dock") && owner == 0 {
 		w.addMerchantRegion(e.ID, pos)
 	}
 	if typ == "farm" {

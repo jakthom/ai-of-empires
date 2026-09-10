@@ -60,12 +60,12 @@ func (w *World) initializeMarketplace() {
 
 func (w *World) ownMarket(player, id int) bool {
 	e := w.Entities[id]
-	return e != nil && e.Owner == player && e.Type == "market" && e.life.State() == Active
+	return tradingPost(e) && e.Owner == player && e.life.State() == Active && (e.Type != "dock" || w.Players[player].Age >= 1)
 }
 
 func (w *World) liveTrader(s *tradeShipment) *Entity {
 	cart := w.Entities[s.Cart]
-	if cart == nil || cart.Owner != s.Buyer || cart.life.State() != Active || cart.Type != "trade_cart" {
+	if cart == nil || cart.Owner != s.Buyer || cart.life.State() != Active || !tradeCarrier(cart) {
 		return nil
 	}
 	return cart
@@ -94,7 +94,7 @@ func (w *World) marketplaceCommand(player int, c Command) error {
 	switch c.Kind {
 	case "market_post":
 		if len(c.EntityIDs) != 1 || !w.ownMarket(player, c.EntityIDs[0]) {
-			return rule("market_required", "Select one completed Market belonging to your kingdom.")
+			return rule("market_required", "Select a completed Market or Feudal-age Dock belonging to your kingdom.")
 		}
 		if c.Offer == nil {
 			return rule("invalid_offer", "Specify the resources, quantities, and number of lots.")
@@ -116,7 +116,7 @@ func (w *World) marketplaceCommand(player int, c Command) error {
 			return rule("offer_unavailable", "This offer is unavailable.")
 		}
 		if len(c.EntityIDs) != 1 {
-			return rule("invalid_selection", "Select one idle Trade Cart at your Market.")
+			return rule("invalid_selection", "Select one idle Trade Cart at your Market or Trade Ship at your Dock.")
 		}
 		cart := w.Entities[c.EntityIDs[0]]
 		if err := w.canAcceptOffer(player, o, cart); err != nil {

@@ -50,7 +50,7 @@ export class SnapshotAssembler {
       this.snapshot = {
         ...old, control_revision: d.control_revision, tick: d.tick, time: d.time, speed: d.speed,
         paused: d.paused, status: d.status, winner: d.winner, treaty_remaining: d.treaty_remaining,
-        event_cursor: d.event_cursor, projectiles: d.projectiles, map,
+        event_cursor: d.event_cursor, projectiles: d.projectiles, effects: d.effects, map,
         player: d.player ?? old.player, opponents: d.opponents ?? old.opponents,
 		marketplace: d.marketplace ?? old.marketplace,
         events: d.events ?? old.events, build_options: d.build_options ?? old.build_options,

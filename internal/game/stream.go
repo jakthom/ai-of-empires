@@ -24,24 +24,25 @@ type MapCell struct {
 }
 
 type SnapshotDelta struct {
-	Marketplace     *MarketplaceView `json:"marketplace,omitempty"`
-	ControlRevision int              `json:"control_revision"`
-	Tick            int              `json:"tick"`
-	Time            float64          `json:"time"`
-	Speed           float64          `json:"speed"`
-	Paused          bool             `json:"paused"`
-	Status          string           `json:"status"`
-	Winner          int              `json:"winner"`
-	TreatyRemaining float64          `json:"treaty_remaining"`
-	Player          *PlayerView      `json:"player,omitempty"`
-	Opponents       *[]OpponentView  `json:"opponents,omitempty"`
-	Cells           []MapCell        `json:"cells,omitempty"`
-	Entities        []EntityView     `json:"entities,omitempty"`
-	RemovedEntities []int            `json:"removed_entities,omitempty"`
-	Projectiles     []ProjectileView `json:"projectiles"`
-	Events          *[]Event         `json:"events,omitempty"`
-	EventCursor     int              `json:"event_cursor"`
-	BuildOptions    *[]Action        `json:"build_options,omitempty"`
+	Effects         []BattlefieldEffectView `json:"effects"`
+	Marketplace     *MarketplaceView        `json:"marketplace,omitempty"`
+	ControlRevision int                     `json:"control_revision"`
+	Tick            int                     `json:"tick"`
+	Time            float64                 `json:"time"`
+	Speed           float64                 `json:"speed"`
+	Paused          bool                    `json:"paused"`
+	Status          string                  `json:"status"`
+	Winner          int                     `json:"winner"`
+	TreatyRemaining float64                 `json:"treaty_remaining"`
+	Player          *PlayerView             `json:"player,omitempty"`
+	Opponents       *[]OpponentView         `json:"opponents,omitempty"`
+	Cells           []MapCell               `json:"cells,omitempty"`
+	Entities        []EntityView            `json:"entities,omitempty"`
+	RemovedEntities []int                   `json:"removed_entities,omitempty"`
+	Projectiles     []ProjectileView        `json:"projectiles"`
+	Events          *[]Event                `json:"events,omitempty"`
+	EventCursor     int                     `json:"event_cursor"`
+	BuildOptions    *[]Action               `json:"build_options,omitempty"`
 }
 
 // SnapshotStream owns only the last authorized read model for one subscriber.
@@ -59,7 +60,7 @@ func (s *SnapshotStream) Next(v Snapshot, sampleMS float64) SnapshotFrame {
 	if p == nil || p.Version != v.Version || p.World != v.World || p.Player.ID != v.Player.ID || p.Map.Width != v.Map.Width || p.Map.Height != v.Map.Height || p.Map.Biome != v.Map.Biome {
 		f.Base, f.Snapshot = 0, &v
 	} else {
-		d := &SnapshotDelta{ControlRevision: v.ControlRevision, Tick: v.Tick, Time: v.Time, Speed: v.Speed, Paused: v.Paused, Status: v.Status, Winner: v.Winner, TreatyRemaining: v.TreatyRemaining, Projectiles: v.Projectiles, EventCursor: v.EventCursor}
+		d := &SnapshotDelta{Effects: v.Effects, ControlRevision: v.ControlRevision, Tick: v.Tick, Time: v.Time, Speed: v.Speed, Paused: v.Paused, Status: v.Status, Winner: v.Winner, TreatyRemaining: v.TreatyRemaining, Projectiles: v.Projectiles, EventCursor: v.EventCursor}
 		if !reflect.DeepEqual(p.Player, v.Player) {
 			d.Player = &v.Player
 		}

@@ -20,7 +20,7 @@ var logFilters = []LogFilter{
 var logCategories = map[string]string{
 	"order": "orders", "order_rejected": "orders",
 	"activity": "activity", "retargeted": "activity",
-	"harvest": "economy", "delivery": "economy", "trade": "economy", "exchange": "economy", "relic": "economy",
+	"spoils": "economy", "harvest": "economy", "delivery": "economy", "trade": "economy", "exchange": "economy", "relic": "economy",
 	"attack": "combat", "damage": "combat", "healed": "combat", "converted": "combat",
 	"queued": "production", "completed": "production", "cancelled": "production", "production": "production", "life": "production", "siege": "production",
 	"created": "world", "discovered": "world", "destroyed": "world", "notice": "world",

@@ -1,10 +1,10 @@
 # Marketplace and regional resources
 
-Open **Trade** in the top bar. Offers, Caravans, Merchants and Resources share the same authenticated Go read model used by REST and MCP. A completed Feudal-age Market is required to post offers, accept deliveries and exchange resources. Reading the book is available before building one.
+Open **Trade** in the top bar. Offers, Caravans, Merchants and Resources share the same authenticated Go read model used by REST and MCP. A completed Market or Feudal-age Dock is required to post offers, accept deliveries and exchange resources. Reading the book is available before building one.
 
 ## Standing offers
 
-An offer describes what its author gives and wants **per lot**. Offer wood for gold to sell, gold for wood to buy, or wood for stone to barter. Both quantities must be whole numbers from 1 to 500; the resources must differ. Post 1–20 lots, with at most 12 open offers per kingdom. Offers stay open until claimed, cancelled, or invalidated by the offering Market's loss or the kingdom's defeat.
+An offer describes what its author gives and wants **per lot**. Offer wood for gold to sell, gold for wood to buy, or wood for stone to barter. Both quantities must be whole numbers from 1 to 500; the resources must differ. Post 1–20 lots, with at most 12 open offers per kingdom. Offers stay open until claimed, cancelled, or invalidated by the offering trading post’s loss or the kingdom's defeat.
 
 Posting removes all advertised goods from spendable stock and reserves them. Accepting removes one lot from the listing and assigns its reserved goods to the delivery. Cancelling returns only unclaimed lots; accepted deliveries continue. The author cannot change prices under an accepted caravan. Cancel and post a new offer to advertise different terms.
 
@@ -12,30 +12,40 @@ Posting removes all advertised goods from spendable stock and reserves them. Acc
 
 ## Physical delivery
 
-The accepting player supplies an idle, empty Trade Cart beside a completed owned Market. The Markets must be connected by land, and the kingdoms must be at peace. The cart carries one lot, up to 500 of either resource on its respective journey.
+The accepting player supplies an idle, empty Trade Cart beside a completed owned Market, or a Trade Ship beside a completed owned Dock in Feudal Age. Both carriers cost 100 wood and 50 gold. Carts connect Markets by land; ships connect Docks by water. The kingdoms must be at peace. A carrier holds one lot, up to 500 of either resource on its respective journey. Mixed Market-to-Dock routes are refused before funding.
 
-1. Acceptance loads the requested payment from the accepting kingdom's stockpile into its cart. The offered goods remain reserved at the offering kingdom.
-2. At the offering Market, the payment enters that kingdom's stockpile and the advertised goods replace it in the cart.
-3. The cart returns to its home Market, where the purchased goods enter the accepting kingdom's stockpile. If that Market was lost or became unreachable, another reachable owned Market can receive them.
+1. Acceptance loads the requested payment from the accepting kingdom's stockpile into its carrier. The offered goods remain reserved at the offering kingdom.
+2. At the offering Market or Dock, the payment enters that kingdom's stockpile and the advertised goods replace it in the carrier.
+3. The carrier returns to its matching home post, where the purchased goods enter the accepting kingdom’s stockpile. If that post was lost or became unreachable, another reachable owned post of the same type can receive them.
 
-**Repeat trips** attempts the next lot through the same command boundary after delivery commits. It stops when the offer closes or a new acceptance is refused, including insufficient payment. An offer can be filled by multiple kingdoms; each claimed lot needs its own available cart. Separate posted offers are not automatically matched against one another.
+**Repeat trips** attempts the next lot through the same command boundary after delivery commits. It stops when the offer closes or a new acceptance is refused, including insufficient payment. An offer can be filled by multiple kingdoms; each claimed lot needs its own available carrier. Separate posted offers are not automatically matched against one another.
 
-Movement uses normal collision, pathfinding and unit speed. Peaceful trading grants the assigned caravan passage through the offering kingdom's gates; military units receive no new passage rights. This does not share vision. Blocked paths retry normally. Build/open a route, move the cart, or recall it as appropriate. Isolated islands require future naval freight; a land cart cannot cross deep water.
+Movement uses normal collision, pathfinding and unit speed. Peaceful trading grants the assigned caravan passage through the offering kingdom's gates; military units receive no new passage rights. This does not share vision. Blocked paths retry normally. Build/open a route, move the cart, or recall it as appropriate. Trade Ships connect islands through reachable Docks; land carts cannot cross deep water.
 
 | Interruption | Result |
 |---|---|
-| Stop or move the cart | Pauses the delivery, retaining cargo. Resume continues without a second charge. Other cargo/trade/garrison orders are refused while it has an active shipment. |
-| Recall before pickup | Releases the offering kingdom's reserved goods immediately. Payment returns physically with the cart. |
-| Offering Market lost, offering kingdom defeated, or conflict begins before pickup | Automatically recalls the delivery. |
-| Home Market lost | Returns to another reachable owned Market, or waits for one. |
-| Cart destroyed, converted, or accepting kingdom defeated | Undelivered cargo is lost. Offered goods that were never collected are released. Already delivered payment is retained by its recipient. |
+| Stop or move the carrier | Pauses the delivery, retaining cargo. Resume continues without a second charge. Other cargo/trade/garrison orders are refused while it has an active shipment. |
+| Recall before pickup | Releases the offering kingdom's reserved goods immediately. Payment returns physically with the carrier. |
+| Offering trading post lost, offering kingdom defeated, or conflict begins before pickup | Automatically recalls the delivery. |
+| Home post lost | Returns to another reachable owned post of the same type, or waits for one. |
+| Carrier destroyed, converted, or accepting kingdom defeated | A lethal attacker captures carried cargo; conversion/defeat otherwise loses undelivered cargo. Offered goods that were never collected are released. Already delivered payment is retained by its recipient. |
 | Pause/save/restart | Retains orders, cargo, reservations and lifecycle state; time stops while paused. Restore never replays a payment or refund. |
 
-Participants see their agreed terms and delivery milestones. Only the cart's owner sees interruption and route details outside ordinary map visibility. A foreign cart's location is included only while visible, including for its trading partner. Third parties do not receive delivery records. Trade receipts remain in each participant's private chronicle. The read model retains recent deliveries (200 records globally, plus older active deliveries); the complete journal remains stored.
+Participants see their agreed terms and delivery milestones. Only the carrier’s owner sees interruption and route details outside ordinary map visibility. A foreign carrier’s location is included only while visible, including for its trading partner. Third parties do not receive delivery records. Trade receipts remain in each participant's private chronicle. The read model retains recent deliveries (200 records globally, plus older active deliveries); the complete journal remains stored.
+
+## Escorts and spoils
+
+Select mobile soldiers or warships, choose **Guard**, then click a friendly economic unit or trading post. Neutral Supply Caravans can also be protected. Soldiers follow land units; warships follow ships or guard Docks. Guards stay near their charge, intercept nearby hostile forces or witnessed attackers, and return after combat. Their ordinary weapons, health, costs and collisions determine protection; escorting is not an invulnerability bonus. Hold fire disables automatic attacks. A new order interrupts the escort; losing the charge, its ownership or its visibility ends it. Guards gain no foreign vision or military gate access.
+
+A lethal attack immediately credits the killing kingdom with the resources physically aboard the victim. Workers surrender gathered cargo; trade carriers surrender outbound payment/exports or returning goods/proceeds. Supply Caravan spoils include its goods and 240-gold buyer budget. Loaded transport passengers’ resource cargo is included. Cargo is consumed once before removal, so a raided supply cannot also replenish its destination. Private `spoils` events record capture; this transfer does not count as production.
+
+Uncollected reservations remain at the destination and are released by the shipment lifecycle. Destroying an empty Market or Dock does not loot merchant inventory or the kingdom treasury. Deletion and conversion do not award destruction spoils. There is no map pickup or wreck salvage command.
+
+AI assigns up to two nearby idle soldiers or warships to loaded deliveries. Assigned escorts stay out of its raid and rally rosters. Raiders assess visible defending strength, so an adequate escort can discourage a costly attack; concealed troops and cargo quantities are never consulted.
 
 ## Local merchants, production and demand
 
-Every kingdom has one home merchant inventory, priced using its starting region. All of that kingdom's owned Markets access this same inventory, even if another Market is built elsewhere. This prevents instant price arbitrage through the kingdom-wide stockpile and prevents rebuilding from resetting supply. Each neutral Market has its own inventory and local prices. New maps place additional outlying Markets where terrain and space permit; existing maps retain their buildings and deposits.
+Every kingdom has one home merchant inventory, priced using its starting region. All of that kingdom’s owned Markets and Docks access this same inventory, even if another post is built elsewhere. This prevents instant price arbitrage through the kingdom-wide stockpile and prevents rebuilding from resetting supply. Each neutral Market or Dock has its own inventory and local prices. New maps place outlying Markets and coastal trading Docks where terrain and space permit; existing maps retain their buildings and deposits.
 
 A region initially holds 1,000 food, wood and stone multiplied by the local biome's deposit factors, plus 2,000 gold. Worlds without per-tile biome data use their configured biome; worlds without a biome use the unmodified quantities. Buying and selling changes that region alone. Each exchange transfers real resources in lots of 100. For a commodity stock `s`, the wholesale price per 100 is `clamp(100 + (1000-s)*0.08, 30, 200)`. Purchases cost `ceil(price*1.3)` gold; sales return `floor(price*0.7)`, or `floor(price*0.84)` for Saracens. Stock shortages therefore increase prices and surpluses lower them, within bounds. At 1,000 stock the quotes are 130/70 gold (84 for a Saracen sale).
 
@@ -43,7 +53,7 @@ Food, wood and stone warehouses each hold at most 5,000, including space reserve
 
 ### Supply caravans
 
-Regional Supply Caravans are visible neutral units using ordinary land movement, collision and fog. Each region prepares at most one shipment at a time. After arrival or loss, it waits 90 game seconds before its next departure. Departure can wait for a free source position and a completed receiving Market. A home caravan serves the Market nearest that kingdom's original settlement; neutral caravans serve their own Market. Home supply caravans may pass their receiving kingdom's gates. Foreign gates and blockades can interrupt them. Players can explicitly attack supply caravans; they do not attack back, and cargo lost with them never arrives.
+Regional Supply Caravans are visible neutral units using ordinary land movement, collision and fog. Each region prepares at most one shipment at a time. After arrival or loss, it waits 90 game seconds before its next departure. Departure can wait for a free source position and a completed receiving trading post. A home caravan serves the eligible Market or Dock nearest that kingdom’s original settlement; neutral caravans serve their own post. These district supply trips remain on land even when supplying a Dock. Home supply caravans may pass their receiving kingdom's gates. Foreign gates and blockades can interrupt them. Players can explicitly attack supply caravans; they do not attack back, and cargo lost with them never arrives.
 
 A caravan brings up to 60 food, 60 wood and 20 stone multiplied by its region's biome factors. Food and wood represent renewable production in the surrounding district; stone represents limited-rate imports from outside the simulated map. Map deposits do not regrow. Supplies are produced only for an actual departure and enter merchant stock only on physical arrival. Goods beyond warehouse capacity leave with the caravan.
 
@@ -53,20 +63,20 @@ There is no offline production, missed-cycle catch-up or stock reset when a Mark
 
 ### Merchant trade routes
 
-The Merchants page selects either your home merchants or an observed neutral Market. Home exchange remains immediate through `market_buy` / `market_sell`. Regional **Export** and **Import** controls use `trade` with one idle, empty Trade Cart beside an owned Market:
+The Merchants page selects either your home merchants or an observed neutral Market or Dock. Home exchange remains immediate through `market_buy` / `market_sell`. Regional **Export** and **Import** controls use `trade` with one idle, empty Trade Cart beside an owned Market or Trade Ship beside an owned Dock:
 
-- `trade_mode: "sell"`: carry 100 of `product` to the neutral Market and return its reserved gold payment.
-- `trade_mode: "buy"`: carry gold to the neutral Market and return 100 of `product`.
+- `trade_mode: "sell"`: carry 100 of `product` to the neutral trading post and return its reserved gold payment.
+- `trade_mode: "buy"`: carry gold to the neutral trading post and return 100 of `product`.
 - `repeat: true`: attempt another funded lot after returning, using the new local quote. A refusal stops repetition and is recorded in your private log.
 - Optional `trade_limit`: minimum sale proceeds or maximum purchase cost in gold per 100 goods, from 1 to 500. Omission permits any price within the ruleset's bounds on future trips.
 
 Both sides reserve their advertised goods/payment at dispatch. The accepted price is fixed for that trip. Travel distance affects time and risk, **not payment**. `home_margin` compares the current purchase price at the source with the sale price at the destination for 100 goods. It is an indicative price difference, not guaranteed profit: later prices, available stocks, journey time and losses can change the result. Imports, exports and barter are exchanges and do not count as newly produced player resources.
 
-Omitting `trade_mode` selects selling. Older clients that omit `product` sell 100 of their largest held food/wood/stone stockpile. New routes default to one trip; request repetition explicitly. Queued or multi-cart `trade` commands are refused rather than partially funded. `market_resume` and `market_recall` also control merchant deliveries. Old unfunded outbound routes stop when a save resumes; already-loaded legacy gold can finish its return once.
+Omitting `trade_mode` selects selling. Older clients that omit `product` sell 100 of their largest held food/wood/stone stockpile. New routes default to one trip; request repetition explicitly. Queued or multiple-carrier `trade` commands are refused rather than partially funded. `market_resume` and `market_recall` also control merchant deliveries. Old unfunded outbound routes stop when a save resumes; already-loaded legacy gold can finish its return once.
 
-Only the owner sees home merchant inventory. Neutral stock, prices and supply details are included in `marketplace.markets` while the Market is in ordinary sight. Remembered Markets remain locatable on the map but do not stream hidden price changes. Supply cart positions appear only while visible. A player can explicitly order a funded trade at a remembered neutral Market, subject to current stock, quote revision and price-limit checks; the accepted contract discloses its own terms. Other players do not receive that delivery's private records.
+Only the owner sees home merchant inventory. Neutral stock, prices and supply details are included in `marketplace.markets` while the trading post is in ordinary sight. Remembered trading posts remain locatable on the map but do not stream hidden price changes. Supply cart positions appear only while visible. A player can explicitly order a funded trade at a remembered neutral trading post, subject to current stock, quote revision and price-limit checks; the accepted contract discloses its own terms. Other players do not receive that delivery's private records.
 
-Checkpoint version 6 preserves local inventories and supply lifecycles. Version-5 migration divides the former shared stock among home and neutral regions without duplicating it; regional production establishes new surpluses over time. Older pre-marketplace saves initialize regional merchants. Existing offered goods, active player contracts, player stocks and map deposits remain intact.
+Checkpoint version 7 preserves local inventories, cargo, escorts, supply lifecycles and visible destruction remains. Versions 1–6 remain readable. Version-5 migration divides the former shared stock among home and neutral regions without duplicating it; regional production establishes new surpluses over time. Older pre-marketplace saves initialize regional merchants. Existing offered goods, active player contracts, player stocks and map deposits remain intact.
 
 ## Regional scarcity
 
@@ -123,6 +133,14 @@ Import one lot of stone with a maximum price of 180 gold:
 
 Read `marketplace.merchants` for home quotes and `marketplace.markets` for currently observed neutral stock, production, demand and `routes`. The server supplies `can_start`, `reason`, `cart_id`, exact `cost`/`gain` and indicative `home_margin`. These values also travel through SSE and the MCP `marketplace` tool.
 
+Guard the observed carrier with two owned soldiers (or two warships for a Trade Ship):
+
+```json
+{"id":"escort-1","kind":"guard","entity_ids":[701,702],"target_id":614}
+```
+
+The wire fields `cart_id`, `market_id` and existing marketplace command names remain compatible: they also identify ships and Docks where applicable. Use observed entity types and server-authored route eligibility rather than assuming land transport.
+
 Every new intention needs a unique command ID. Retry an ambiguous request with the identical ID and payload. The membership-scoped receipt boundary prevents duplicate reservations, cargo loading, payments and refunds. Generated TypeScript, OpenAPI and MCP schemas all derive from the Go wire types.
 
-Built-in AI uses only its own inventory and the book it is allowed to read. It advertises surpluses against shortages, compares home quotes with observed regional quotes, and can train/fund carts to accept useful offers and merchant deliveries while retaining economic reserves. It receives no extra resources or private trading information. Negotiated alliances, naval freight and automatic matching of separate offers remain future work.
+Built-in AI uses only its own inventory and the book it is allowed to read. It advertises surpluses against shortages, compares home quotes with observed regional quotes, and can train/fund carts or ships to accept useful offers and merchant deliveries while retaining economic reserves. It receives no extra resources or private trading information. Negotiated alliances and automatic matching of separate offers remain future work.
