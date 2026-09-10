@@ -278,6 +278,8 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
+	output := newEventOutput(w, r)
+	defer output.Close()
 	w.WriteHeader(200)
 	controller := http.NewResponseController(w)
 	// Interrupt a blocked write too, not just the interval between snapshots.
@@ -331,10 +333,10 @@ func (s *Server) events(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", sequence, event, data); err != nil {
+		if _, err = fmt.Fprintf(output, "id: %d\nevent: %s\ndata: %s\n\n", sequence, event, data); err != nil {
 			return
 		}
-		if err := controller.Flush(); err != nil {
+		if err := output.Flush(); err != nil {
 			return
 		}
 		select {

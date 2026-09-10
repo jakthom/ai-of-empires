@@ -65,7 +65,7 @@ func canQueueProduction(_ context.Context, c *entityContext) error {
 	return validate()
 }
 func enqueueProduction(_ context.Context, c *entityContext) error {
-	c.World.Players[c.Actor.Owner].Resources.Add(c.Task.Paid.Scale(-1))
+	c.World.consume(c.Actor.Owner, c.Task.Paid, c.Task.Type)
 	c.Actor.Tasks = append(c.Actor.Tasks, *c.Task)
 	c.World.entityEvent(c.Actor, "queued", "Queued "+taskName(*c.Task), 0)
 	return nil
@@ -79,7 +79,7 @@ func cancelActiveTask(_ context.Context, c *entityContext) error {
 func refundTask(_ context.Context, c *entityContext) error {
 	e := c.Actor
 	c.World.entityEvent(e, "cancelled", "Cancelled "+taskName(e.Tasks[c.Index])+"; resources refunded", 0)
-	c.World.Players[e.Owner].Resources.Add(e.Tasks[c.Index].Paid)
+	c.World.refund(e.Owner, e.Tasks[c.Index].Paid)
 	e.Tasks = append(e.Tasks[:c.Index], e.Tasks[c.Index+1:]...)
 	return nil
 }
@@ -93,7 +93,7 @@ func loseProduction(_ context.Context, c *entityContext) error {
 	}
 	if c.Refund {
 		for _, task := range c.Actor.Tasks {
-			c.World.Players[c.SourceOwner].Resources.Add(task.Paid)
+			c.World.refund(c.SourceOwner, task.Paid)
 		}
 	}
 	c.Actor.Tasks = nil
@@ -126,7 +126,7 @@ func productionComplete(_ context.Context, c *entityContext) error {
 }
 func workProduction(_ context.Context, c *entityContext) error {
 	if len(c.Actor.Tasks) > 0 {
-		c.Actor.Tasks[0].Remaining = math.Max(0, c.Actor.Tasks[0].Remaining-Step)
+		c.Actor.Tasks[0].Remaining = math.Max(0, c.Actor.Tasks[0].Remaining-Step*c.World.Players[c.Actor.Owner].workMultiplier())
 	}
 	return nil
 }
@@ -151,6 +151,7 @@ func completeTraining(w *World, e *Entity, task Task) error {
 		return rule("blocked_exit", "Producer exit is blocked.")
 	}
 	u := w.spawn(task.Product, e.Owner, pos)
+	w.Players[e.Owner].Economy.UnitsTrained++
 	if e.Rally != nil {
 		v := *e.Rally
 		w.setOrder(u, Order{Kind: "move", Position: &v}, false)

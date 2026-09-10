@@ -9,6 +9,9 @@ import (
 // Unit ticking is an event, not a switch that chooses a next state.
 func (w *World) behave(e *Entity) {
 	c := &unitContext{World: w, Actor: e, Target: w.Entities[e.Order.Target], Roll: 1}
+	if e.behavior.State() == Constructing && (c.Target == nil || c.Target.Owner != e.Owner || c.Target.life.State() == Active) {
+		c.Candidate = w.nextConstruction(e)
+	}
 	if e.Order.Kind == "guard" {
 		c.Target = w.Entities[e.Order.Threat]
 		if e.behavior.State() == Guarding {
@@ -18,16 +21,20 @@ func (w *World) behave(e *Entity) {
 	if e.behavior.State() == Converting && e.Work >= 4 {
 		c.Roll = w.random()
 	}
-	if e.behavior.State() == Idle || e.behavior.State() == Moving {
+	if e.behavior.State() == Idle || e.behavior.State() == Moving && e.Order.Kind == "attack_move" {
 		c.Candidate = w.acquire(e)
 	}
 	if e.behavior.State() == Returning {
 		c.DropOff = w.dropOff(e)
 	}
 	if e.behavior.State() == SeekingResource || e.behavior.State() == Gathering {
-		if c.Target == nil || c.Target.Amount <= 0 {
+		if c.Target == nil || c.Target.Amount <= 0 || e.behavior.State() == SeekingResource && farmOccupied(nil, c) == nil {
+			resource := e.CargoType
+			if c.Target != nil && c.Target.Resource != "" {
+				resource = c.Target.Resource
+			}
 			c.Candidate = w.nearest(e.Position, func(t *Entity) bool {
-				return validResource(e, t) && t.Resource == e.CargoType && w.visibleEntity(e.Owner, t) && w.sameRegion(e.Position, t.Position, definitions[e.Type].Naval)
+				return validResource(e, t) && t.Resource == resource && w.visibleEntity(e.Owner, t) && w.sameRegion(e.Position, t.Position, definitions[e.Type].Naval) && farmOccupied(nil, &unitContext{World: w, Actor: e, Target: t}) != nil
 			})
 		}
 	}
@@ -63,6 +70,12 @@ func acceptOrder(_ context.Context, c *unitContext) error {
 	}
 	e := c.Actor
 	e.Order = *c.Order
+	if e.Order.Kind == "attack" || e.Order.Kind == "convert" {
+		c.World.declareAttack(e.Owner, c.World.Entities[e.Order.Target])
+	}
+	if target := c.World.Entities[e.Order.Target]; e.Order.Kind == "build" && target != nil {
+		e.Order.BuildGroup = target.BuildGroup
+	}
 	e.Path = nil
 	e.Repath = 0
 	e.Work = 0
@@ -106,12 +119,9 @@ func movementTransitions() []unitRow {
 			return applicable(c.Actor.Order.Kind == "attack_move" && c.Candidate != nil)
 		}, Do: engageCandidate},
 		{From: Moving, Event: UnitPulse, To: Idle, Guard: func(_ context.Context, c *unitContext) error {
-			return applicable(c.Actor.Order.Position == nil || c.Actor.Position.Distance(*c.Actor.Order.Position) <= .8)
+			return applicable(c.Actor.Order.Position == nil || c.Actor.Position.Distance(*c.Actor.Order.Position) <= moveArrival(c.Actor))
 		}, Do: finishUnitOrder},
-		{From: Moving, Event: UnitPulse, To: Moving, Do: func(_ context.Context, c *unitContext) error {
-			c.World.move(c.Actor, *c.Actor.Order.Position, .8, Step)
-			return nil
-		}},
+		{From: Moving, Event: UnitPulse, To: Moving, Do: advanceMarch},
 	}
 }
 func engageCandidate(_ context.Context, c *unitContext) error {
@@ -155,7 +165,7 @@ func embarkPassenger(_ context.Context, c *unitContext) error {
 }
 func maintainGarrison(_ context.Context, c *unitContext) error {
 	if b := c.World.Entities[c.Actor.Container]; b != nil {
-		c.Actor.Position = b.Position
+		c.World.positionEntity(c.Actor, b.Position)
 		c.Actor.HP = math.Min(c.World.stats(c.Actor).HP, c.Actor.HP+Step*.5)
 	}
 	return nil
@@ -175,7 +185,7 @@ func disembarkPassenger(ctx context.Context, c *unitContext) error {
 	b := c.World.Entities[c.Actor.Container]
 	pos, _ := c.World.exit(b, c.Actor)
 	c.Actor.Container = 0
-	c.Actor.Position = pos
+	c.World.positionEntity(c.Actor, pos)
 	b.Passengers = slices.DeleteFunc(b.Passengers, func(id int) bool { return id == c.Actor.ID })
 	return finishUnitOrder(ctx, c)
 }

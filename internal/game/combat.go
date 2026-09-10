@@ -28,7 +28,7 @@ func combatTransitions() []unitRow {
 	)
 }
 func combatTargetLost(_ context.Context, c *unitContext) error {
-	return applicable(c.Target == nil || c.Target.Owner == 0 && c.Target.Type != "supply_cart" || c.Target.Owner == c.Actor.Owner || !c.World.visibleEntity(c.Actor.Owner, c.Target) || (c.Actor.Type == "town_center" && len(c.Actor.Passengers) == 0) || !c.World.mayContinueAttack(c.Actor, c.Target))
+	return applicable(c.Target == nil || !attackableEntity(c.Target) || c.Target.Owner == c.Actor.Owner || !c.World.visibleEntity(c.Actor.Owner, c.Target) || (c.Actor.Type == "town_center" && len(c.Actor.Passengers) == 0) || !c.World.mayContinueAttack(c.Actor, c.Target))
 }
 
 func (w *World) mayContinueAttack(e, target *Entity) bool {
@@ -131,11 +131,15 @@ type flightContext struct {
 }
 
 var flightMachine = statemachine.MustCompile([]statemachine.Transition[FlightState, FlightEvent, *flightContext]{
+	{From: Flying, Event: CancelFlight, To: Impacted, Do: cancelProjectile},
+	{From: Impacted, Event: FlightPulse, To: Impacted},
 	{From: Flying, Event: FlightPulse, To: Impacted, Guard: func(_ context.Context, c *flightContext) error {
 		return applicable(c.Projectile.Position.Distance(c.Destination) <= c.Projectile.Speed*Step)
 	}, Do: impactProjectile},
 	{From: Flying, Event: FlightPulse, To: Flying, Do: advanceProjectile},
 })
+
+func cancelProjectile(_ context.Context, _ *flightContext) error { return nil }
 
 func advanceProjectile(_ context.Context, c *flightContext) error {
 	p := c.Projectile
@@ -198,7 +202,7 @@ func (w *World) acquire(e *Entity) *Entity {
 	if e.Stance == "stand_ground" || d.Kind == "building" {
 		r = d.Range
 	}
-	return w.nearest(e.Position, func(t *Entity) bool {
+	return w.nearestWithin(e.Position, w.collisionRadius(r), func(t *Entity) bool {
 		if t.Owner == 0 || t.Owner == e.Owner || !w.visibleEntity(e.Owner, t) || e.Position.Distance(t.Position) > r+definitions[t.Type].Radius || definitions[t.Type].Kind == "resource" {
 			return false
 		}

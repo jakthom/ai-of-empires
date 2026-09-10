@@ -15,15 +15,18 @@ const (
 	inConflict         relationState = "hostile"
 	aggressionObserved relationEvent = "aggression"
 	relationPulse      relationEvent = "pulse"
+	peacePurchased     relationEvent = "peace_purchased"
 	peaceAfter                       = 300.0
 	retaliationMemory                = 15.0
 	defenseLeash                     = 6.0
 )
 
 type relationship struct {
-	A, B       int
-	QuietUntil float64
-	lifecycle  *statemachine.Instance[relationState, relationEvent, *relationContext]
+	DamageA, DamageB float64
+	PurchasedUntil   float64
+	A, B             int
+	QuietUntil       float64
+	lifecycle        *statemachine.Instance[relationState, relationEvent, *relationContext]
 }
 
 type relationContext struct {
@@ -41,6 +44,7 @@ type aggression struct {
 }
 
 var relationMachine = statemachine.MustCompile([]statemachine.Transition[relationState, relationEvent, *relationContext]{
+	{From: inConflict, Event: peacePurchased, To: atPeace, Do: settlePeace},
 	{From: atPeace, Event: aggressionObserved, To: inConflict, Do: beginConflict},
 	{From: inConflict, Event: aggressionObserved, To: inConflict, Do: extendConflict},
 	{From: inConflict, Event: relationPulse, To: atPeace, Guard: conflictQuiet, Do: restorePeace},
@@ -76,6 +80,7 @@ func conflictQuiet(_ context.Context, c *relationContext) error {
 	return applicable(c.World.Time >= c.Relation.QuietUntil)
 }
 func extendConflict(_ context.Context, c *relationContext) error {
+	c.Relation.PurchasedUntil = 0
 	c.Relation.QuietUntil = c.World.Time + peaceAfter
 	return nil
 }
@@ -94,12 +99,10 @@ func restorePeace(_ context.Context, c *relationContext) error {
 }
 
 func (w *World) noteAggression(source, owner int, target *Entity) {
+	w.declareAttack(owner, target)
 	w.observeGuardAttack(source, owner, target)
 	if target == nil || owner == 0 || target.Owner == 0 || owner == target.Owner {
 		return
-	}
-	if r := w.Relations[relationKey(owner, target.Owner)]; r != nil {
-		mustFire(r.lifecycle, aggressionObserved, &relationContext{World: w, Relation: r})
 	}
 	if source != 0 {
 		if w.Incidents[target.Owner] == nil {

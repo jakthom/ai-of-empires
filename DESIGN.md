@@ -44,7 +44,7 @@ A perspective camera makes foreground and distant objects read at different scal
 
 ## Shapes
 
-Rectangular compact controls, small clipped heraldic emblems, and clear selection rings. Buildings have different silhouettes and real world footprints. Each of the 21 building types has a dedicated outlined SVG in the Build deck and selection portrait. Icons remain 32px on desktop and 24px on narrow screens; below 360px, build choices use one column so the icon, name and cost remain readable.
+Rectangular compact controls, small clipped heraldic emblems, and clear selection rings. Buildings have different silhouettes and real world footprints. Each of the 22 building types has a dedicated outlined SVG in the Build deck and selection portrait. Icons remain 32px on desktop and 24px on narrow screens; below 360px, build choices use one column so the icon, name and cost remain readable.
 
 ## Components
 
@@ -93,3 +93,16 @@ Keep condition inside the miniature battlefield’s existing material language. 
 Only an authenticated destruction effect creates collapse, fallen bodies or ship wreckage. Losing sight of a unit never creates a death animation. Remains are unselectable and have no gameplay collision. Their age comes from the game clock; pause freezes them, reduced motion uses static poses, and hidden effects disappear immediately. Fire meshes are instanced, damage geometry changes only at condition thresholds, and the renderer batches compatible static parts. This avoids making a busy battle expensive through repeated model allocation.
 
 Guard belongs in the military Orders panel as a targeted intention. The selected guard’s server-authored activity distinguishes following from defending. Trade Ships use the same marketplace quotes, receipts and interruptions as carts; selectors name Docks and Markets explicitly. Land and sea eligibility and captured cargo are explained through the server’s normal action descriptions and private chronicle.
+
+
+## Construction guides and campaign accounting
+
+The Build deck keeps compact silhouettes and costs. Hovering or focusing a choice opens a field guide with its purpose, strategic importance, grid footprint, capabilities and server-provided availability reason. The guide stays visible while placing that building. Gates expose rotation and Auto align alongside placement instructions; bridges use a bank-to-bank drag and a distinct wooden crossing icon. Farms fill their two-tile square so adjacent fields meet. Repair and farm work remain ordinary selection actions.
+
+Stats opens a scrollable kingdom ledger in the existing olive and brass palette. Six headline figures use a balanced three-column grid on desktop. Resource charts pair solid production and dashed consumption, with game-time labels, keyboard-focusable observations, a sample table and CSV download. Population, food demand, spending purposes, construction, trade and military accounts follow in readable sections. Campaign history charts show GDP, population and development; unit, building and technology details use disclosures. Refresh preserves open disclosures and focused observations. Narrow screens stack charts and keep wide tables inside their own scroll containers.
+
+The owner’s God mode is an explicit menu choice with a persistent exit banner. Report scope is a separate selector; changing it never changes gameplay vision. The final result opens with the official outcome, followed by seven achievement leaders and a generated campaign summary. The comprehensive report and JSON download remain available from that result.
+
+Reparations live under Kingdom relationships, with a named recipient, visible gold amount and a server-reported AI acceptance threshold. Pending offers show their expiry and the actions available to the current participant. Global trade summarizes publicly advertised demand and supply, then offers clear Buy and Sell listing presets. Private offers and kingdom accounts retain their existing access boundaries.
+
+Snapshots & exports presents named starting points as rows with game time and creation time. Starting a copy explains the new paused game and its vacant human seats. SQLite download shares this dialog; transfer and fork feedback stays beside the action that caused it.

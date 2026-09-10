@@ -3,14 +3,15 @@ package game
 import "math"
 
 type MarketplaceView struct {
-	Markets   []RegionalMarketView `json:"markets"`
-	Offers    []TradeOfferView     `json:"offers"`
-	Shipments []TradeShipmentView  `json:"shipments"`
-	Merchants MerchantView         `json:"merchants"`
-	Reserved  Resources            `json:"reserved"`
-	Capacity  int                  `json:"capacity"`
-	MaxLots   int                  `json:"max_lots"`
-	MaxOffers int                  `json:"max_offers"`
+	Global    []GlobalCommodityView `json:"global,omitempty"`
+	Markets   []RegionalMarketView  `json:"markets"`
+	Offers    []TradeOfferView      `json:"offers"`
+	Shipments []TradeShipmentView   `json:"shipments"`
+	Merchants MerchantView          `json:"merchants"`
+	Reserved  Resources             `json:"reserved"`
+	Capacity  int                   `json:"capacity"`
+	MaxLots   int                   `json:"max_lots"`
+	MaxOffers int                   `json:"max_offers"`
 }
 type MerchantView struct {
 	RegionID       int       `json:"region_id"`
@@ -77,6 +78,7 @@ type TradeShipmentView struct {
 // enter this read model, including disabled-action reasons.
 func (w *World) marketplaceView(player int) MarketplaceView {
 	v := MarketplaceView{Markets: []RegionalMarketView{}, Offers: []TradeOfferView{}, Shipments: []TradeShipmentView{}, Capacity: tradeCapacity, MaxLots: maxOfferLots, MaxOffers: maxOpenOffers}
+	v.Global = w.globalMarket()
 	var market *Entity
 	for _, e := range w.tradingPosts(player) {
 		if e.life.State() == Active {

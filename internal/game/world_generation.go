@@ -110,6 +110,7 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 	w.initializeMarketplace()
 	w.initializeTreaty()
 	w.initializeVoyages()
+	w.initializeProvisions()
 	w.assignRegionalBiomes()
 	for i, start := range starts {
 		w.seedSettlement(i+1, start)
@@ -431,7 +432,7 @@ func (w *World) regions(naval bool) []int {
 		if naval {
 			return t == "water" || t == "shallows"
 		}
-		return t != "water" && t != "cliff"
+		return w.Tiles[i].Bridge || t != "water" && t != "cliff"
 	}
 	queue := make([]int, 0, len(w.Tiles))
 	for i := range regions {

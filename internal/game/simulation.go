@@ -12,6 +12,8 @@ func (w *World) Update() {
 		return
 	}
 	w.Tick++
+	w.beginSpatial()
+	defer func() { w.spatial.active = false }()
 	w.Time += Step
 	if w.treatyInForce() {
 		mustFire(w.peacePeriod, treatyPulse, w)
@@ -27,6 +29,7 @@ func (w *World) Update() {
 		w.thinkAI()
 		w.aiClock = 0
 	}
+	w.sampleMarches()
 	for _, id := range append([]int{}, w.IDs...) {
 		e := w.Entities[id]
 		if e == nil || e.life.State() != Active {
@@ -57,7 +60,10 @@ func (w *World) Update() {
 	w.updateProjectiles()
 	w.pulseAftermath()
 	w.pulseMarketplace()
+	w.pulseReparations()
+	w.pulseProvisions()
 	w.sampleProduction()
+	w.sampleEconomy()
 	w.checkVictory()
 	if w.Tick%200 == 0 {
 		w.IDs = slices.DeleteFunc(w.IDs, func(id int) bool { return w.Entities[id] == nil })

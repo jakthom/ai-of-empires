@@ -1,6 +1,7 @@
 // Each silhouette names exactly one building throughout the command deck.
 // The olive/brass field-manual style remains legible at the 32px action size.
 const drawings: Record<string, string> = {
+  bridge: '<path d="M3 18h34M4 18v-7m8 7V9m8 9V9m8 9V9m8 9v-7M3 12h34M5 18v14m30-14v14M8 31q12-23 24 0M2 35q4-3 9 0t9 0t9 0t9 0"/>',
   town_center: '<path d="M5 33V19l8-6h15l7 6v14ZM3 19h34M15 14V7l5-4 5 4v7M14 7h12M18 33v-9h5v9M8 23h4m15 0h4M20 3V1"/>',
   house: '<path d="M6 20 20 7l14 13M10 17v17h20V17M25 11V5h5v11M17 34V23h6v11M12 20h3"/>',
   mill: '<path d="m14 34 3-17h7l3 17ZM20 17V4m0 13L8 9m12 8L8 26m12-9 12 9m-12-9 12-8M7 8l5 1-2 4Zm25 0-5 1 2 4ZM8 26l5-1-2-4Zm24 0-5-1 2-4Z"/><circle cx="20" cy="17" r="2.5"/>',

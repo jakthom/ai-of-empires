@@ -69,7 +69,7 @@ Rejoining rotates the membership credentials and invalidates its existing MCP to
 
 ## Tools and gameplay coverage
 
-All **33 implemented multiplayer command kinds** are reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
+All **40 implemented multiplayer command kinds** are reachable through `POST /api/v1/games/{id}/commands`. MCP routes the same Go `Command` through `matches.Access.Apply`. It adds no simulation, privileged AI path, free resource grants or clock stepping.
 
 | Gameplay | Command kinds / API |
 |---|---|
@@ -84,9 +84,9 @@ All **33 implemented multiplayer command kinds** are reachable through `POST /ap
 | Shared clock | `start_game`, `pause_game`, `resume_game`, `set_speed` |
 | Observation and outcomes | `observe`, `map_region`, `read_log`, `game_status`; Go determines visibility, combat, costs, timers and victory |
 
-Automatic delivery, resource depletion, production completion, gate passage, attack timing and victory do not need independent mutation endpoints. Player intentions start or interrupt these existing Go lifecycles. Mechanics still listed as future scope in [README](../README.md#implemented-scope), such as formal alliances and formations, do not become available merely through MCP.
+Automatic delivery, resource depletion, production completion, gate passage, attack timing and victory do not need independent mutation endpoints. Player intentions start or interrupt these existing Go lifecycles. Mechanics still listed as future scope in [README](../README.md#implemented-scope), such as formal alliances and player-selected formation shapes, do not become available merely through MCP.
 
-The endpoint advertises 16 tools:
+The endpoint advertises 17 tools:
 
 | Tool | Use |
 |---|---|
@@ -146,3 +146,9 @@ Run `make check`. Tests use real MCP clients over HTTP and cover different membe
 Local commerce uses the same `marketplace` tool and `command` endpoint. `merchants` is your private home inventory; `markets` lists currently visible neutral prices, supply status, output/demand and server-authored import/export quotes. Send `trade` with one idle Trade Cart at your Market or Trade Ship at your Dock, a matching neutral `target_id`, `product`, `trade_mode` (`buy` or `sell`), optional gold `trade_limit`, quote `market_revision`, and `repeat`. Payment and goods are reserved for each trip; repeated trips reprice. Supplies and consumer purchases run on Go lifecycles, without agent-facing clock or stock mutation tools. See [local economy rules](MARKETPLACE.md).
 
 Agents issue `guard` with owned military `entity_ids` and an observed friendly `target_id`. Soldiers follow land targets; warships escort naval units or Docks. The owner sees `guard_target`; foreign observations omit this private assignment. Combat and pursuit use ordinary sight, treaties and the guard’s stance. Captured cargo appears in the attacker’s private `spoils` log entries. `observe` includes Go-authored `damage_stage` and visible, short-lived `effects` for confirmed destruction; disappearing into fog does not report a death.
+
+## Campaign mechanisms
+
+`statistics` returns only the authenticated kingdom's resource flows, food supply, GDP proxy, development, workforce and campaign history. It has no player or world-scope argument, including for an owner's gameplay agent. Owner observer, world-statistics, named snapshot and SQLite-export routes are REST administration; restricted MCP credentials cannot call them.
+
+New commands are `repair_building`, `work_farm`, `rotate_gate`, `peace_offer`, `peace_accept`, `peace_decline` and `peace_withdraw`. `build` supports bridge spans with bank `position` and `end_position`; placement returns snapped sites, total cost, orientation and deck elevation. Repeated queued buildings and wall spans retain a construction batch for replacement workers. Accepted attacks on peaceful or neutral economic targets have diplomatic consequences. `marketplace.global` aggregates public demand and supply without private offers. See [campaign rules](CAMPAIGN_MECHANICS.md).

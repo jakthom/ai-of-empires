@@ -346,8 +346,11 @@ func (a *Access) Placement(req Placement) (PlacementResult, error) {
 	if p != nil {
 		id = p.PlayerID
 	}
-	positions, cost, err := m.world.PlanBuilding(id, req.Product, req.Position, req.EndPosition)
-	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost}
+	positions, cost, orientation, err := m.world.PlanOrientedBuilding(id, req.Product, req.Position, req.EndPosition, req.Orientation)
+	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost, Orientation: orientation}
+	if req.Product == "bridge" {
+		v.DeckElevation = m.world.BridgeElevation(req.Position, req.EndPosition)
+	}
 	if err != nil {
 		v.Reason = err.Error()
 	}

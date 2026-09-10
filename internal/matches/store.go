@@ -106,6 +106,7 @@ func openDatabase(path string) (*sql.DB, error) {
         CREATE TABLE IF NOT EXISTS game_secrets (hash TEXT PRIMARY KEY, kind TEXT NOT NULL, game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE);
         CREATE TABLE IF NOT EXISTS game_archives (game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, transfer_id TEXT PRIMARY KEY, payload BLOB NOT NULL);
         CREATE TABLE IF NOT EXISTS imported_transfers (transfer_id TEXT PRIMARY KEY, game_id TEXT NOT NULL, receipt TEXT NOT NULL);
+		CREATE TABLE IF NOT EXISTS game_snapshots (game_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE, snapshot_id TEXT NOT NULL, metadata BLOB NOT NULL, request_hash BLOB NOT NULL, payload BLOB NOT NULL, PRIMARY KEY(game_id,snapshot_id));
 
 	`); err != nil {
 		return schemaFail(err)

@@ -113,6 +113,7 @@ export interface ClaimInvite {
 }
 
 export interface Command {
+  orientation?: string;
   trade_mode?: string;
   trade_limit?: number;
   offer?: TradeOfferIntent;
@@ -166,6 +167,9 @@ export interface CreateGame {
 }
 
 export interface Definition {
+  footprint?: number;
+  importance?: string;
+  capabilities?: string[];
   id: string;
   name: string;
   kind: string;
@@ -199,7 +203,19 @@ export interface Difficulty {
   description: string;
 }
 
+export interface EconomicSample {
+  time: number;
+  population: number;
+  buildings: number;
+  gdp: number;
+  produced: Resources;
+  consumed: Resources;
+}
+
 export interface EntityView {
+  naval?: boolean;
+  deck_elevation?: number;
+  orientation?: string;
   guard_target?: number;
   damage_stage?: number;
   connections?: Vec[];
@@ -268,6 +284,21 @@ export interface EventPage {
   entity?: HistoryEntity;
 }
 
+export interface FoodView {
+  state: string;
+  per_person_minute: number;
+  demand_per_minute: number;
+  consumed: number;
+  unmet: number;
+  shortage_seconds: number;
+  work_multiplier: number;
+}
+
+export interface ForkSnapshot {
+  id: string;
+  name: string;
+}
+
 export interface GameControl {
   id: string;
   revision: number;
@@ -297,6 +328,16 @@ export interface GameInfo {
 
 export interface GameLibrary {
   games: GameInfo[];
+}
+
+export interface GlobalCommodityView {
+  resource: string;
+  demand: number;
+  supply: number;
+  buy_orders: number;
+  sell_orders: number;
+  best_bid?: number;
+  best_ask?: number;
 }
 
 export interface Health {
@@ -338,6 +379,52 @@ export interface InviteSecret {
   secret: string;
 }
 
+export interface KingdomStatistics {
+  id: number;
+  name: string;
+  civilization: string;
+  age: string;
+  age_index: number;
+  defeated: boolean;
+  accounting_since: number;
+  population: number;
+  peak_population: number;
+  workers: number;
+  military: number;
+  idle_workers: number;
+  worker_tasks: Record<string, number>;
+  buildings: Record<string, number>;
+  foundations: number;
+  units: Record<string, number>;
+  technologies: string[];
+  stock: Resources;
+  produced: Resources;
+  consumed: Resources;
+  refunded: Resources;
+  consumption_by_purpose: Record<string, Resources>;
+  production: ProductionView;
+  food: FoodView;
+  gdp: number;
+  gdp_per_minute: number;
+  gdp_per_capita: number;
+  stock_value: number;
+  construction_value: number;
+  development_per_minute: number;
+  buildings_completed: number;
+  units_trained: number;
+  units_lost: number;
+  buildings_lost: number;
+  kills: number;
+  damage_dealt: number;
+  damage_taken: number;
+  explored_percent: number;
+  trade_sold: Resources;
+  trade_bought: Resources;
+  trade_volume: number;
+  trade_deliveries: number;
+  history: EconomicSample[];
+}
+
 export interface LogFilter {
   id: string;
   name: string;
@@ -377,6 +464,7 @@ export interface MapView {
 }
 
 export interface MarketplaceView {
+  global?: GlobalCommodityView[];
   markets: RegionalMarketView[];
   offers: TradeOfferView[];
   shipments: TradeShipmentView[];
@@ -441,6 +529,7 @@ export interface ObserveRequest {
 }
 
 export interface OpponentView {
+  peace_price?: number;
   id: number;
   name: string;
   civilization: string;
@@ -449,13 +538,28 @@ export interface OpponentView {
   temperament: string;
 }
 
+export interface PeaceOfferView {
+  id: number;
+  from: number;
+  to: number;
+  gold: number;
+  expires_in: number;
+  state: string;
+  can_accept: boolean;
+  can_decline: boolean;
+  can_withdraw: boolean;
+}
+
 export interface Placement {
+  orientation?: string;
   end_position?: Vec;
   product: string;
   position: Vec;
 }
 
 export interface PlacementResult {
+  deck_elevation?: number;
+  orientation?: string;
   positions: Vec[];
   cost: Resources;
   valid: boolean;
@@ -463,6 +567,7 @@ export interface PlacementResult {
 }
 
 export interface PlayerView {
+  food_supply?: FoodView;
   id: number;
   name: string;
   civilization: string;
@@ -484,9 +589,11 @@ export interface PlayerView {
 export interface ProductionSample {
   time: number;
   rates: Resources;
+  consumption?: Resources;
 }
 
 export interface ProductionView {
+  consumption_rates?: Resources;
   rates: Resources;
   history: ProductionSample[];
   window_seconds: number;
@@ -544,6 +651,11 @@ export interface RulesChange {
   config: Config;
 }
 
+export interface SaveSnapshot {
+  id: string;
+  name: string;
+}
+
 export interface SavedGame {
   world: WorldOptions;
   match_id: string;
@@ -560,6 +672,14 @@ export interface SavedGame {
 
 export interface SavedGames {
   games: SavedGame[];
+}
+
+export interface SavedSnapshot {
+  id: string;
+  name: string;
+  time: number;
+  tick: number;
+  created_at: string;
 }
 
 export interface SeatChange {
@@ -594,6 +714,8 @@ export interface Session {
 }
 
 export interface Snapshot {
+  god_mode?: boolean;
+  peace_offers?: PeaceOfferView[];
   effects: BattlefieldEffectView[];
   marketplace: MarketplaceView;
   control_revision?: number;
@@ -619,6 +741,7 @@ export interface Snapshot {
 }
 
 export interface SnapshotDelta {
+  peace_offers?: PeaceOfferView[];
   effects: BattlefieldEffectView[];
   marketplace?: MarketplaceView;
   control_revision: number;
@@ -648,6 +771,31 @@ export interface SnapshotFrame {
   delta?: SnapshotDelta;
 }
 
+export interface SnapshotLibrary {
+  snapshots: SavedSnapshot[];
+}
+
+export interface StatisticAward {
+  id: string;
+  name: string;
+  rule: string;
+  winners: number[];
+  value: number;
+}
+
+export interface StatisticsReport {
+  time: number;
+  status: string;
+  scope: string;
+  official_winner: number;
+  victory_reason: string;
+  valuation: Resources;
+  accounting: string;
+  kingdoms: KingdomStatistics[];
+  awards: StatisticAward[];
+  summary: string[];
+}
+
 export interface Task {
   type: string;
   product: string;
@@ -668,6 +816,8 @@ export interface Technology {
 }
 
 export interface Tile {
+  bridge?: boolean;
+  deck_elevation?: number;
   biome?: string;
   terrain: string;
   elevation: number;

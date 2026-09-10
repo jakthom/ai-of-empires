@@ -9,6 +9,7 @@ import (
 	"crypto/pbkdf2"
 	"crypto/rand"
 	"crypto/sha256"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -268,6 +269,10 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 	if err != nil {
 		return result, err
 	}
+	return s.importArchive(payload, req, browser, nil)
+}
+
+func (s *Service) importArchive(payload gameArchive, req ImportRequest, browser string, fork *importedTransfer) (result ImportResult, err error) {
 	// Validate and restore before admitting any durable rows. No archive paths,
 	// SQL, or executable content are interpreted.
 	var world *game.World
@@ -296,6 +301,45 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 	defer s.mu.Unlock()
 	if s.lifecycle.State() != serviceServing {
 		return result, ErrShuttingDown
+	}
+	if fork != nil {
+		old := s.imported[fork.ID]
+		if s.db != nil {
+			for _, db := range s.stores {
+				err := db.QueryRow("SELECT transfer_id,game_id,receipt FROM imported_transfers WHERE transfer_id=?", fork.ID).Scan(&old.ID, &old.GameID, &old.Receipt)
+				if err == nil {
+					break
+				}
+				if !errors.Is(err, sql.ErrNoRows) {
+					return result, err
+				}
+			}
+		}
+		if old.ID != "" {
+			if old.Receipt != fork.Receipt {
+				return result, ruleError("idempotency_conflict", "This start request was already used for another snapshot or name.")
+			}
+			m, e := s.loadLocked(old.GameID)
+			if e != nil {
+				return result, e
+			}
+			defer m.mu.Unlock()
+			for _, seat := range m.room.Seats {
+				if seat.MemberID == m.room.OwnerID {
+					oldHash, oldVersion := seat.TokenHash, seat.CredentialVersion
+					session, e := m.issueCredentials(seat, false)
+					if e != nil {
+						return result, e
+					}
+					if e = s.saveMembership(browser, m, seat); e != nil {
+						seat.TokenHash, seat.CredentialVersion = oldHash, oldVersion
+						return result, e
+					}
+					return ImportResult{Session: session, AlreadyImported: true}, nil
+				}
+			}
+			return result, ErrNotFound
+		}
 	}
 	if len(s.matches) >= 16 {
 		return result, ErrCapacity
@@ -436,12 +480,15 @@ func (s *Service) Import(req ImportRequest, browser string) (result ImportResult
 		receipt = payload.Manifest.TransferID + "." + payload.Manifest.CompletionSecret
 		m.importReceipt = &importedTransfer{ID: payload.Manifest.TransferID, GameID: id, Receipt: receipt}
 	}
+	if fork != nil {
+		m.importReceipt = &importedTransfer{ID: fork.ID, GameID: id, Receipt: fork.Receipt}
+	}
 	if err = s.saveMembership(browser, m, owner); err != nil {
 		return result, err
 	}
 	s.matches[id] = m
-	if !req.Copy {
-		s.imported[payload.Manifest.TransferID] = *m.importReceipt
+	if m.importReceipt != nil {
+		s.imported[m.importReceipt.ID] = *m.importReceipt
 	}
 	m.importReceipt = nil
 	return ImportResult{Session: session, CompletionReceipt: receipt}, nil

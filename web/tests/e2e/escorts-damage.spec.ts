@@ -84,11 +84,12 @@ test('guards a worker and shows attacked buildings burn, recover and crumble',as
     await other.command('stop',()=>battlefieldKey(friend,'s'));
     // Repairs reverse the same observed condition; the browser does not heal it.
     await battlefieldKey(page,'1');await battlefieldKey(page,'h');await battlefieldKey(page,'1');
-    const repairPoint=await projectOpening(page,await game.snapshot(),house.position,.65);
-    await game.command('interact',()=>page.mouse.click(repairPoint.x,repairPoint.y,{button:'right'}));
+    await game.command('stop',()=>battlefieldKey(page,'s'));
+    await select(page,game,'house');
+    await game.command('repair_building',()=>page.locator('#actions').getByRole('button',{name:/^Repair building/}).click());
     for(const speed of ['1.7×','3.4×','8×','16×','32×']){await game.command('speed',()=>page.locator('#speed').click());await expect(page.locator('#speed')).toHaveText(speed)}
     await expect.poll(async()=>(await game.snapshot()).entities.find(e=>e.id===house.id)?.damage_stage??0).toBe(0);
-    await game.command('stop',()=>battlefieldKey(page,'s'));
+    await battlefieldKey(page,'1');await game.command('stop',()=>battlefieldKey(page,'s'));
     await select(page,game,'house');await expect(page.locator('#selected-health')).not.toContainText('damaged');
     await page.screenshot({path:info.outputPath('repaired-house.png')});
     await attack();

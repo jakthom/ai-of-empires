@@ -13,13 +13,13 @@ import (
 // WireModels is the single source for OpenAPI schemas and browser DTO types.
 // Simulation aggregates and state-machine instances must never be registered.
 func WireModels() []reflect.Type {
-	return []reflect.Type{reflect.TypeFor[AgentEndpoint](), reflect.TypeFor[AgentGame](), reflect.TypeFor[ObserveRequest](), reflect.TypeFor[Observation](), reflect.TypeFor[MapRegionRequest](), reflect.TypeFor[MapRegion](), reflect.TypeFor[AgentLogRequest](), reflect.TypeFor[AgentConnectionRequest](), reflect.TypeFor[AgentConnectionResult](), reflect.TypeFor[game.Config](), reflect.TypeFor[game.Command](), reflect.TypeFor[game.Snapshot](), reflect.TypeFor[game.SnapshotFrame](), reflect.TypeFor[game.EventPage](), reflect.TypeFor[game.Catalog](), reflect.TypeFor[matches.Session](), reflect.TypeFor[matches.SavedGames](), reflect.TypeFor[matches.ResumeRequest](), reflect.TypeFor[matches.Receipt](), reflect.TypeFor[matches.Placement](), reflect.TypeFor[matches.PlacementResult](), reflect.TypeFor[ErrorBody](), reflect.TypeFor[Health](), reflect.TypeFor[matches.CreateGame](), reflect.TypeFor[matches.MemberSession](), reflect.TypeFor[matches.GameLibrary](), reflect.TypeFor[matches.GameControl](), reflect.TypeFor[matches.SeatChange](), reflect.TypeFor[matches.ReadyRequest](), reflect.TypeFor[matches.RulesChange](), reflect.TypeFor[matches.InviteRequest](), reflect.TypeFor[matches.InviteSecret](), reflect.TypeFor[matches.ClaimInvite](), reflect.TypeFor[matches.RejoinRequest](), reflect.TypeFor[matches.Invitation](), reflect.TypeFor[matches.ConnectionInfo](), reflect.TypeFor[matches.AuditPage](), reflect.TypeFor[matches.TransferRequest](), reflect.TypeFor[matches.TransferInfo](), reflect.TypeFor[matches.ArchivePassword](), reflect.TypeFor[matches.ImportResult](), reflect.TypeFor[matches.CompleteTransfer]()}
+	return []reflect.Type{reflect.TypeFor[game.StatisticsReport](), reflect.TypeFor[matches.SaveSnapshot](), reflect.TypeFor[matches.SnapshotLibrary](), reflect.TypeFor[matches.ForkSnapshot](), reflect.TypeFor[AgentEndpoint](), reflect.TypeFor[AgentGame](), reflect.TypeFor[ObserveRequest](), reflect.TypeFor[Observation](), reflect.TypeFor[MapRegionRequest](), reflect.TypeFor[MapRegion](), reflect.TypeFor[AgentLogRequest](), reflect.TypeFor[AgentConnectionRequest](), reflect.TypeFor[AgentConnectionResult](), reflect.TypeFor[game.Config](), reflect.TypeFor[game.Command](), reflect.TypeFor[game.Snapshot](), reflect.TypeFor[game.SnapshotFrame](), reflect.TypeFor[game.EventPage](), reflect.TypeFor[game.Catalog](), reflect.TypeFor[matches.Session](), reflect.TypeFor[matches.SavedGames](), reflect.TypeFor[matches.ResumeRequest](), reflect.TypeFor[matches.Receipt](), reflect.TypeFor[matches.Placement](), reflect.TypeFor[matches.PlacementResult](), reflect.TypeFor[ErrorBody](), reflect.TypeFor[Health](), reflect.TypeFor[matches.CreateGame](), reflect.TypeFor[matches.MemberSession](), reflect.TypeFor[matches.GameLibrary](), reflect.TypeFor[matches.GameControl](), reflect.TypeFor[matches.SeatChange](), reflect.TypeFor[matches.ReadyRequest](), reflect.TypeFor[matches.RulesChange](), reflect.TypeFor[matches.InviteRequest](), reflect.TypeFor[matches.InviteSecret](), reflect.TypeFor[matches.ClaimInvite](), reflect.TypeFor[matches.RejoinRequest](), reflect.TypeFor[matches.Invitation](), reflect.TypeFor[matches.ConnectionInfo](), reflect.TypeFor[matches.AuditPage](), reflect.TypeFor[matches.TransferRequest](), reflect.TypeFor[matches.TransferInfo](), reflect.TypeFor[matches.ArchivePassword](), reflect.TypeFor[matches.ImportResult](), reflect.TypeFor[matches.CompleteTransfer]()}
 }
 func schemaTypes() map[string]reflect.Type {
 	types := map[string]reflect.Type{}
 	var visit func(reflect.Type)
 	visit = func(t reflect.Type) {
-		if t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice {
+		if t.Kind() == reflect.Pointer || t.Kind() == reflect.Slice || t.Kind() == reflect.Map {
 			visit(t.Elem())
 			return
 		}
@@ -58,6 +58,8 @@ func jsonType(t reflect.Type) map[string]any {
 		return map[string]any{"$ref": "#/components/schemas/" + t.Name()}
 	case reflect.Slice:
 		return map[string]any{"type": "array", "items": jsonType(t.Elem())}
+	case reflect.Map:
+		return map[string]any{"type": "object", "additionalProperties": jsonType(t.Elem())}
 	case reflect.Bool:
 		return map[string]any{"type": "boolean"}
 	case reflect.String:
@@ -136,6 +138,13 @@ func OpenAPI() map[string]any {
 	add("post", "/games/{id}/save", "Commit a checkpoint, journal and receipts", "", "GameInfo", 200, true)
 	add("delete", "/games/{id}", "Owner-confirmed permanent deletion with an autosave fence", "GameControl", "", 204, true)
 	add("post", "/games/{id}/commands", "Submit an intention as your authenticated player", "Command", "Receipt", 200, true)
+	add("get", "/games/{id}/snapshots", "List the owner's named game snapshots", "", "SnapshotLibrary", 200, true)
+	add("get", "/games/{id}/statistics", "Kingdom accounting; scope=world requires the owner during play and is available to members after the match finishes", "", "StatisticsReport", 200, true)
+	add("get", "/games/{id}/observer", "Owner-only god view; never changes any player's fog or knowledge", "", "Snapshot", 200, true)
+	add("get", "/games/{id}/observer/events", "Owner-only observation stream supporting delta-v1", "", "Snapshot", 200, true)
+	add("post", "/games/{id}/snapshots", "Save an immutable named game snapshot; owner only", "SaveSnapshot", "SavedSnapshot", 200, true)
+	add("post", "/games/{id}/snapshots/{snapshot}/fork", "Start a separate paused game from a named snapshot with fresh player access; owner only", "ForkSnapshot", "ImportResult", 200, true)
+	add("delete", "/games/{id}/snapshots/{snapshot}", "Delete a named snapshot; owner only", "", "", 204, true)
 	add("post", "/games/{id}/placement", "Validate placement as your authenticated player", "Placement", "PlacementResult", 200, true)
 	add("get", "/games/{id}/events", "Stream your fog-filtered world; requires a live connection", "", "Snapshot", 200, true)
 	add("get", "/games/{id}/log", "Read the journal visible to your kingdom", "", "EventPage", 200, true)
@@ -226,15 +235,18 @@ func OpenAPI() map[string]any {
 			if path == "/games/{id}/audit" {
 				parameters = append(parameters, map[string]any{"name": "after", "in": "query", "schema": map[string]any{"type": "integer", "minimum": 0}})
 			}
+			if path == "/games/{id}/statistics" {
+				parameters = append(parameters, map[string]any{"name": "scope", "in": "query", "schema": map[string]any{"type": "string", "enum": []string{"kingdom", "world"}, "default": "kingdom"}})
+			}
 			if path == "/games" && method == "get" {
 				parameters = append(parameters, map[string]any{"name": "q", "in": "query", "schema": map[string]any{"type": "string", "maxLength": 200}})
 			}
-			for _, name := range []string{"seat", "invite", "connection", "transfer", "entity"} {
+			for _, name := range []string{"seat", "invite", "connection", "transfer", "entity", "snapshot"} {
 				if strings.Contains(path, "{"+name+"}") {
 					parameters = append(parameters, map[string]any{"name": name, "in": "path", "required": true, "schema": map[string]any{"type": "string"}})
 				}
 			}
-			if path == "/games/{id}/events" {
+			if path == "/games/{id}/events" || path == "/games/{id}/observer/events" {
 				parameters = append(parameters, map[string]any{"name": "connection", "in": "query", "required": true, "schema": map[string]any{"type": "string"}})
 				op["responses"].(map[string]any)["200"] = map[string]any{"description": "SSE snapshot frames; fresh authenticated state on reconnect", "content": map[string]any{"text/event-stream": map[string]any{"schema": map[string]any{"type": "string"}}}}
 			}
@@ -245,7 +257,7 @@ func OpenAPI() map[string]any {
 			}
 		}
 	}
-	for _, path := range []string{"/matches/{id}/events", "/games/{id}/events"} {
+	for _, path := range []string{"/matches/{id}/events", "/games/{id}/events", "/games/{id}/observer/events"} {
 		op := paths[path].(map[string]any)["get"].(map[string]any)
 		parameters, _ := op["parameters"].([]any)
 		op["parameters"] = append(parameters, map[string]any{"name": "format", "in": "query", "description": "Omit for 10 Hz complete snapshots. delta-v1 sends 20 Hz SnapshotFrame observations: a full snapshot first, then entity replacements/removals and changed map cells. base must equal the last sequence; reconnect on a gap. sample_ms is monotonic wall time within this connection, independent of game speed. No historical replay or unobserved positions.", "schema": map[string]any{"type": "string", "enum": []string{"delta-v1"}}})
@@ -262,6 +274,8 @@ func tsType(t reflect.Type) string {
 		return t.Name()
 	case reflect.Slice:
 		return tsType(t.Elem()) + "[]"
+	case reflect.Map:
+		return "Record<string, " + tsType(t.Elem()) + ">"
 	case reflect.Bool:
 		return "boolean"
 	case reflect.String:

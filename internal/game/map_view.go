@@ -23,6 +23,10 @@ func (w *World) mapView(p *Player) MapView {
 		}
 		if p.Visible[i] {
 			fog = 2
+		} else if fog == 1 {
+			// A bridge can be built or destroyed under fog. Keep only its last
+			// observed deck, just as remembered stationary entities do.
+			tile.Bridge, tile.DeckElevation = v.Tiles[i].Bridge, v.Tiles[i].DeckElevation
 		}
 		if tile == v.Tiles[i] && fog == v.Fog[i] {
 			continue

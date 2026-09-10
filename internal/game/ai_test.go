@@ -6,7 +6,8 @@ func TestStandardExpansionistAttacksWithOpeningEconomy(t *testing.T) {
 	w := New(Config{Difficulty: "normal", Seed: 4817})
 	w.Players[2].Temperament = aiExpansionist
 	defenders := w.entities(1, "")
-	for range 18000 {
+	// Upkeep competes with recruitment; allow the opening economy twenty game minutes.
+	for range 24000 {
 		w.Update()
 		for _, defender := range defenders {
 			if defender.HP < w.stats(defender).HP {
@@ -18,7 +19,7 @@ func TestStandardExpansionistAttacksWithOpeningEconomy(t *testing.T) {
 	for _, e := range w.entities(2, "") {
 		t.Logf("%s #%d at %+v: %s progress %.2f, queue %d target %d cargo %.1f", e.Type, e.ID, e.Position, w.activity(e), e.Progress, len(e.Tasks), e.Order.Target, e.Cargo)
 	}
-	t.Fatalf("AI never attacked by 15 game minutes: resources %+v", w.Players[2].Resources)
+	t.Fatalf("AI never attacked by 20 game minutes: resources %+v", w.Players[2].Resources)
 }
 
 func TestSolidFoundationCannotTrapAUnit(t *testing.T) {

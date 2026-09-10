@@ -6,8 +6,8 @@ import (
 	"sort"
 )
 
-// View is the only read model exposed to a player. No handler can serialize the
-// World, inspect the opposing economy, or bypass fog filtering.
+// View is the fog-filtered read model for gameplay, including MCP agents.
+// Owner observation and postgame statistics use separately authorized routes.
 func (w *World) View(player int) Snapshot {
 	p := w.Players[player]
 	defs, _ := orderedCatalog()
@@ -29,6 +29,8 @@ func (w *World) View(player int) Snapshot {
 		}
 	}
 	v.Player.Production = p.Production.view()
+	v.Player.Food = w.foodView(p)
+	v.PeaceOffers = w.peaceOffers(player)
 	v.Marketplace = w.marketplaceView(player)
 	for id := 1; id <= w.Config.Settlements; id++ {
 		if id != player {
@@ -37,7 +39,7 @@ func (w *World) View(player int) Snapshot {
 			if !other.AI {
 				preference = "Player controlled"
 			}
-			v.Opponents = append(v.Opponents, OpponentView{ID: other.ID, Name: other.Name, Civilization: other.Civilization, Defeated: other.lifecycle.State() == PlayerDefeated, Relation: string(w.relation(player, id)), Temperament: preference})
+			v.Opponents = append(v.Opponents, OpponentView{PeacePrice: w.peacePrice(player, id), ID: other.ID, Name: other.Name, Civilization: other.Civilization, Defeated: other.lifecycle.State() == PlayerDefeated, Relation: string(w.relation(player, id)), Temperament: preference})
 		}
 	}
 	seen := map[int]bool{}
@@ -93,8 +95,16 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 	d := w.stats(e)
 	v := EntityView{ID: e.ID, Type: e.Type, Kind: d.Kind, Name: d.Name, Owner: e.Owner, Position: e.Position, HP: e.HP, MaxHP: d.HP, Radius: d.Radius, Progress: e.Progress, Amount: e.Amount, Resource: e.Resource, State: string(e.behavior.State()), Visible: true, Actions: []Action{}, Tasks: []Task{}, Passengers: []int{}, Deployed: e.siege.State() == SiegeDeployed, Container: e.Container, Relic: e.Relic}
 	v.Activity = w.activity(e)
+	v.DeckElevation = e.DeckElevation
+	v.Naval = d.Naval
+	if e.Type == "bridge" {
+		v.Orientation = e.Orientation
+	}
 	v.DamageStage = w.damageStage(e)
 	v.Connections = w.barrierLinks(e, player)
+	if e.Type == "gate" {
+		v.Orientation, _ = w.GateOrientation(e.Owner, e.Position, e.Orientation)
+	}
 	if d.Kind == "building" {
 		if owner := w.Players[e.Owner]; owner != nil {
 			v.AppearanceAge = owner.Age
@@ -159,7 +169,21 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 			}
 		}
 	}
+	if d.Kind == "building" && e.life.State() == Active && e.HP < d.HP {
+		_, err := w.maintenanceWorker(e, "repair")
+		v.Actions = append(v.Actions, action("repair_building", "", "Repair building", "Assign an idle villager. Restoring all lost health costs up to half the original building price, paid as work proceeds.", Resources{}, 0, err))
+	}
+	if e.Type == "gate" {
+		next := "north_south"
+		if v.Orientation == next {
+			next = "east_west"
+		}
+		_, err := w.GateOrientation(e.Owner, e.Position, next)
+		v.Actions = append(v.Actions, action("rotate_gate", "", "Rotate gate", "Turn the gate 90°. Connected gates follow the wall's straight axis.", Resources{}, 0, err))
+	}
 	if e.Type == "farm" {
+		_, workErr := w.maintenanceWorker(e, "gather")
+		v.Actions = append(v.Actions, action("work_farm", "", "Assign farmer", "Assign the nearest available idle villager to harvest this farm and deliver food.", Resources{}, 0, workErr))
 		worker, err := w.farmReseeder(e)
 		description := "Pay 60 wood to reseed this depleted farm. An assigned farmer or the nearest idle villager rebuilds it, then resumes farming."
 		if worker != nil {
@@ -179,6 +203,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Start beside your home Market or Dock. The Marketplace shows funded cart and ship routes, local prices, purchases, and repeat controls.", Resources{}, 0, err))
 		}
 		if e.Type == "villager" {
+			v.Actions = append(v.Actions, action("repair", "", "Repair", "Choose your damaged building. Repairs consume resources as work proceeds; Stop cancels the order.", Resources{}, 0, nil), action("gather", "", "Gather / farm", "Choose a resource or farm. Depleted farms are replanted for 60 wood.", Resources{}, 0, nil))
 			for _, building := range defs {
 				if building.Kind == "building" {
 					v.Actions = append(v.Actions, action("build", building.ID, building.Name, building.Description, building.Cost, building.Time, w.canBuild(p, building)))

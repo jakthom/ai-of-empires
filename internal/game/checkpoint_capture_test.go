@@ -46,6 +46,9 @@ func TestCapturedCheckpointHasNoMutableAliases(t *testing.T) {
 	e.Orders = []Order{{Kind: "move", Position: &Vec{31, 40}, DefendFrom: &Vec{20, 40}}}
 	e.Rally, e.Path, e.Passengers = &Vec{30, 40}, []Vec{{24, 40}}, []int{123}
 	p := w.Players[1]
+	p.Economy.Consumption = map[string]Resources{"food_upkeep": {Food: 2}}
+	p.Economy.History = []EconomicSample{{Time: 10, Population: 4}}
+	p.Production.OutBuckets = []Resources{{Food: 2}}
 	p.UserAliases = []string{"previous-user"}
 	p.AIPlan.Army, p.AIPlan.ScoutGoal, p.AIPlan.Surveyed = []int{e.ID}, &Vec{30, 41}, map[int]float64{2: 1}
 	p.NavalPlan.Crew = []int{e.ID}

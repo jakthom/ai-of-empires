@@ -62,7 +62,7 @@ func TestFishingDepletesShoalsDeliversFoodAndResumes(t *testing.T) {
 	dock := w.spawn("dock", 1, land)
 	ship := w.spawn("fishing_ship", 1, water)
 	fish.Amount = .3
-	before := p.Resources.Food
+	before := p.Production.Total.Food
 	if err := w.Apply(1, Command{Kind: "gather", EntityIDs: []int{w.entities(1, "villager")[0].ID}, TargetID: fish.ID}); err == nil {
 		t.Fatal("land worker accepted offshore fishing")
 	}
@@ -74,7 +74,7 @@ func TestFishingDepletesShoalsDeliversFoodAndResumes(t *testing.T) {
 		w.Update()
 		fished = fished || w.activity(ship) == "Fishing"
 	}
-	if !fished || w.Entities[fish.ID] != nil || math.Abs(ship.Cargo-.3) > 1e-8 || p.Resources.Food != before {
+	if !fished || w.Entities[fish.ID] != nil || math.Abs(ship.Cargo-.3) > 1e-8 || p.Production.Total.Food != before {
 		t.Fatalf("fish was not gathered as undelivered cargo: %+v", ship)
 	}
 	data, err := w.Checkpoint()
@@ -85,11 +85,11 @@ func TestFishingDepletesShoalsDeliversFoodAndResumes(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for i := 0; i < 2000 && p.Resources.Food == before; i++ {
+	for i := 0; i < 2000 && p.Production.Total.Food == before; i++ {
 		w.Update()
 		r.Update()
 	}
-	if math.Abs(p.Resources.Food-before-.3) > 1e-8 || !reflect.DeepEqual(w.View(1), r.View(1)) {
+	if math.Abs(p.Production.Total.Food-before-.3) > 1e-8 || !reflect.DeepEqual(w.View(1), r.View(1)) {
 		t.Fatal("saved fishing trip lost or duplicated food")
 	}
 	found := false

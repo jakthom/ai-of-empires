@@ -1,0 +1,50 @@
+import { test, expect, battlefieldKey, projectOpening } from './fixtures';
+import { opening, build, select } from './economy-helpers';
+
+test('rotates gate previews and built gates, then aligns replacements to connected walls',async({page,game},info)=>{
+  test.setTimeout(90_000);
+  await opening(page,game);
+  await build(page,game,'mill','Mill');await build(page,game,'lumber_camp','Lumber Camp');
+  await battlefieldKey(page,'h');
+  await game.command('age',()=>page.locator('#actions').getByRole('button',{name:/Feudal Age/}).click());
+  await expect.poll(async()=>(await game.snapshot()).player.age).toBe(1);
+  await build(page,game,'gate','Gate');
+  const gate=(await game.snapshot()).entities.find(e=>e.type==='gate')!;
+  const arch=await projectOpening(page,await game.snapshot(),gate.position,1.52);
+  await page.mouse.click(arch.x,arch.y);
+  await expect(page.locator('#selected-name')).toHaveText('Stone Gate');
+  expect(gate.orientation).toBe('east_west');
+  await game.command('rotate_gate',()=>page.locator('#actions').getByRole('button',{name:/^Rotate gate/}).click());
+  await expect.poll(async()=>(await game.snapshot()).entities.find(e=>e.id===gate.id)?.orientation).toBe('north_south');
+  await page.screenshot({path:info.outputPath('rotated-gate.png')});
+  await battlefieldKey(page,'1');await page.getByRole('button',{name:'Build',exact:true}).click();
+  await page.locator('#actions').getByRole('button',{name:/Palisade/}).click();
+  let neighbor:{x:number;y:number}|undefined;
+  for(const offset of [1,-1]){
+    const position={x:gate.position.x,y:gate.position.y+offset};
+    const point=await projectOpening(page,await game.snapshot(),position);
+    const preview=page.waitForResponse(r=>r.url().endsWith('/placement'));
+    await page.mouse.move(point.x,point.y);
+    if(!(await(await preview).json()).valid)continue;
+    await game.command('build',()=>page.mouse.click(point.x,point.y));neighbor=position;break;
+  }
+  expect(neighbor,'place a wall beside the rotated gate').toBeDefined();
+  await expect.poll(async()=>(await game.snapshot()).entities.some(e=>e.type==='palisade'&&e.progress===1)).toBe(true);
+  await game.command('stop',()=>battlefieldKey(page,'s'));
+  await page.getByRole('button',{name:'Build',exact:true}).click();
+  await page.locator('#actions').getByRole('button',{name:/Gate/}).click();
+  const point=await projectOpening(page,await game.snapshot(),neighbor!);
+  const preview=page.waitForResponse(r=>r.url().endsWith('/placement'));
+  await page.mouse.move(point.x,point.y);
+  expect(await(await preview).json()).toMatchObject({valid:true,orientation:'north_south'});
+  const rotated=page.waitForResponse(r=>r.url().endsWith('/placement')&&r.request().postDataJSON().orientation==='east_west');
+  await battlefieldKey(page,'r');
+  expect(await(await rotated).json()).toMatchObject({valid:false,orientation:'east_west'});
+  const automatic=page.waitForResponse(r=>r.url().endsWith('/placement')&&r.request().postDataJSON().orientation==='auto');
+  await page.getByRole('button',{name:'Auto align',exact:true}).click();
+  expect(await(await automatic).json()).toMatchObject({valid:true,orientation:'north_south'});
+  await page.screenshot({path:info.outputPath('gate-wall-alignment.png')});
+  await game.command('build',()=>page.mouse.click(point.x,point.y));
+  await expect.poll(async()=>(await game.snapshot()).entities.filter(e=>e.type==='gate'&&e.progress===1).length).toBe(2);
+  expect((await game.snapshot()).entities.filter(e=>e.type==='gate').every(e=>e.orientation==='north_south')).toBe(true);
+});

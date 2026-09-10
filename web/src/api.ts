@@ -6,7 +6,7 @@ export type LogQuery = { after?: number; before?: number; limit?: number; q?: st
 
 // getRandomValues is available on HTTP LAN origins as well as HTTPS. Unlike
 // randomUUID, it does not require a secure browser context.
-const requestID = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
+export const requestID = () => Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('');
 
 export class APIError extends Error {
   constructor(public code: string, message: string, public status: number) { super(message); }
@@ -129,7 +129,7 @@ export class GameAPI {
     if(this.session?.membership_id && this.connectionID) await this.request(`${this.path()}/connections/${this.connectionID}/leave`,{method:'POST'});
     this.stream?.abort();this.stopPresence();
   }
-  snapshot() { return this.request<Snapshot>(`${this.path()}${this.session?.membership_id ? '/snapshot' : ''}`); }
+  snapshot(god=false) { return this.request<Snapshot>(`${this.path()}${god?'/observer':this.session?.membership_id ? '/snapshot' : ''}`); }
   log(query: LogQuery = {}, entityID?: number) {
     const params = new URLSearchParams(Object.entries(query).map(([key, value]) => [key, String(value)]));
     const route = entityID === undefined ? '/log' : `/entities/${entityID}/history`;
@@ -138,8 +138,8 @@ export class GameAPI {
   command(command: Omit<Command, 'id'>, id = requestID()) {
     return this.request<Receipt>(`${this.path()}/commands`, { method: 'POST', body: JSON.stringify({ ...command, id }) });
   }
-  placement(product: string, position: Vec, end_position?: Vec) {
-    return this.request<PlacementResult>(`${this.path()}/placement`, { method: 'POST', body: JSON.stringify({ product, position, end_position }) });
+  placement(product: string, position: Vec, end_position?: Vec, orientation?: string) {
+    return this.request<PlacementResult>(`${this.path()}/placement`, { method: 'POST', body: JSON.stringify({ product, position, end_position, orientation }) });
   }
   async close() {
     if (this.session?.membership_id) { await this.save(); await this.depart(); }
@@ -154,7 +154,7 @@ export class GameAPI {
     }
     this.stream?.abort();this.stopPresence();
   }
-  subscribe(onSnapshot: (snapshot: Snapshot) => void, onConnection: (state: string) => void) {
+  subscribe(onSnapshot: (snapshot: Snapshot) => void, onConnection: (state: string) => void,god=false) {
     this.stream?.abort();
     const controller = new AbortController(); this.stream = controller;
     const connect = async () => {
@@ -164,7 +164,7 @@ export class GameAPI {
           await this.ensureConnection();
           if(controller.signal.aborted)return;
           const query=this.session?.membership_id ? `?format=delta-v1&connection=${encodeURIComponent(this.connectionID)}` : '?format=delta-v1';
-          const response = await fetch(`/api/v1${this.path()}/events${query}`, {
+          const response = await fetch(`/api/v1${this.path()}${god?'/observer':''}/events${query}`, {
             headers: this.session?.token ? { Authorization: `Bearer ${this.session.token}` } : {}, signal: controller.signal,
           });
           if ([401,404,422].includes(response.status)) { this.stopPresence(); onConnection('expired'); return; }

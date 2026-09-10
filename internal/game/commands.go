@@ -57,6 +57,9 @@ func (w *World) apply(player int, c Command) error {
 	if w.match.State() == MatchPaused {
 		return rule("paused", "Resume the match before issuing an order.")
 	}
+	if slices.Contains([]string{"peace_offer", "peace_accept", "peace_decline", "peace_withdraw"}, c.Kind) {
+		return w.reparationCommand(player, c)
+	}
 	if c.Kind == "trade" || c.Kind == "interact" && len(c.EntityIDs) == 1 && w.Entities[c.EntityIDs[0]] != nil && tradeCarrier(w.Entities[c.EntityIDs[0]]) && w.Entities[c.TargetID] != nil && tradingPost(w.Entities[c.TargetID]) && w.Entities[c.TargetID].Owner == 0 {
 		return w.startMerchantTrade(player, c)
 	}
@@ -154,8 +157,8 @@ func (w *World) apply(player int, c Command) error {
 		if err := w.canBuild(p, d); err != nil {
 			return err
 		}
-		pos := snap(*c.Position)
-		sites, price, err := w.PlanBuilding(player, d.ID, pos, c.EndPosition)
+		pos := buildingPosition(d.ID, *c.Position)
+		sites, price, axis, err := w.PlanOrientedBuilding(player, d.ID, pos, c.EndPosition, c.Orientation)
 		if err != nil {
 			return err
 		}
@@ -164,15 +167,37 @@ func (w *World) apply(player int, c Command) error {
 				return rule("queue_full", "The construction order queue is full.")
 			}
 		}
-		p.Resources.Add(price.Scale(-1))
+		w.consume(player, price, "construction")
+		group := 0
+		if c.Queue {
+			orders := append([]Order{first.Order}, first.Orders...)
+			for i := len(orders) - 1; i >= 0; i-- {
+				if target := w.Entities[orders[i].Target]; orders[i].Kind == "build" && target != nil && target.Type == d.ID {
+					group = target.BuildGroup
+					break
+				}
+			}
+		}
+		if group == 0 {
+			group = w.NextID
+			w.NextID++
+		}
 		for i, site := range sites {
 			if old := w.barrierAt(site); d.ID == "gate" && old != nil {
 				w.entityEvent(old, "replaced", "Replaced by a gate", 0)
 				w.remove(old.ID)
 			}
 			e := w.spawnWithLife(d.ID, player, site, Foundation)
+			e.BuildGroup = group
+			if d.ID == "bridge" {
+				e.Orientation = axis
+				e.DeckElevation = w.BridgeElevation(pos, c.EndPosition)
+			}
+			if d.ID == "gate" {
+				mustFire(e.life, RotateGate, &entityContext{World: w, Actor: e, Orientation: c.Orientation})
+			}
 			for _, worker := range es {
-				w.setOrder(worker, Order{Kind: "build", Target: e.ID}, c.Queue || i > 0)
+				w.setOrder(worker, Order{Kind: "build", Target: e.ID, BuildGroup: group}, c.Queue || i > 0)
 			}
 		}
 		return nil
@@ -188,8 +213,30 @@ func (w *World) apply(player int, c Command) error {
 			return rule("market_changed", "Merchant stock or prices changed. Review the new quote.")
 		}
 		return w.exchange(p, first, c.Kind, c.Product)
+	case "rotate_gate":
+		if len(es) != 1 || c.Queue {
+			return rule("invalid_selection", "Select one gate; rotation takes effect immediately.")
+		}
+		orientation := c.Orientation
+		if orientation == "" {
+			axis, _ := w.GateOrientation(player, first.Position, first.Orientation)
+			orientation = "north_south"
+			if axis == "north_south" {
+				orientation = "east_west"
+			}
+		}
+		return fire(first.life, RotateGate, &entityContext{World: w, Actor: first, Orientation: orientation})
 	case "reseed_farm":
 		return w.reseedFarm(first)
+	case "repair_building", "work_farm":
+		if len(es) != 1 || c.Queue {
+			return rule("invalid_selection", "Select one building; this action assigns an idle villager immediately.")
+		}
+		kind := "repair"
+		if c.Kind == "work_farm" {
+			kind = "gather"
+		}
+		return w.assignMaintenance(first, kind)
 	case "unload":
 		if len(first.Passengers) == 0 {
 			return rule("empty_garrison", "There are no units inside.")
@@ -276,7 +323,7 @@ func (w *World) apply(player int, c Command) error {
 				o.Kind = "repair"
 			case target.Owner == player && w.garrisonCapacity(target) > 0 && d.Kind == "unit":
 				o.Kind = "garrison"
-			case target.Owner > 0 && target.Owner != player:
+			case target.Owner != player && attackableEntity(target):
 				o.Kind = "attack"
 			default:
 				return rule("invalid_target", "That unit cannot interact with this target.")
@@ -308,8 +355,8 @@ func (w *World) apply(player int, c Command) error {
 			if w.treatyInForce() {
 				return rule("peace_period", "Attacks are disabled until the initial peace period ends.")
 			}
-			if d.Attack <= 0 || target == nil || target.Owner == player || target.Owner == 0 && target.Type != "supply_cart" {
-				return rule("invalid_target", "Choose an enemy for a combat unit.")
+			if d.Attack <= 0 || target == nil || target.Owner == player || !attackableEntity(target) {
+				return rule("invalid_target", "Choose another kingdom’s unit or building, or a neutral economic target. Attacking breaks peace.")
 			}
 		case "gather":
 			// An exhausted owned farm is still a valid work destination. The
@@ -377,6 +424,7 @@ func (w *World) apply(player int, c Command) error {
 		}
 		orders = append(orders, o)
 	}
+	w.planMarch(es, orders, c.Queue)
 	for i, e := range es {
 		if c.Kind == "stance" {
 			e.Stance = c.Product
@@ -499,20 +547,24 @@ func (w *World) Placement(player int, typ string, pos Vec) error {
 	if !ok || d.Kind != "building" {
 		return rule("unknown_product", "Unknown building.")
 	}
-	pos = snap(pos)
+	pos = buildingPosition(typ, pos)
 	if typ == "gate" && !w.straightGate(player, pos, nil) {
 		return rule("invalid_placement", "Gates need a straight wall section. Choose walls along one axis.")
 	}
-	for y := pos.Y - d.Radius; y <= pos.Y+d.Radius; y += .5 {
-		for x := pos.X - d.Radius; x <= pos.X+d.Radius; x += .5 {
+	half := float64(d.Footprint) / 2
+	for y := pos.Y - half + .01; y < pos.Y+half; y += .5 {
+		for x := pos.X - half + .01; x < pos.X+half; x += .5 {
 			q := Vec{x, y}
 			if !w.inside(q) || !w.Players[player].Explored[int(y)*w.Width+int(x)] {
 				return rule("invalid_placement", "Explore the entire building site first.")
 			}
-			if typ != "dock" && !w.land(q) {
+			if typ != "dock" && typ != "bridge" && !w.land(q) {
 				return rule("invalid_placement", "Choose clear land for this building.")
 			}
 		}
+	}
+	if typ == "bridge" && (!w.water(pos) || w.tile(pos).Bridge) {
+		return rule("invalid_placement", "Choose an unbridged water tile.")
 	}
 	if typ == "dock" {
 		land, water := false, false
@@ -540,12 +592,16 @@ func (w *World) Placement(player int, typ string, pos Vec) error {
 			}
 		}
 		if ed.Kind == "unit" {
-			if typ != "farm" && e.Position.Distance(pos) < d.Radius+ed.Radius+.15 {
+			if typ != "farm" && typ != "bridge" && footprintOverlaps(pos, float64(d.Footprint), e.Position, ed.Radius*2) {
 				return rule("invalid_placement", "Units occupy this site. Move them or choose another location.")
 			}
 			continue
 		}
-		if e.Position.Distance(pos) < d.Radius+ed.Radius+.15 {
+		other := ed.Radius * 2
+		if ed.Footprint > 0 {
+			other = float64(ed.Footprint)
+		}
+		if footprintOverlaps(pos, float64(d.Footprint), e.Position, other) {
 			return rule("invalid_placement", "This site is obstructed. Choose another location.")
 		}
 	}

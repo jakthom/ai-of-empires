@@ -108,9 +108,21 @@ test('existing buildings visibly mature through four ages during public gameplay
   await advance('Feudal Age', 1);
   await build(page, game, 'market', 'Market');
   await build(page, game, 'blacksmith', 'Blacksmith');
+  await page.getByRole('button', { name: 'Match menu', exact: true }).click();
+  await game.command('speed', () => page.locator('#game-speed').selectOption('1'));
+  await page.getByRole('button', { name: 'Close menu', exact: true }).click();
   await select(page, game, 'market');
   await page.getByRole('button', { name: 'Trade', exact: true }).click();
-  for (let i = 0; i < 3; i++) await game.command('market_buy', () => page.locator('#actions').getByRole('button', { name: /Buy food/ }).click());
+  // Buy food for age costs and population upkeep. Wait for each observed
+  // transaction before buying again so the next click uses its new quote.
+  for (let i = 0; i < 5; i++) {
+    const gold = (await game.snapshot()).player.resources.gold;
+    await game.command('market_buy', () => page.locator('#actions').getByRole('button', { name: /Buy food/ }).click());
+    await expect(page.locator('.resource.gold strong')).not.toHaveText(Math.floor(gold).toLocaleString());
+  }
+  await page.getByRole('button', { name: 'Match menu', exact: true }).click();
+  await game.command('speed', () => page.locator('#game-speed').selectOption('32'));
+  await page.getByRole('button', { name: 'Close menu', exact: true }).click();
   await advance('Castle Age', 2);
   await build(page, game, 'monastery', 'Monastery');
   await build(page, game, 'university', 'University');

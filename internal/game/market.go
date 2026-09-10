@@ -77,7 +77,9 @@ func (w *World) exchange(p *Player, market *Entity, kind, resource string) error
 	if err != nil {
 		return err
 	}
-	p.Resources.Add(q.Cost.Scale(-1))
+	w.consume(p.ID, q.Cost, "trade")
+	p.Economy.TradeSold.Add(q.Cost)
+	p.Economy.TradeBought.Add(q.Gain)
 	p.Resources.Add(q.Gain)
 	r := w.Marketplace.Regions[-p.ID]
 	r.Stock.Add(q.Cost)

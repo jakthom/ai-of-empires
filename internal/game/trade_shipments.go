@@ -95,6 +95,17 @@ func shipmentAtSeller(_ context.Context, c *shipmentContext) error {
 }
 func collectShipment(_ context.Context, c *shipmentContext) error {
 	s, cart := c.Shipment, c.cart()
+	payment := resourceAmount(s.Terms.WantResource, float64(s.Terms.WantAmount))
+	c.World.accountConsumption(s.Buyer, payment, "trade")
+	c.World.Players[s.Buyer].Economy.TradeSold.Add(payment)
+	if s.Seller > 0 {
+		goods := resourceAmount(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
+		c.World.accountConsumption(s.Seller, goods, "trade")
+		p := c.World.Players[s.Seller]
+		p.Economy.TradeSold.Add(goods)
+		p.Economy.TradeBought.Add(payment)
+		p.Economy.TradeDeliveries++
+	}
 	c.World.creditShipmentSeller(s, s.Terms.WantResource, float64(s.Terms.WantAmount))
 	cart.CargoType, cart.Cargo, cart.Path = s.Terms.GiveResource, float64(s.Terms.GiveAmount), nil
 	for _, player := range []int{s.Buyer, s.Seller} {
@@ -144,6 +155,9 @@ func finishShipmentCart(c *shipmentContext) {
 func deliverShipment(_ context.Context, c *shipmentContext) error {
 	s := c.Shipment
 	c.World.Players[s.Buyer].Resources.Deposit(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
+	p := c.World.Players[s.Buyer]
+	p.Economy.TradeBought.Add(resourceAmount(s.Terms.GiveResource, float64(s.Terms.GiveAmount)))
+	p.Economy.TradeDeliveries++
 	finishShipmentCart(c)
 	for _, player := range []int{s.Buyer, s.Seller} {
 		c.World.tradeNotice(player, fmt.Sprintf("Caravan #%d delivered %d %s. Trade complete.", s.ID, s.Terms.GiveAmount, s.Terms.GiveResource))

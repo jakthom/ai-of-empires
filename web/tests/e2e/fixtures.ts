@@ -19,6 +19,7 @@ export const test = base.extend<{ game: Game }>({
     page.on('pageerror', error => pageErrors.push(error.message));
     const created = async (response: Response) => {
       const path = new URL(response.url()).pathname;
+	  if(response.request().method()==='POST'&&/\/snapshots\/[^/]+\/fork$/.test(path)&&response.ok()){const v=await response.json() as {session:MemberSession};sessions.push(v.session);}
       if (response.request().method() === 'POST' && (path === '/api/v1/games' && response.status() === 201 || path === '/api/v1/memberships/rejoin' && response.status() === 200)) {
         sessions.push(await response.json() as Session);
       }

@@ -66,3 +66,50 @@ func BenchmarkHugeCheckpointCapture(b *testing.B) {
 		_ = w.CaptureCheckpoint()
 	}
 }
+
+// A populated moving army exercises collision, target acquisition and path
+// retries alongside the terrain/resource count of the large-map benchmark.
+func performanceArmyWorld() *World {
+	w := performanceHugeWorld()
+	w.Config.Mode = "sandbox"
+	for _, p := range w.Players {
+		p.AI = false
+	}
+	for y := 60; y < 120; y++ {
+		for x := 60; x < 150; x++ {
+			w.Tiles[y*w.Width+x] = Tile{Terrain: "grass"}
+		}
+	}
+	for _, id := range append([]int(nil), w.IDs...) {
+		e := w.Entities[id]
+		if e != nil && e.Position.X > 58 && e.Position.X < 152 && e.Position.Y > 58 && e.Position.Y < 122 {
+			delete(w.Entities, id)
+		}
+	}
+	for i := range 120 {
+		e := w.spawn("militia", 1, Vec{65 + float64(i%12), 70 + float64(i/12)})
+		goal := Vec{135 + float64(i%12), 90 + float64(i/12)}
+		w.setOrder(e, Order{Kind: "move", Position: &goal}, false)
+	}
+	w.rebuildRegions()
+	w.refreshVisibility()
+	return w
+}
+
+func BenchmarkArmySimulation(b *testing.B) {
+	w := performanceArmyWorld()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		w.Update()
+	}
+}
+
+func BenchmarkArmySnapshot(b *testing.B) {
+	w := performanceArmyWorld()
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		_ = w.View(1)
+	}
+}

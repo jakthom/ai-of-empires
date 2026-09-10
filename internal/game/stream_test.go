@@ -13,6 +13,9 @@ func applyStreamFrame(v Snapshot, f SnapshotFrame) Snapshot {
 		return *f.Snapshot
 	}
 	d := f.Delta
+	if d.PeaceOffers != nil {
+		v.PeaceOffers = *d.PeaceOffers
+	}
 	v.ControlRevision, v.Tick, v.Time, v.Speed, v.Paused, v.Status, v.Winner, v.TreatyRemaining = d.ControlRevision, d.Tick, d.Time, d.Speed, d.Paused, d.Status, d.Winner, d.TreatyRemaining
 	v.Projectiles, v.EventCursor = d.Projectiles, d.EventCursor
 	if d.Player != nil {
