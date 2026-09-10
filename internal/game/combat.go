@@ -24,7 +24,7 @@ func combatTransitions() []unitRow {
 	)
 }
 func combatTargetLost(_ context.Context, c *unitContext) error {
-	return applicable(c.Target == nil || c.Target.Owner == 0 || c.Target.Owner == c.Actor.Owner || !c.World.visibleEntity(c.Actor.Owner, c.Target) || (c.Actor.Type == "town_center" && len(c.Actor.Passengers) == 0) || !c.World.mayContinueAttack(c.Actor, c.Target))
+	return applicable(c.Target == nil || c.Target.Owner == 0 && c.Target.Type != "supply_cart" || c.Target.Owner == c.Actor.Owner || !c.World.visibleEntity(c.Actor.Owner, c.Target) || (c.Actor.Type == "town_center" && len(c.Actor.Passengers) == 0) || !c.World.mayContinueAttack(c.Actor, c.Target))
 }
 
 func (w *World) mayContinueAttack(e, target *Entity) bool {
@@ -145,7 +145,7 @@ func impactProjectile(_ context.Context, c *flightContext) error {
 	if p.Splash > 0 {
 		for _, id := range append([]int{}, w.IDs...) {
 			t := w.Entities[id]
-			if t != nil && t.Container == 0 && t.ID != p.Source && t.Owner > 0 && t.Position.Distance(p.Destination) <= p.Splash+definitions[t.Type].Radius {
+			if t != nil && t.Container == 0 && t.ID != p.Source && (t.Owner > 0 || t.Type == "supply_cart") && t.Position.Distance(p.Destination) <= p.Splash+definitions[t.Type].Radius {
 				w.hitFrom(t, p.Owner, p.Source, p.Damage)
 			}
 		}

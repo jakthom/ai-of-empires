@@ -139,6 +139,7 @@ func New(cfg Config) *World {
 	}
 	w.spawn("market", 0, Vec{59, 51})
 	w.rebuildRegions()
+	w.initializeMerchantRegions()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")
 	return w
@@ -165,6 +166,9 @@ func (w *World) spawnWithLife(typ string, owner int, pos Vec, initial LifeState)
 		w.barriers = nil
 	}
 	w.IDs = append(w.IDs, e.ID)
+	if typ == "market" && owner == 0 {
+		w.addMerchantRegion(e.ID, pos)
+	}
 	if typ == "farm" {
 		e.Resource = "food"
 		e.Amount = 175

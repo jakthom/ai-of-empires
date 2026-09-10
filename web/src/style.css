@@ -57,6 +57,13 @@
 .merchant-quotes button { padding: 10px 12px; min-height: 58px; width: 100%; text-align: left; }
 .merchant-quotes button strong, .merchant-quotes button span { display: block; font-size: 12px; line-height: 1.6; }
 .merchant-quotes button span { color: var(--accent); }
+.merchant-selector { display: block; max-width: 380px; margin: 18px 0; }
+.merchant-limit { display: grid; gap: 8px; max-width: 540px; font-size: 13px; }
+.merchant-limit input { max-width: 180px; }
+.merchant-supply { margin: 22px 0; }
+.merchant-supply > p { font-size: 14px; line-height: 1.6; }
+.merchant-supply strong { text-transform: capitalize; color: var(--accent); }
+#marketplace-dialog .merchant-margin { color: var(--accent); }
 .market-table-scroll { overflow-x: auto; }
 #marketplace-dialog table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums; }
 #marketplace-dialog caption { text-align: left; color: var(--muted); margin: 4px 0 14px; font-size: 12px; }

@@ -416,6 +416,12 @@
           "target_player": {
             "type": "integer"
           },
+          "trade_limit": {
+            "type": "integer"
+          },
+          "trade_mode": {
+            "type": "string"
+          },
           "value": {
             "type": "number"
           }
@@ -1304,6 +1310,12 @@
           "capacity": {
             "type": "integer"
           },
+          "markets": {
+            "items": {
+              "$ref": "#/components/schemas/RegionalMarketView"
+            },
+            "type": "array"
+          },
           "max_lots": {
             "type": "integer"
           },
@@ -1330,6 +1342,7 @@
           }
         },
         "required": [
+          "markets",
           "offers",
           "shipments",
           "merchants",
@@ -1379,6 +1392,44 @@
         ],
         "type": "object"
       },
+      "MerchantRouteView": {
+        "additionalProperties": false,
+        "properties": {
+          "can_start": {
+            "type": "boolean"
+          },
+          "cart_id": {
+            "type": "integer"
+          },
+          "cost": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "gain": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "home_margin": {
+            "type": "integer"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "product": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "product",
+          "mode",
+          "cost",
+          "gain",
+          "can_start",
+          "home_margin"
+        ],
+        "type": "object"
+      },
       "MerchantView": {
         "additionalProperties": false,
         "properties": {
@@ -1388,7 +1439,22 @@
             },
             "type": "array"
           },
+          "biome": {
+            "type": "string"
+          },
+          "demand": {
+            "$ref": "#/components/schemas/Resources"
+          },
           "market_id": {
+            "type": "integer"
+          },
+          "next_supply_in": {
+            "type": "number"
+          },
+          "production": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "region_id": {
             "type": "integer"
           },
           "revision": {
@@ -1396,9 +1462,28 @@
           },
           "stock": {
             "$ref": "#/components/schemas/Resources"
+          },
+          "supply_cart_id": {
+            "type": "integer"
+          },
+          "supply_interval": {
+            "type": "number"
+          },
+          "supply_position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "supply_state": {
+            "type": "string"
           }
         },
         "required": [
+          "region_id",
+          "biome",
+          "production",
+          "demand",
+          "supply_state",
+          "supply_interval",
+          "next_supply_in",
           "stock",
           "revision",
           "actions"
@@ -1710,6 +1795,29 @@
           "command_id",
           "tick",
           "accepted"
+        ],
+        "type": "object"
+      },
+      "RegionalMarketView": {
+        "additionalProperties": false,
+        "properties": {
+          "merchant": {
+            "$ref": "#/components/schemas/MerchantView"
+          },
+          "position": {
+            "$ref": "#/components/schemas/Vec"
+          },
+          "routes": {
+            "items": {
+              "$ref": "#/components/schemas/MerchantRouteView"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "merchant",
+          "position",
+          "routes"
         ],
         "type": "object"
       },
@@ -2376,11 +2484,17 @@
           "id": {
             "type": "integer"
           },
+          "merchant_id": {
+            "type": "integer"
+          },
           "offer_id": {
             "type": "integer"
           },
           "position": {
             "$ref": "#/components/schemas/Vec"
+          },
+          "price_limit": {
+            "type": "integer"
           },
           "repeat": {
             "type": "boolean"
@@ -2396,6 +2510,9 @@
           },
           "terms": {
             "$ref": "#/components/schemas/TradeOfferIntent"
+          },
+          "trade_mode": {
+            "type": "string"
           }
         },
         "required": [

@@ -57,6 +57,9 @@ func (w *World) apply(player int, c Command) error {
 	if w.match.State() == MatchPaused {
 		return rule("paused", "Resume the match before issuing an order.")
 	}
+	if c.Kind == "trade" || c.Kind == "interact" && len(c.EntityIDs) == 1 && w.Entities[c.EntityIDs[0]] != nil && w.Entities[c.EntityIDs[0]].Type == "trade_cart" && w.Entities[c.TargetID] != nil && w.Entities[c.TargetID].Type == "market" && w.Entities[c.TargetID].Owner == 0 {
+		return w.startMerchantTrade(player, c)
+	}
 	if slices.Contains([]string{"market_post", "market_cancel", "market_accept", "market_resume", "market_recall"}, c.Kind) {
 		return w.marketplaceCommand(player, c)
 	}
@@ -181,7 +184,7 @@ func (w *World) apply(player int, c Command) error {
 		first.Rally = &pos
 		return nil
 	case "market_sell", "market_buy":
-		if c.MarketRevision != nil && *c.MarketRevision != w.Marketplace.Revision {
+		if c.MarketRevision != nil && *c.MarketRevision != w.Marketplace.Regions[-player].Revision {
 			return rule("market_changed", "Merchant stock or prices changed. Review the new quote.")
 		}
 		return w.exchange(p, first, c.Kind, c.Product)
@@ -297,7 +300,7 @@ func (w *World) apply(player int, c Command) error {
 			if w.treatyInForce() {
 				return rule("peace_period", "Attacks are disabled until the initial peace period ends.")
 			}
-			if d.Attack <= 0 || target == nil || target.Owner == player || target.Owner == 0 {
+			if d.Attack <= 0 || target == nil || target.Owner == player || target.Owner == 0 && target.Type != "supply_cart" {
 				return rule("invalid_target", "Choose an enemy for a combat unit.")
 			}
 		case "gather":

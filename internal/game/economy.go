@@ -42,9 +42,10 @@ func economyTransitions() []unitRow {
 		rows = append(rows, unitRow{From: state, Event: UnitPulse, To: Idle, Guard: tradeRouteLost, Do: finishUnitOrder})
 	}
 	return append(rows,
-		unitRow{From: Trading, Event: UnitPulse, To: ReturningTrade, Guard: tradeDestinationReached, Do: collectTradeCargo},
-		unitRow{From: Trading, Event: UnitPulse, To: Trading, Do: approachTradeDestination},
-		unitRow{From: ReturningTrade, Event: UnitPulse, To: Trading, Guard: dropOffReached, Do: deliverTradeCargo},
+		// Old saves may contain an unfunded route. Stop outbound legs and
+		// deliver already-collected legacy gold once, without minting more.
+		unitRow{From: Trading, Event: UnitPulse, To: Idle, Do: finishUnitOrder},
+		unitRow{From: ReturningTrade, Event: UnitPulse, To: Idle, Guard: dropOffReached, Do: deliverTradeCargo},
 		unitRow{From: ReturningTrade, Event: UnitPulse, To: ReturningTrade, Do: approachDropOff},
 	)
 }
@@ -213,23 +214,12 @@ func contributeRepair(_ context.Context, c *unitContext) error {
 func tradeRouteLost(_ context.Context, c *unitContext) error {
 	return applicable(c.Target == nil || c.Target.Type != "market" || c.Target.Owner != 0 || c.DropOff == nil)
 }
-func tradeDestinationReached(_ context.Context, c *unitContext) error {
-	return applicable(c.World.Marketplace.Merchants.Gold > 0 && c.Actor.Position.Distance(c.Target.Position) <= definitions[c.Target.Type].Radius+.8)
-}
-func collectTradeCargo(_ context.Context, c *unitContext) error {
-	c.Actor.Cargo = math.Min(c.World.Marketplace.Merchants.Gold, math.Max(1, c.DropOff.Position.Distance(c.Target.Position)*.7))
-	c.World.Marketplace.Merchants.Gold -= c.Actor.Cargo
-	c.World.Marketplace.Revision++
-	c.Actor.CargoType = "gold"
-	c.Actor.Path = nil
-	return nil
-}
 func deliverTradeCargo(_ context.Context, c *unitContext) error {
 	c.World.receiveProduction(c.Actor.Owner, "gold", c.Actor.Cargo)
 	c.World.entityEvent(c.Actor, "trade", fmt.Sprintf("Delivered %.2f trade gold", c.Actor.Cargo), c.Actor.Cargo)
 	c.Actor.Cargo = 0
 	c.Actor.Path = nil
-	return nil
+	return finishUnitOrder(context.Background(), c)
 }
 func approachTradeDestination(_ context.Context, c *unitContext) error {
 	c.World.move(c.Actor, c.Target.Position, definitions[c.Target.Type].Radius+.7, Step)

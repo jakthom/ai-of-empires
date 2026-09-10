@@ -33,13 +33,40 @@ Movement uses normal collision, pathfinding and unit speed. Peaceful trading gra
 
 Participants see their agreed terms and delivery milestones. Only the cart's owner sees interruption and route details outside ordinary map visibility. A foreign cart's location is included only while visible, including for its trading partner. Third parties do not receive delivery records. Trade receipts remain in each participant's private chronicle. The read model retains recent deliveries (200 records globally, plus older active deliveries); the complete journal remains stored.
 
-## Finite merchants
+## Local merchants, production and demand
 
-All owned Markets access one shared merchant inventory. It initially contains 1,000 food, 1,000 wood, 1,000 stone and 2,000 gold. It never automatically restocks. Player purchases replenish merchant gold, and player sales replenish the purchased commodity. Merchants refuse sales that would take that commodity above 5,000 and refuse exchanges they cannot fund.
+Every kingdom has one home merchant inventory, priced using its starting region. All of that kingdom's owned Markets access this same inventory, even if another Market is built elsewhere. This prevents instant price arbitrage through the kingdom-wide stockpile and prevents rebuilding from resetting supply. Each neutral Market has its own inventory and local prices. New maps place additional outlying Markets where terrain and space permit; existing maps retain their buildings and deposits.
 
-Each exchange trades a lot of 100 food, wood or stone against gold. Initial quotes are 130 gold to buy and 70 gold to sell (84 gold for Saracens). Buying reduces commodity stock and raises subsequent prices; selling increases stock and lowers them. Quote calculation, rounding, stock checks and execution belong to Go. The selected Market's actions and `marketplace.merchants.actions` supply the exact `cost`, `gain`, `enabled` and refusal `reason`.
+A region initially holds 1,000 food, wood and stone multiplied by the local biome's deposit factors, plus 2,000 gold. Worlds without per-tile biome data use their configured biome; worlds without a biome use the unmodified quantities. Buying and selling changes that region alone. Each exchange transfers real resources in lots of 100. For a commodity stock `s`, the wholesale price per 100 is `clamp(100 + (1000-s)*0.08, 30, 200)`. Purchases cost `ceil(price*1.3)` gold; sales return `floor(price*0.7)`, or `floor(price*0.84)` for Saracens. Stock shortages therefore increase prices and surpluses lower them, within bounds. At 1,000 stock the quotes are 130/70 gold (84 for a Saracen sale).
 
-Pass `market_revision` from the displayed merchant view to require that quote. A changed stock revision returns `market_changed`; reread and submit a new intention. Omission accepts the current execution-time quote, preserving the existing command contract. Neutral-Market trade routes withdraw their distance-based gold from this same finite treasury and wait when it is empty. Rebuilding Markets does not reset stock or prices.
+Food, wood and stone warehouses each hold at most 5,000, including space reserved for accepted incoming deliveries and possible refunds. Cash can accumulate as it circulates; a well-funded till does not prevent buying goods. Merchants reject lots they cannot fund or receive. `market_revision` refers to the selected region: the home inventory for immediate exchanges, or the destination neutral Market for a caravan.
+
+### Supply caravans
+
+Regional Supply Caravans are visible neutral units using ordinary land movement, collision and fog. Each region prepares at most one shipment at a time. After arrival or loss, it waits 90 game seconds before its next departure. Departure can wait for a free source position and a completed receiving Market. A home caravan serves the Market nearest that kingdom's original settlement; neutral caravans serve their own Market. Home supply caravans may pass their receiving kingdom's gates. Foreign gates and blockades can interrupt them. Players can explicitly attack supply caravans; they do not attack back, and cargo lost with them never arrives.
+
+A caravan brings up to 60 food, 60 wood and 20 stone multiplied by its region's biome factors. Food and wood represent renewable production in the surrounding district; stone represents limited-rate imports from outside the simulated map. Map deposits do not regrow. Supplies are produced only for an actual departure and enter merchant stock only on physical arrival. Goods beyond warehouse capacity leave with the caravan.
+
+Buyers accompany each arrival with a **240-gold spending budget**. They purchase and consume up to 80 food, 60 wood and 30 stone, in that priority order, at the current local wholesale valuation. Only goods actually bought earn merchant gold. Unspent money leaves; no empty route produces a payment. This is an explicit abstraction of surrounding production and consumer demand, not a closed simulation of every household, mine or coin. Regional output can exceed demand for some goods and fall short for others, sustaining export advantages and import needs.
+
+There is no offline production, missed-cycle catch-up or stock reset when a Market is rebuilt. A blocked caravan delays the whole next supply cycle. Inventory, payload, cart, timers and exactly-once delivery/loss survive checkpoint restore.
+
+### Merchant trade routes
+
+The Merchants page selects either your home merchants or an observed neutral Market. Home exchange remains immediate through `market_buy` / `market_sell`. Regional **Export** and **Import** controls use `trade` with one idle, empty Trade Cart beside an owned Market:
+
+- `trade_mode: "sell"`: carry 100 of `product` to the neutral Market and return its reserved gold payment.
+- `trade_mode: "buy"`: carry gold to the neutral Market and return 100 of `product`.
+- `repeat: true`: attempt another funded lot after returning, using the new local quote. A refusal stops repetition and is recorded in your private log.
+- Optional `trade_limit`: minimum sale proceeds or maximum purchase cost in gold per 100 goods, from 1 to 500. Omission permits any price within the ruleset's bounds on future trips.
+
+Both sides reserve their advertised goods/payment at dispatch. The accepted price is fixed for that trip. Travel distance affects time and risk, **not payment**. `home_margin` compares the current purchase price at the source with the sale price at the destination for 100 goods. It is an indicative price difference, not guaranteed profit: later prices, available stocks, journey time and losses can change the result. Imports, exports and barter are exchanges and do not count as newly produced player resources.
+
+Omitting `trade_mode` selects selling. Older clients that omit `product` sell 100 of their largest held food/wood/stone stockpile. New routes default to one trip; request repetition explicitly. Queued or multi-cart `trade` commands are refused rather than partially funded. `market_resume` and `market_recall` also control merchant deliveries. Old unfunded outbound routes stop when a save resumes; already-loaded legacy gold can finish its return once.
+
+Only the owner sees home merchant inventory. Neutral stock, prices and supply details are included in `marketplace.markets` while the Market is in ordinary sight. Remembered Markets remain locatable on the map but do not stream hidden price changes. Supply cart positions appear only while visible. A player can explicitly order a funded trade at a remembered neutral Market, subject to current stock, quote revision and price-limit checks; the accepted contract discloses its own terms. Other players do not receive that delivery's private records.
+
+Checkpoint version 6 preserves local inventories and supply lifecycles. Version-5 migration divides the former shared stock among home and neutral regions without duplicating it; regional production establishes new surpluses over time. Older pre-marketplace saves initialize regional merchants. Existing offered goods, active player contracts, player stocks and map deposits remain intact.
 
 ## Regional scarcity
 
@@ -82,6 +109,20 @@ Cancel your unclaimed lots, or control your own caravan:
 {"id":"recall-caravan-1","kind":"market_recall","shipment_id":1}
 ```
 
+Export wood repeatedly while the Market pays at least 90 gold per 100:
+
+```json
+{"id":"export-wood-1","kind":"trade","entity_ids":[614],"target_id":820,"product":"wood","trade_mode":"sell","trade_limit":90,"repeat":true}
+```
+
+Import one lot of stone with a maximum price of 180 gold:
+
+```json
+{"id":"import-stone-1","kind":"trade","entity_ids":[614],"target_id":820,"product":"stone","trade_mode":"buy","trade_limit":180}
+```
+
+Read `marketplace.merchants` for home quotes and `marketplace.markets` for currently observed neutral stock, production, demand and `routes`. The server supplies `can_start`, `reason`, `cart_id`, exact `cost`/`gain` and indicative `home_margin`. These values also travel through SSE and the MCP `marketplace` tool.
+
 Every new intention needs a unique command ID. Retry an ambiguous request with the identical ID and payload. The membership-scoped receipt boundary prevents duplicate reservations, cargo loading, payments and refunds. Generated TypeScript, OpenAPI and MCP schemas all derive from the Go wire types.
 
-Built-in AI uses only its own inventory and the book it is allowed to read. It advertises surpluses against shortages and can train/fund carts to accept useful, observed offers. It receives no extra resources or private trading information. Negotiated alliances, naval freight and automatic matching of separate offers remain future work.
+Built-in AI uses only its own inventory and the book it is allowed to read. It advertises surpluses against shortages, compares home quotes with observed regional quotes, and can train/fund carts to accept useful offers and merchant deliveries while retaining economic reserves. It receives no extra resources or private trading information. Negotiated alliances, naval freight and automatic matching of separate offers remain future work.

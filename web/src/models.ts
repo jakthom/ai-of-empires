@@ -229,11 +229,16 @@ function unit(g: THREE.Group, e: EntityView) {
     box(g, palette.wood, 0, .9, 0, .04, 1.5, .04);
     box(g, type === 'fire_ship' ? color : '#d9cfac', .27, 1.1, 0, .55, .8, .025); return;
   }
-  if (['ram', 'mangonel', 'trebuchet', 'bombard_cannon', 'trade_cart'].includes(type)) {
+  if (['ram', 'mangonel', 'trebuchet', 'bombard_cannon', 'trade_cart', 'supply_cart'].includes(type)) {
     box(g, palette.wood, 0, .35, 0, .8, .35, 1.2);
     for (const x of [-.45, .45]) for (const z of [-.4, .4]) { const wheel = shape(g, cylinder, '#443c2a', x, .23, z, .23, .12, .23); wheel.rotation.z = Math.PI / 2; }
     if (type === 'trebuchet') { box(g, palette.wood, 0, 1, 0, .12, 1.3, .12); const arm = box(g, '#9c7c4d', 0, 1.2, 0, .1, .1, 2); arm.rotation.x = e.deployed ? -.6 : 0; }
     else if (type === 'ram') roof(g, 0, .8, 0, 1, .6, 1.6);
+    else if (type === 'supply_cart' || type === 'trade_cart') {
+      box(g, '#9c7c4d', -.18, .64, -.22, .3, .3, .4);
+      box(g, '#b5a47c', .17, .61, .2, .35, .26, .4);
+      if (type === 'supply_cart') { box(g, '#d9cfac', 0, .95, 0, .85, .12, 1.2); for (const x of [-.36,.36]) box(g, palette.wood, x, .68, 0, .05, .5, .05); }
+    }
     else { const arm = box(g, type === 'bombard_cannon' ? '#414b46' : palette.wood, 0, .75, -.2, .2, .2, 1.1); arm.rotation.x = -.3; }
     flag(g, e.owner, .4, .5, .4, .35); return;
   }

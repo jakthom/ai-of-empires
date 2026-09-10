@@ -115,6 +115,7 @@ func NewWorldForRoster(cfg Config, roster []Kingdom) (*World, error) {
 		w.seedSettlement(i+1, start)
 	}
 	w.seedCountryside(starts, rng)
+	w.initializeMerchantRegions()
 	w.refreshVisibility()
 	w.event(1, "Your settlers await. Gather food and wood, build houses, and grow your kingdom.")
 	if options.TreatyMinutes > 0 {
@@ -395,6 +396,22 @@ func (w *World) seedCountryside(starts []Vec, rng *rand.Rand) {
 		if w.free(p, 2, 0, false) {
 			w.spawn("market", 0, p)
 			break
+		}
+	}
+	// Outlying Markets make regional production and price differences useful
+	// on new maps. Placement remains deterministic and outside home deposits.
+	for index, start := range starts {
+		for i := 0; i < 32; i++ {
+			a := float64(i+index*7) * math.Pi / 16
+			p := Vec{start.X + math.Cos(a)*21, start.Y + math.Sin(a)*21}
+			nearMarket := false
+			for _, m := range w.entities(0, "market") {
+				nearMarket = nearMarket || m.Position.Distance(p) < 14
+			}
+			if !reserved(p) && !nearMarket && w.free(p, 2, 0, false) && w.sameRegion(start, p, false) {
+				w.spawn("market", 0, p)
+				break
+			}
 		}
 	}
 	w.rebuildRegions()

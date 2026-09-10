@@ -8,7 +8,7 @@ export function renderProduction(production: ProductionView) {
     const chart = document.getElementById(`production-${resource}`)!;
     const samples = production.history;
     const rate = Math.round(production.rates[resource]);
-    const label = `${resource}: +${rate.toLocaleString()} per game minute. Rolling ${production.window_seconds} seconds; five minutes of history. Deliveries, trade routes and relics; excludes purchases and refunds.`;
+    const label = `${resource}: +${rate.toLocaleString()} per game minute. Rolling ${production.window_seconds} seconds; five minutes of history. Harvest deliveries and relics; excludes trade, purchases and refunds.`;
     chart.setAttribute('aria-label', label); chart.title = label;
     chart.querySelector('small')!.textContent = `+${compactRate.format(rate)}/min`;
     const end = samples.at(-1)?.time ?? 0;

@@ -22,6 +22,9 @@ func (w *World) aiCommerce(c *aiContext) {
 	}
 	floor := Resources{Food: 400, Wood: 400, Gold: 250, Stone: 200}
 	book := w.marketplaceView(p.ID)
+	if w.aiMerchantCommerce(p, market, book, floor) {
+		return
+	}
 	for _, offer := range book.Offers {
 		t := offer.Terms
 		if offer.Owner == p.ID {
@@ -73,4 +76,48 @@ func (w *World) aiCommerce(c *aiContext) {
 		return
 	}
 	_ = w.Apply(p.ID, Command{Kind: "market_post", EntityIDs: []int{market.ID}, Offer: &TradeOfferIntent{GiveResource: give, GiveAmount: 100, WantResource: want, WantAmount: 100, Lots: 2}})
+}
+
+func (w *World) aiMerchantCommerce(p *Player, market *Entity, book MarketplaceView, floor Resources) bool {
+	for _, region := range book.Markets {
+		for _, route := range region.Routes {
+			useful := route.Mode == "sell" && p.Resources.Gold < floor.Gold && p.Resources.Amount(route.Product)-100 >= floor.Amount(route.Product)
+			useful = useful || route.Mode == "buy" && p.Resources.Amount(route.Product) < floor.Amount(route.Product) && p.Resources.Gold-route.Cost.Gold >= floor.Gold
+			if !useful || route.Cost == (Resources{}) || route.Gain == (Resources{}) {
+				continue
+			}
+			// If home merchants can fill the need at least as well, save the
+			// journey. All values come from this kingdom's authenticated view.
+			for _, local := range book.Merchants.Actions {
+				if local.Product != route.Product || local.Kind != "market_"+route.Mode || !local.Enabled || local.Gain == nil {
+					continue
+				}
+				if route.Mode == "sell" && local.Gain.Gold >= route.Gain.Gold || route.Mode == "buy" && local.Cost.Gold <= route.Cost.Gold {
+					_ = w.Apply(p.ID, Command{Kind: local.Kind, EntityIDs: []int{market.ID}, Product: route.Product, MarketRevision: &book.Merchants.Revision})
+					return true
+				}
+			}
+			if route.CanStart {
+				limit := int(route.Gain.Gold)
+				if route.Mode == "buy" {
+					limit = int(route.Cost.Gold)
+				}
+				_ = w.Apply(p.ID, Command{Kind: "trade", EntityIDs: []int{route.CartID}, TargetID: region.Merchant.MarketID, Product: route.Product, TradeMode: route.Mode, TradeLimit: &limit, MarketRevision: &region.Merchant.Revision})
+				return true
+			}
+			carts := w.entities(p.ID, "trade_cart")
+			if len(carts) == 0 && len(market.Tasks) == 0 {
+				_ = w.Apply(p.ID, Command{Kind: "train", EntityIDs: []int{market.ID}, Product: "trade_cart"})
+				return true
+			}
+			for _, cart := range carts {
+				if cart.behavior.State() == Idle && w.cartShipment(cart.ID) == nil && cart.Position.Distance(market.Position) > definitions["market"].Radius+1.1 {
+					pos := market.Position
+					_ = w.Apply(p.ID, Command{Kind: "move", EntityIDs: []int{cart.ID}, Position: &pos})
+					return true
+				}
+			}
+		}
+	}
+	return false
 }

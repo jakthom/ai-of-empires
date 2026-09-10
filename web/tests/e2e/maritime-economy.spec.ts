@@ -18,10 +18,14 @@ test('trades at quoted prices and explicitly reseeds a depleted farm', async ({p
   await select(page,game,'market');
   await page.getByRole('button',{name:'Trade',exact:true}).click();
   const sell = page.locator('#actions').getByRole('button',{name:/Sell wood/}), buy = page.locator('#actions').getByRole('button',{name:/Buy wood/});
-  await expect(sell).toContainText('100W → 70G');
-  await expect(buy).toContainText('130G → 100W');
+  const quotes=(await game.snapshot()).marketplace.merchants.actions;
+  await expect(sell).toContainText(`100W → ${quotes.find(a=>a.kind==='market_sell'&&a.product==='wood')!.gain!.gold}G`);
+  await expect(buy).toContainText(`${quotes.find(a=>a.kind==='market_buy'&&a.product==='wood')!.cost.gold}G → 100W`);
   const before = (await game.snapshot()).player.resources;
-  for(let i=0;i<Math.floor(before.wood/100);i++) await game.command('market_sell',()=>sell.click());
+  for(let i=0;i<Math.floor(before.wood/100);i++) {
+    await game.command('market_sell',()=>sell.click());
+    await expect(page.locator('#res-wood')).toHaveText(Math.round(before.wood-(i+1)*100).toLocaleString());
+  }
   await expect(page.locator('#res-wood')).toHaveText('40');
   await expect(sell).toHaveAttribute('aria-disabled','true');
   await game.command('market_buy',()=>buy.click());

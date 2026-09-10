@@ -1,19 +1,46 @@
 package game
 
+import "math"
+
 type MarketplaceView struct {
-	Offers    []TradeOfferView    `json:"offers"`
-	Shipments []TradeShipmentView `json:"shipments"`
-	Merchants MerchantView        `json:"merchants"`
-	Reserved  Resources           `json:"reserved"`
-	Capacity  int                 `json:"capacity"`
-	MaxLots   int                 `json:"max_lots"`
-	MaxOffers int                 `json:"max_offers"`
+	Markets   []RegionalMarketView `json:"markets"`
+	Offers    []TradeOfferView     `json:"offers"`
+	Shipments []TradeShipmentView  `json:"shipments"`
+	Merchants MerchantView         `json:"merchants"`
+	Reserved  Resources            `json:"reserved"`
+	Capacity  int                  `json:"capacity"`
+	MaxLots   int                  `json:"max_lots"`
+	MaxOffers int                  `json:"max_offers"`
 }
 type MerchantView struct {
-	Stock    Resources `json:"stock"`
-	Revision int       `json:"revision"`
-	MarketID int       `json:"market_id,omitempty"`
-	Actions  []Action  `json:"actions"`
+	RegionID       int       `json:"region_id"`
+	Biome          string    `json:"biome"`
+	Production     Resources `json:"production"`
+	Demand         Resources `json:"demand"`
+	SupplyState    string    `json:"supply_state"`
+	SupplyInterval float64   `json:"supply_interval"`
+	NextSupplyIn   float64   `json:"next_supply_in"`
+	SupplyCartID   int       `json:"supply_cart_id,omitempty"`
+	SupplyPosition *Vec      `json:"supply_position,omitempty"`
+	Stock          Resources `json:"stock"`
+	Revision       int       `json:"revision"`
+	MarketID       int       `json:"market_id,omitempty"`
+	Actions        []Action  `json:"actions"`
+}
+type RegionalMarketView struct {
+	Merchant MerchantView        `json:"merchant"`
+	Position Vec                 `json:"position"`
+	Routes   []MerchantRouteView `json:"routes"`
+}
+type MerchantRouteView struct {
+	Product    string    `json:"product"`
+	Mode       string    `json:"mode"`
+	Cost       Resources `json:"cost"`
+	Gain       Resources `json:"gain"`
+	CanStart   bool      `json:"can_start"`
+	Reason     string    `json:"reason,omitempty"`
+	CartID     int       `json:"cart_id,omitempty"`
+	HomeMargin int       `json:"home_margin"`
 }
 type TradeOfferView struct {
 	ID        int              `json:"id"`
@@ -28,25 +55,28 @@ type TradeOfferView struct {
 	CartID    int              `json:"cart_id,omitempty"`
 }
 type TradeShipmentView struct {
-	ID        int              `json:"id"`
-	OfferID   int              `json:"offer_id"`
-	Seller    int              `json:"seller"`
-	Buyer     int              `json:"buyer"`
-	Terms     TradeOfferIntent `json:"terms"`
-	State     string           `json:"state"`
-	Status    string           `json:"status"`
-	CartID    int              `json:"cart_id,omitempty"`
-	Position  *Vec             `json:"position,omitempty"`
-	CanResume bool             `json:"can_resume"`
-	CanRecall bool             `json:"can_recall"`
-	Repeat    bool             `json:"repeat"`
+	MerchantID int              `json:"merchant_id,omitempty"`
+	TradeMode  string           `json:"trade_mode,omitempty"`
+	PriceLimit int              `json:"price_limit,omitempty"`
+	ID         int              `json:"id"`
+	OfferID    int              `json:"offer_id"`
+	Seller     int              `json:"seller"`
+	Buyer      int              `json:"buyer"`
+	Terms      TradeOfferIntent `json:"terms"`
+	State      string           `json:"state"`
+	Status     string           `json:"status"`
+	CartID     int              `json:"cart_id,omitempty"`
+	Position   *Vec             `json:"position,omitempty"`
+	CanResume  bool             `json:"can_resume"`
+	CanRecall  bool             `json:"can_recall"`
+	Repeat     bool             `json:"repeat"`
 }
 
 // Listing terms are deliberately published. Foreign inventories, unobserved
 // Market locations, unrelated private offers and third-party deliveries never
 // enter this read model, including disabled-action reasons.
 func (w *World) marketplaceView(player int) MarketplaceView {
-	v := MarketplaceView{Offers: []TradeOfferView{}, Shipments: []TradeShipmentView{}, Capacity: tradeCapacity, MaxLots: maxOfferLots, MaxOffers: maxOpenOffers}
+	v := MarketplaceView{Markets: []RegionalMarketView{}, Offers: []TradeOfferView{}, Shipments: []TradeShipmentView{}, Capacity: tradeCapacity, MaxLots: maxOfferLots, MaxOffers: maxOpenOffers}
 	var market *Entity
 	for _, e := range w.entities(player, "market") {
 		if e.life.State() == Active {
@@ -54,7 +84,7 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 			break
 		}
 	}
-	v.Merchants = MerchantView{Stock: w.Marketplace.Merchants, Revision: w.Marketplace.Revision, Actions: []Action{}}
+	v.Merchants = w.merchantView(player, w.Marketplace.Regions[-player])
 	if market != nil {
 		v.Merchants.MarketID = market.ID
 	}
@@ -67,6 +97,51 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 		}
 	}
 	carts := w.entities(player, "trade_cart")
+	for _, neutral := range w.entities(0, "market") {
+		// Regional prices are available at the observed market. Moving out of
+		// sight never gives a subscription to another trader's hidden activity.
+		if !w.visibleEntity(player, neutral) {
+			continue
+		}
+		r := w.Marketplace.Regions[neutral.ID]
+		if r == nil {
+			continue
+		}
+		view := RegionalMarketView{Merchant: w.merchantView(player, r), Position: neutral.Position, Routes: []MerchantRouteView{}}
+		view.Merchant.MarketID = neutral.ID
+		for _, resource := range []string{"food", "wood", "stone"} {
+			for _, mode := range []string{"sell", "buy"} {
+				q, err := w.merchantTradeQuote(player, neutral.ID, resource, mode, nil)
+				route := MerchantRouteView{Product: resource, Mode: mode, Cost: q.Cost, Gain: q.Gain}
+				for _, cart := range carts {
+					_, candidate := w.merchantTradeQuote(player, neutral.ID, resource, mode, cart)
+					if candidate == nil {
+						route.CanStart, route.CartID = true, cart.ID
+						err = nil
+						break
+					}
+					if cart.behavior.State() == Idle && w.cartShipment(cart.ID) == nil {
+						err = candidate
+					}
+				}
+				if err != nil {
+					route.Reason = err.Error()
+				}
+				home, _ := w.quoteExchange(w.Players[player], market, "market_buy", resource)
+				route.HomeMargin = int(q.Gain.Gold - home.Cost.Gold)
+				if mode == "buy" {
+					home, _ = w.quoteExchange(w.Players[player], market, "market_sell", resource)
+					route.HomeMargin = int(home.Gain.Gold - q.Cost.Gold)
+				}
+				if w.match.State() != MatchRunning || w.Players[player].lifecycle.State() == PlayerDefeated {
+					route.CanStart = false
+					route.Reason = "Trade orders require a running game and an active kingdom."
+				}
+				view.Routes = append(view.Routes, route)
+			}
+		}
+		v.Markets = append(v.Markets, view)
+	}
 	for _, id := range sortedTradeIDs(w.Marketplace.Offers) {
 		o := w.Marketplace.Offers[id]
 		if !o.addressedTo(player) || o.Owner != player && o.lifecycle.State() != offerOpen {
@@ -113,7 +188,7 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 		if s.Buyer != player && s.Seller != player {
 			continue
 		}
-		view := TradeShipmentView{ID: s.ID, OfferID: s.Offer, Seller: s.Seller, Buyer: s.Buyer, Terms: s.Terms, State: string(s.lifecycle.State()), Status: string(s.lifecycle.State()), Repeat: s.Repeat}
+		view := TradeShipmentView{MerchantID: s.Merchant, TradeMode: s.TradeMode, PriceLimit: s.Limit, ID: s.ID, OfferID: s.Offer, Seller: s.Seller, Buyer: s.Buyer, Terms: s.Terms, State: string(s.lifecycle.State()), Status: string(s.lifecycle.State()), Repeat: s.Repeat}
 		cart := w.liveTrader(s)
 		if cart != nil && (s.Buyer == player || w.visibleEntity(player, cart)) {
 			view.CartID = cart.ID
@@ -138,6 +213,22 @@ func (w *World) marketplaceView(player int) MarketplaceView {
 		if s.Seller == player && s.lifecycle.State() == shipmentOutbound {
 			v.Reserved.Deposit(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
 		}
+	}
+	return v
+}
+
+func (w *World) merchantView(player int, r *merchantRegion) MerchantView {
+	v := MerchantView{Actions: []Action{}}
+	if r == nil {
+		return v
+	}
+	v.RegionID, v.Biome, v.Stock, v.Revision = r.ID, r.Biome, r.Stock, r.Revision
+	v.Production, v.Demand, v.SupplyInterval = r.Output, r.Demand, merchantCycle
+	v.SupplyState = string(r.lifecycle.State())
+	v.NextSupplyIn = math.Ceil(max(0, r.NextSupply-w.Time))
+	if cart := w.Entities[r.Cart]; cart != nil && w.visibleEntity(player, cart) {
+		pos := cart.Position
+		v.SupplyCartID, v.SupplyPosition = cart.ID, &pos
 	}
 	return v
 }
