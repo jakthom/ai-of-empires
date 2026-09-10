@@ -4,7 +4,7 @@ test('renders the Three.js world and reconnects to the same Go match', async ({ 
   const session = await game.start();
   const initial = await game.snapshot();
   expect(initial.player.civilization).toBe('britons');
-  await expect(page.locator('#res-food')).toHaveText(String(initial.player.resources.food));
+  await expect.poll(async () => Number((await page.locator('#res-food').innerText()).replaceAll(',', '')) === Math.floor((await game.snapshot()).player.resources.food)).toBe(true);
   await expect(page.locator('#population')).toHaveText(`${initial.player.population} / ${initial.player.capacity}`);
   const graphics = await page.locator('#world canvas').evaluate((canvas: HTMLCanvasElement) => {
     const gl = canvas.getContext('webgl2');
@@ -17,28 +17,34 @@ test('renders the Three.js world and reconnects to the same Go match', async ({ 
   await page.screenshot({ path: info.outputPath('battlefield.png') });
   await page.getByRole('button', { name: 'Pause match', exact: true }).click();
   await expect(page.locator('#paused')).toBeVisible();
+  const frozen = await game.snapshot();
   await page.screenshot({ path: info.outputPath('battlefield-paused.png') });
   const read = page.waitForResponse(r => r.request().method() === 'GET' && new URL(r.url()).pathname === `/api/v1/games/${session.match_id}/snapshot`);
   await page.reload();
   expect((await read).status()).toBe(200);
   await expect(page.locator('#start-dialog')).toBeHidden();
   await expect(page.locator('#paused')).toBeVisible();
-  expect((await game.snapshot()).player.resources).toEqual(initial.player.resources);
+  expect((await game.snapshot()).player.resources).toEqual(frozen.player.resources);
   await page.getByRole('button', { name: 'Resume battle', exact: true }).click();
   await expect(page.locator('#paused')).toBeHidden();
 });
 
 test('queues and cancels production through the server', async ({ page, game }) => {
   await game.start();
-  const food = (await game.snapshot()).player.resources.food;
+  const before = (await game.snapshot()).player;
+  const food = before.resources.food + before.food_supply!.consumed;
   const train = page.locator('#actions').getByRole('button', { name: /Villager/ });
   await game.command('train', () => train.click());
   await expect(page.locator('#queue button')).toHaveCount(1);
-  await expect(page.locator('#res-food')).toHaveText(String(food - 50));
+  const trained = (await game.snapshot()).player;
+  expect(trained.resources.food + trained.food_supply!.consumed).toBeCloseTo(food - 50, 6);
+  await expect.poll(async () => Number((await page.locator('#res-food').innerText()).replaceAll(',', '')) === Math.floor((await game.snapshot()).player.resources.food)).toBe(true);
   expect((await game.snapshot()).entities.find(e => e.type === 'town_center' && e.owner === 1)?.tasks).toHaveLength(1);
   await game.command('cancel', () => page.locator('#queue button').click());
   await expect(page.locator('#queue button')).toHaveCount(0);
-  await expect(page.locator('#res-food')).toHaveText(String(food));
+  const refunded = (await game.snapshot()).player;
+  expect(refunded.resources.food + refunded.food_supply!.consumed).toBeCloseTo(food, 6);
+  await expect.poll(async () => Number((await page.locator('#res-food').innerText()).replaceAll(',', '')) === Math.floor((await game.snapshot()).player.resources.food)).toBe(true);
 });
 
 test('moves selected villagers using a canvas gesture and backend positions', async ({ page, game }) => {

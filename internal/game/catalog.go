@@ -1,6 +1,7 @@
 package game
 
 import (
+	"math"
 	"sort"
 	"sync"
 )
@@ -45,7 +46,14 @@ var uniqueFor = map[string]string{"britons": "longbowman", "franks": "axeman", "
 
 func init() {
 	building := func(id, name string, age int, cost Resources, hp, radius, time float64, house int, drop ...string) {
-		definitions[id] = Definition{ID: id, Name: name, Kind: "building", Age: age, Cost: cost, HP: hp, Radius: radius, Time: time, Housing: house, Sight: 9, DropOff: drop, Description: "Construct " + name + " with villagers."}
+		footprint := int(math.Ceil(radius * 2))
+		if barrier(id) {
+			footprint = 1
+		}
+		if id == "farm" {
+			footprint = 2
+		}
+		definitions[id] = Definition{Footprint: footprint, ID: id, Name: name, Kind: "building", Age: age, Cost: cost, HP: hp, Radius: radius, Time: time, Housing: house, Sight: 9, DropOff: drop, Description: "Construct " + name + " with villagers."}
 	}
 	building("town_center", "Town Center", 0, Resources{Wood: 275, Stone: 100}, 2400, 2, 100, 5, "food", "wood", "gold", "stone")
 	building("house", "House", 0, Resources{Wood: 25}, 550, .9, 25, 5)
@@ -62,6 +70,7 @@ func init() {
 	building("wall", "Stone Wall", 1, Resources{Stone: 5}, 900, .48, 10, 0)
 	building("gate", "Stone Gate", 1, Resources{Stone: 30}, 1500, .9, 40, 0)
 	building("palisade", "Palisade", 0, Resources{Wood: 3}, 150, .48, 7, 0)
+	building("bridge", "Bridge", 0, Resources{Wood: 20, Stone: 5}, 400, .48, 12, 0)
 	building("castle", "Castle", 2, Resources{Stone: 650}, 4800, 2, 200, 20)
 	building("siege_workshop", "Siege Workshop", 2, Resources{Wood: 200}, 1800, 1.6, 40, 0)
 	building("monastery", "Monastery", 2, Resources{Wood: 175}, 2100, 1.5, 40, 0)
@@ -214,6 +223,7 @@ func init() {
 	tech("champion", "Champion", "barracks", 3, Resources{Food: 750, Gold: 350}, 100, "Militia gain 30 health and 6 attack.")
 	tech("elite", "Elite Guard", "castle", 3, Resources{Food: 700, Gold: 500}, 80, "Unique units gain 25 health and 3 attack.")
 	tech("siege_engineers", "Siege Engineers", "university", 3, Resources{Food: 500, Wood: 600}, 60, "Siege gains 1 range and bonus building damage.")
+	describeBuildings()
 }
 
 func GetCatalog() Catalog {

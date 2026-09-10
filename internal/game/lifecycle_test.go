@@ -51,7 +51,7 @@ func TestProductionPopulationBlockAndCancellation(t *testing.T) {
 	if err := w.Apply(1, Command{Kind: "cancel", EntityIDs: []int{tc.ID}}); err != nil {
 		t.Fatal(err)
 	}
-	if len(tc.Tasks) != 0 || tc.production.State() != ProductionIdle || w.Players[1].Resources.Food != before {
+	if len(tc.Tasks) != 0 || tc.production.State() != ProductionIdle || math.Abs(w.Players[1].Resources.Food+w.Players[1].Economy.Consumption["food_upkeep"].Food-before) > 1e-8 {
 		t.Fatal("cancellation must refund exactly once")
 	}
 	if err := w.Apply(1, Command{Kind: "cancel", EntityIDs: []int{tc.ID}}); err == nil {

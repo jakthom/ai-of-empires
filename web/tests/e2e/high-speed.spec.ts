@@ -64,13 +64,13 @@ test('records a reproducible 16x and 32x rendering baseline with movement and st
   const cdp = await page.context().newCDPSession(page);
   await cdp.send('Network.enable');
   const streamRequests = new Set<string>();
-  const streamBytes: { timestamp: number; bytes: number }[] = [];
+  const streamBytes: { timestamp: number; bytes: number; encodedBytes: number }[] = [];
   cdp.on('Network.requestWillBeSent', event => {
     const url = new URL(event.request.url);
     if (url.pathname.endsWith('/events') && event.request.method === 'GET') streamRequests.add(event.requestId);
   });
   cdp.on('Network.dataReceived', event => {
-    if (streamRequests.has(event.requestId)) streamBytes.push({ timestamp: event.timestamp, bytes: event.dataLength ?? event.encodedDataLength ?? 0 });
+    if (streamRequests.has(event.requestId)) streamBytes.push({ timestamp: event.timestamp, bytes: event.dataLength ?? 0, encodedBytes: event.encodedDataLength ?? 0 });
   });
 
   await page.goto('/');
@@ -127,7 +127,7 @@ test('records a reproducible 16x and 32x rendering baseline with movement and st
     const arrivals = streamBytes.slice(streamStart);
     const intervals = arrivals.slice(1).map((event, index) => (event.timestamp - arrivals[index].timestamp) * 1000).sort((a, b) => a - b);
     const percentile = (fraction: number) => intervals[Math.min(intervals.length - 1, Math.floor(intervals.length * fraction))] ?? 0;
-    return { speed, before: workload(before), after: workload(after), clock: { before: before.time, after: after.time, gameSeconds: after.time - before.time, wallSeconds: frames.elapsedMs / 1000, gameSecondsPerWallSecond: (after.time - before.time) / (frames.elapsedMs / 1000) }, movingEntityIDs, moved, frames, eventsStream: { bytes: arrivals.reduce((sum, event) => sum + event.bytes, 0), arrivals: arrivals.length, p50ArrivalMs: percentile(.50), p95ArrivalMs: percentile(.95), maxArrivalMs: intervals.at(-1) ?? 0 } };
+    return { speed, before: workload(before), after: workload(after), clock: { before: before.time, after: after.time, gameSeconds: after.time - before.time, wallSeconds: frames.elapsedMs / 1000, gameSecondsPerWallSecond: (after.time - before.time) / (frames.elapsedMs / 1000) }, movingEntityIDs, moved, frames, eventsStream: { bytes: arrivals.reduce((sum, event) => sum + event.bytes, 0), encodedBytes: arrivals.reduce((sum, event) => sum + event.encodedBytes, 0), arrivals: arrivals.length, p50ArrivalMs: percentile(.50), p95ArrivalMs: percentile(.95), maxArrivalMs: intervals.at(-1) ?? 0 } };
   };
   const segments = [await measure(16), await measure(32)];
   page.off('response', recordResponse);

@@ -22,6 +22,8 @@ The backend uses `github.com/open-ships/statemachine` v1.4.1. Each aggregate own
 | Merchant supply | Preparing, travelling | `internal/game/merchant_regions.go` |
 | Destruction remains | Present, expired | `internal/game/aftermath.go` |
 | Pairwise relationship | Peaceful, hostile | `internal/game/diplomacy.go` |
+| Food supply | Fed, shortage, famine | `internal/game/provisions.go` |
+| Peace offer | Draft, offered, accepted, declined, withdrawn, expired | `internal/game/reparations.go` |
 | Match | Running, paused, finished | `internal/game/lifecycle.go` |
 | Server session lease | Open, draining, closed | `internal/matches/lifecycle.go` |
 | Match service | Serving, draining, closed | `internal/matches/lifecycle.go` |
@@ -38,7 +40,7 @@ Named effects submit ordinary validated commands. Repeated assessments preserve 
 
 ## Peace and return fire
 
-Each unordered pair of kingdoms owns one relationship instance. `aggression` moves Peaceful to Hostile, notifying each affected kingdom once. Further attacks renew the quiet deadline through a Hostile self-transition. A guarded `pulse` restores Peaceful after 300 game seconds without attacks. Guards only read the clock; named effects own deadlines and notices. Attack release, projectile impact (including splash), and conversion attempts emit aggression; mere acquisition and passing units do not.
+Each unordered pair of kingdoms owns one relationship instance. `aggression` moves Peaceful to Hostile, notifying each affected kingdom once. Further attacks renew the quiet deadline through a Hostile self-transition. A guarded `pulse` restores Peaceful after 300 game seconds without attacks. Guards only read the clock; named effects own deadlines and notices. Accepted explicit attack/conversion orders, attack release, projectile impact (including splash), and conversion attempts emit aggression. Mere acquisition and passing units do not. Neutral trade implicates participating/guarding kingdoms.
 
 Recent incidents identify the actual attacker, victim, position, and time. These are bounded observation facts, expired after 15 game seconds, rather than another lifecycle owner. Default idle units acquire only recent actual attackers of themselves or nearby friends. Their existing behavior instance owns chase, windup, and cooldown; a guard ends retaliation when the attacker disappears, the incident expires, or pursuit exceeds its six-tile anchor. Hold fire cancels automatic combat. Explicit attack orders carry provenance and remain intentional; AI attack-move orders also carry a kingdom scope so they do not attack unrelated bystanders. A scoped march can temporarily retaliate and then resume its original scope.
 
@@ -146,7 +148,7 @@ State effects freeze or mutate in-memory state. SQLite I/O happens afterward und
 
 Each listing owns one offer instance. Post reserves all offered lots; fill transfers one lot into a new shipment; cancel releases only unclaimed lots. Each shipment owns one delivery instance. Its effects load payment, move the assigned cart or ship, exchange cargo at the matching partner Market or Dock, return goods, recall payment, or settle loss. The unit behavior instance owns whether the cart is following the caravan intention or interrupted by a normal move/stop. It does not duplicate the delivery phase. The simulation emits shipment pulses after unit/projectile updates; continuation commands dispatch only after delivery commits.
 
-Guards only inspect funds, terms, ownership, observations, route connectivity and lifecycle state. Inventory, price formulas and movement are ordinary data/math, not additional state machines. Checkpoint version 7 stores offer, shipment, supply and destruction-remains states separately, deep-copies records for background encoding, and restores without replaying payments, refunds or replenishment. Version-5 merchant inventory is distributed without duplication; older checkpoints initialize regional merchants without regenerating resource deposits.
+Guards only inspect funds, terms, ownership, observations, route connectivity and lifecycle state. Inventory, price formulas and movement are ordinary data/math, not additional state machines. Checkpoint version 8 stores offer, shipment, supply, food, reparation and destruction-remains states separately, deep-copies records for background encoding, and restores without replaying payments, refunds or replenishment. Version-5 merchant inventory is distributed without duplication; older checkpoints initialize regional merchants without regenerating resource deposits.
 
 Each merchant region owns one supply instance: Preparing → Travelling on a due, feasible departure; Travelling → Preparing on arrival or loss. Named effects create the physical neutral caravan, move it through normal pathfinding, deliver bounded output, settle bounded consumer purchases, or discard lost cargo. The region holds the sole in-transit payload authority, keyed to its physical cart. No second timer restocks its warehouse. New trips wait 90 seconds after arrival or loss; a blocked trip cannot overlap or accrue catch-up deliveries. The cart's ordinary unit lifecycle stays idle; the supply lifecycle alone owns this journey and movement.
 
@@ -159,3 +161,13 @@ A Guard order remains owned by the unit behavior instance. `Order.Target` is the
 A lethal `DamageEntity` transition captures carried resources before removing the entity. Its source owner comes from the attack or projectile, not client input. Regular cargo is cleared once, and shipment loss releases only goods never collected. For a regional supply cart, the lethal effect fires the region’s `raided` event: Travelling → Preparing awards and clears the region’s sole authoritative cargo, records the loss and schedules the next departure. This supply effect does not remove its actor or re-enter the actor’s life instance; the original lethal transition completes removal afterward.
 
 Go derives damage stage from current health rather than storing a second mutable condition. Confirmed lethal damage creates one world-owned aftermath instance, Present → Expired on a game-clock pulse. Renderer poses, flames, smoke and crumbling are projections of these authenticated observations. Effects obey ordinary sight and are persisted with their lifecycle state, without replaying the lethal transition or spoils on restore. Pause stops expiry; deletion and fog disappearance never create battle remains.
+
+## Marching, construction, food and peace payments
+
+Marches are immutable order geometry, not another mutable group state. Unit behavior owns movement, interruption and completion. Each pulse derives pace and obstruction facts from current members; ordinary pathfinding handles narrow passages. Spatial indices and bridge tile flags are derived caches, with entity life owning bridge completion/destruction and restoring those caches.
+
+A foundation stores a construction batch ID. A worker pulse supplies the next reachable unfinished foundation as event data. Ordered construction rows prefer explicit queued orders, continue the batch, then finish or farm. A replacement worker inherits the batch in `acceptOrder`; no second payment occurs. Occupied farm retargeting uses the existing resource lifecycle.
+
+Food's pure guards inspect required consumption and elapsed shortage. Named effects consume available food, record unmet demand and announce shortage/famine/recovery once. Economic counters and sampled history are accumulated facts, not competing lifecycle states.
+
+Peace offers reserve gold on `submit`, settle once on `accept`, and refund once on decline/withdraw/expiry. The world pulses only open offers. Acceptance fires a different relationship instance's `peace_purchased` event; that named effect recalls mutual orders and cancels relevant projectile instances. It never synchronously fires the originating peace-offer instance. Escort orders survive recalled retaliation. Checkpoints preserve every offer and provision instance without replaying effects.

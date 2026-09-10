@@ -190,6 +190,7 @@ func convertTarget(ctx context.Context, c *unitContext) error {
 			w.entityEvent(passenger, "converted", "Joined the kingdom with its converted garrison", 0)
 		}
 	}
+	w.recordPopulationPeak(e.Owner)
 	e.Faith = 0
 	w.event(e.Owner, definitions[t.Type].Name+" converted to your kingdom.")
 	return finishMonkOrder(ctx, c)

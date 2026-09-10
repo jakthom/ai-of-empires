@@ -30,6 +30,7 @@ const styles: Record<string, Style> = {
   university: { wall:'#c7b9a9', roof:'#785d79', timber:'#70573e', courses:10, bond:18 },
   dock: { wall:'#bcb596', roof:'#527e80', timber:'#948267', courses:6, bond:19 },
   wonder: { wall:'#e1d5b5', roof:'#b49652', timber:'#795b35', courses:12, bond:20 },
+  bridge: { wall:'#afa994', roof:'#827450', timber:'#84633d', courses:7, bond:21 },
 };
 const cache = new Map<string, THREE.MeshStandardMaterial>();
 const size = 128;
@@ -107,4 +108,4 @@ export function dressBuilding(group:THREE.Group,entity:EntityView){
 }
 
 // Materials are shared by type/age, never by entity or owner. The cache has a
-// fixed 21 × 4 × 5 upper bound, and old age variants are reused after reconnect.
+// fixed 22 × 4 × 5 upper bound, and old age variants are reused after reconnect.

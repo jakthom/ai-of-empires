@@ -21,7 +21,7 @@ func (w *World) guardTarget(guard, target *Entity) error {
 		return rule("invalid_guard_target", "Choose an observable friendly unit, Market, Dock, or supply caravan.")
 	}
 	d, td := definitions[guard.Type], definitions[target.Type]
-	if target.Owner == 0 && target.Type != "supply_cart" || target.Owner != 0 && target.Owner != guard.Owner && w.relation(guard.Owner, target.Owner) != atPeace || td.Kind != "unit" && target.Type != "market" && target.Type != "dock" {
+	if target.Owner == 0 && target.Type != "supply_cart" && !tradingPost(target) || target.Owner != 0 && target.Owner != guard.Owner && w.relation(guard.Owner, target.Owner) != atPeace || td.Kind != "unit" && target.Type != "market" && target.Type != "dock" {
 		return rule("invalid_guard_target", "Guards protect friendly units, Markets, Docks and neutral supply caravans.")
 	}
 	if td.Kind == "unit" && d.Naval != td.Naval || td.Kind == "building" && d.Naval && target.Type != "dock" {
@@ -52,8 +52,9 @@ func (w *World) guardMayFight(e, enemy *Entity) bool {
 }
 
 func (w *World) guardThreat(e *Entity) *Entity {
-	return w.nearest(e.Position, func(t *Entity) bool {
-		return definitions[t.Type].Attack > 0 && e.Position.Distance(t.Position) <= w.stats(e).Sight+definitions[t.Type].Radius && w.guardMayFight(e, t)
+	sight := w.stats(e).Sight
+	return w.nearestWithin(e.Position, w.collisionRadius(sight), func(t *Entity) bool {
+		return definitions[t.Type].Attack > 0 && e.Position.Distance(t.Position) <= sight+definitions[t.Type].Radius && w.guardMayFight(e, t)
 	})
 }
 

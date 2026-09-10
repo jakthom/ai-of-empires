@@ -43,6 +43,7 @@ export class WorldRenderer {
   private raycaster = new THREE.Raycaster();
   private plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
   private ghost?: THREE.Group;
+	private ghostSignature = '';
   private marker?: GroundRing;
   private markerPoint?: Vec;
   private markerAt = 0;
@@ -143,6 +144,12 @@ export class WorldRenderer {
   }
   private clampCamera() { this.target.x = THREE.MathUtils.clamp(this.target.x, 1, (this.snapshot?.map.width ?? 72) - 2); this.target.z = THREE.MathUtils.clamp(this.target.z, 1, (this.snapshot?.map.height ?? 72) - 2); this.positionCamera(); }
   private elevation(position: Vec) { return this.terrain?.height(position) ?? 0; }
+  private surfaceHeight(view:EntityView,position:Vec){
+    if(view.type==='bridge')return (view.deck_elevation??0)*4;
+    const map=this.snapshot?.map,tile=map?.tiles[Math.floor(position.y)*map.width+Math.floor(position.x)];
+    if(view.kind==='unit'&&!view.naval&&tile?.bridge)return (tile.deck_elevation??0)*4;
+    return this.elevation(position);
+  }
 
   update(snapshot: Snapshot) {
     const previous = this.snapshot;
@@ -168,21 +175,24 @@ export class WorldRenderer {
       let rendered = this.entities.get(e.id);
       if (rendered?.view === e && !mapChanged && e.kind !== 'unit' && !reset) continue;
       const biome = map.tiles[Math.floor(e.position.y)*map.width+Math.floor(e.position.x)]?.biome || map.biome;
-      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.damage_stage??0}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
+      const signature = `${biome}:${e.appearance_age ?? 0}:${e.type}:${JSON.stringify(e.connections)}:${e.orientation??''}:${e.owner}:${e.visible}:${e.progress < 1}:${e.deployed}:${e.relic}:${e.damage_stage??0}:${e.type === 'farm' && (e.amount ?? 0) <= 0}`;
       if (!rendered || rendered.signature !== signature) {
+		const motion = rendered?.motion;
+		const heading = rendered?.object.rotation.y ?? 0;
         if (rendered) this.removeModel(rendered.object);
         const object = makeModel(e, biome); this.scene.add(object);
         if (e.type === 'farm') groundFarm(object, e.position, this.terrain);
-        const foundation = e.kind === 'building' && !['farm', 'dock'].includes(e.type) ? new BuildingFoundation(e) : undefined;
+        const foundation = e.kind === 'building' && !['farm', 'dock','bridge'].includes(e.type) ? new BuildingFoundation(e) : undefined;
         if (foundation) object.add(foundation);
         const pos = new THREE.Vector3(e.position.x, this.elevation(e.position), e.position.y);
         const animated: THREE.Object3D[] = [];
         object.traverse(o => { if (['leg', 'tool', 'windmill', 'flag'].includes(o.name)) animated.push(o); });
         object.position.copy(pos);
-        rendered = { object, foundation, animated, motion: e.kind === 'unit' ? new ObservedMotion() : undefined, signature, view: e }; this.entities.set(e.id, rendered);
+        object.rotation.y=heading;
+        rendered = { object, foundation, animated, motion: e.kind === 'unit' ? motion ?? new ObservedMotion() : undefined, signature, view: e }; this.entities.set(e.id, rendered);
       }
       if (e.kind === 'building') rendered.object.scale.y = e.type === 'farm' ? 1 : .2 + .8 * e.progress;
-      const height = rendered.foundation?.fit(e.position, this.terrain, rendered.object.scale.y) ?? this.elevation(e.position);
+      const height = rendered.foundation?.fit(e.position, this.terrain, rendered.object.scale.y) ?? this.surfaceHeight(e,e.position);
       if (rendered.motion) rendered.motion.add(sampleMS, { x: e.position.x, y: height, z: e.position.y }, reset || snapshot.paused);
       if (!rendered.motion || reset || snapshot.paused) rendered.object.position.set(e.position.x, height, e.position.y);
       rendered.view = e;
@@ -290,16 +300,18 @@ export class WorldRenderer {
     this.previewMany(entity && point ? [{ ...entity, position: point }] : [], valid);
   }
   previewMany(entities: EntityView[], valid?: boolean) {
+	const signature=JSON.stringify([valid,entities.map(e=>[e.type,e.owner,e.appearance_age,e.orientation,e.position.x,e.position.y,e.connections])]);
+	if(signature===this.ghostSignature)return;this.ghostSignature=signature;
     if (this.ghost) { this.removeModel(this.ghost); this.ghost = undefined; }
     if (!entities.length) return;
     this.ghost = new THREE.Group();
     for (const entity of entities) {
       const model = makeModel(entity);
-      const center = { x: Math.floor(entity.position.x) + .5, y: Math.floor(entity.position.y) + .5 };
-      let height = this.elevation(center);
+      const center = entity.position;
+      let height = this.surfaceHeight(entity,center);
       if (this.terrain) {
         if (entity.type === 'farm') groundFarm(model, center, this.terrain);
-        else if (entity.kind === 'building' && entity.type !== 'dock') {
+        else if (entity.kind === 'building' && !['dock','bridge'].includes(entity.type)) {
           const foundation = new BuildingFoundation(entity); model.add(foundation);
           height = foundation.fit(center, this.terrain);
         }
@@ -330,7 +342,7 @@ export class WorldRenderer {
     for (const e of this.entities.values()) {
       const x = e.object.position.x, z = e.object.position.z;
       const moving = e.motion?.sample(observedAt, e.object.position) ?? false;
-      if (e.motion) e.object.position.y = this.elevation({ x: e.object.position.x, y: e.object.position.z });
+      if (e.motion) e.object.position.y = this.surfaceHeight(e.view,{ x: e.object.position.x, y: e.object.position.z });
       if (moving && Math.hypot(e.object.position.x - x, e.object.position.z - z) > .00001) e.object.rotation.y = Math.atan2(e.object.position.x - x, e.object.position.z - z) + Math.PI;
       const plume=e.object.userData.damagePlume as DamagePlume|undefined;
       if(plume){this.effectSphere.center.copy(e.object.position);this.effectSphere.radius=e.view.radius+4;plume.visible=e.view.visible&&this.effectFrustum.intersectsSphere(this.effectSphere);if(plume.visible)plume.update(this.snapshot?.time??0,this.reducedMotion.matches)}

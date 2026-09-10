@@ -3,6 +3,7 @@ package game
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"slices"
 	"sort"
 
@@ -18,6 +19,8 @@ type entityStates struct {
 	Siege      SiegeState
 }
 type checkpoint struct {
+	PeaceOffers           map[int]peaceState
+	Provisions            map[int]foodState
 	Aftermath             []aftermathState
 	Supplies              map[int]supplyState
 	Offers                map[int]offerState
@@ -56,7 +59,17 @@ func (w *World) JournalSince(after int) []JournalRecord {
 }
 
 func (w *World) checkpointState() checkpoint {
-	c := checkpoint{Version: 7, Supplies: map[int]supplyState{}, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c := checkpoint{Version: 8, Supplies: map[int]supplyState{}, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c.Provisions = map[int]foodState{}
+	c.PeaceOffers = map[int]peaceState{}
+	for id, o := range w.Reparations {
+		c.PeaceOffers[id] = o.lifecycle.State()
+	}
+	for id, p := range w.Players {
+		if p.provisions != nil {
+			c.Provisions[id] = p.provisions.State()
+		}
+	}
 	for _, e := range w.Aftermath {
 		c.Aftermath = append(c.Aftermath, e.lifecycle.State())
 	}
@@ -114,7 +127,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
 	}
-	if (c.Version < 1 || c.Version > 7) || c.Rules != RulesVersion {
+	if (c.Version < 1 || c.Version > 8) || c.Rules != RulesVersion {
 		return nil, fmt.Errorf("unsupported checkpoint version %d / %q", c.Version, c.Rules)
 	}
 	w := c.World
@@ -144,12 +157,25 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 			return nil, fmt.Errorf("invalid checkpoint entity %d", id)
 		}
 		e.behavior = statemachine.NewInstance(unitMachine, s.Behavior)
+		if !slices.Contains([]string{"", "auto", "east_west", "north_south"}, e.Orientation) || e.Orientation != "" && e.Type != "gate" && e.Type != "bridge" {
+			return nil, fmt.Errorf("invalid saved gate orientation")
+		}
+		for _, o := range append([]Order{e.Order}, e.Orders...) {
+			if m := o.March; m != nil {
+				if (o.Kind != "move" && o.Kind != "attack_move") || o.Position == nil || !o.Position.Finite() || m.ID <= 0 || m.ID >= w.NextID || !m.Origin.Finite() || !m.Forward.Finite() || !m.Offset.Finite() || math.IsNaN(m.Speed) || math.IsInf(m.Speed, 0) || m.Speed <= 0 || m.Speed > 10 || math.IsNaN(m.Distance) || math.IsInf(m.Distance, 0) || m.Distance <= 0 || m.Distance > float64(w.Width+w.Height) || m.Forward.Distance(Vec{}) > 1.001 {
+					return nil, fmt.Errorf("invalid saved formation")
+				}
+			}
+		}
 		e.life = statemachine.NewInstance(lifeMachine, s.Life)
 		e.production = statemachine.NewInstance(productionMachine, s.Production)
 		e.siege = statemachine.NewInstance(siegeMachine, s.Siege)
 		if c.Version < 3 && e.Stance == "aggressive" {
 			e.Stance = "defensive"
 		}
+	}
+	if err := w.restoreBridgeDecks(); err != nil {
+		return nil, err
 	}
 	for id := 1; id <= w.Config.Settlements; id++ {
 		p, state := w.Players[id], c.Players[id]
@@ -183,6 +209,17 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 			}
 		}
 		p.voyage = statemachine.NewInstance(voyageMachine, voyage)
+		food := c.Provisions[id]
+		if food == "" {
+			food = foodFed
+		}
+		if !slices.Contains([]foodState{foodFed, foodShortage, foodFamine}, food) {
+			return nil, fmt.Errorf("invalid saved food supply")
+		}
+		p.provisions = statemachine.NewInstance(foodMachine, food)
+		if c.Version < 8 {
+			p.Economy.Since = w.Time
+		}
 		if c.Version < 3 {
 			p.Temperament = initialTemperament(w.Config, id)
 			if p.AI {
@@ -221,6 +258,16 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 		if w.Incidents == nil {
 			w.Incidents = map[int]map[int]aggression{}
 		}
+	}
+	if len(c.PeaceOffers) != len(w.Reparations) {
+		return nil, fmt.Errorf("invalid saved peace offers")
+	}
+	for id, o := range w.Reparations {
+		state := c.PeaceOffers[id]
+		if o == nil || o.ID != id || id <= 0 || id >= w.NextID || o.From == o.To || w.Players[o.From] == nil || w.Players[o.To] == nil || !finitePositive(o.Gold) || !finitePositive(o.Expires) || !slices.Contains([]peaceState{peaceOffered, peaceAccepted, peaceDeclined, peaceWithdrawn, peaceExpired}, state) {
+			return nil, fmt.Errorf("invalid saved peace offer")
+		}
+		o.lifecycle = statemachine.NewInstance(peaceMachine, state)
 	}
 	for i := range w.Projectiles {
 		if !slices.Contains([]FlightState{Flying, Impacted}, c.Flights[i]) {

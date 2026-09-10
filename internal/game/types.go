@@ -54,6 +54,9 @@ func (r *Resources) Deposit(kind string, n float64) {
 }
 
 type Definition struct {
+	Footprint    int       `json:"footprint,omitempty"`
+	Importance   string    `json:"importance,omitempty"`
+	Capabilities []string  `json:"capabilities,omitempty"`
 	ID           string    `json:"id"`
 	Name         string    `json:"name"`
 	Kind         string    `json:"kind"`
@@ -112,11 +115,15 @@ type Catalog struct {
 }
 
 type Tile struct {
-	Biome     string  `json:"biome,omitempty"`
-	Terrain   string  `json:"terrain"`
-	Elevation float64 `json:"elevation"`
+	Bridge        bool    `json:"bridge,omitempty"`
+	DeckElevation float64 `json:"deck_elevation,omitempty"`
+	Biome         string  `json:"biome,omitempty"`
+	Terrain       string  `json:"terrain"`
+	Elevation     float64 `json:"elevation"`
 }
 type Order struct {
+	BuildGroup   int    `json:"build_group,omitempty"`
+	March        *March `json:"march,omitempty"`
 	Threat       int    `json:"threat,omitempty"`
 	Shipment     int    `json:"shipment,omitempty"`
 	Kind         string `json:"kind"`
@@ -136,6 +143,9 @@ type Task struct {
 
 // Entity is private world state. HTTP never serializes it directly.
 type Entity struct {
+	DeckElevation       float64
+	BuildGroup          int
+	Orientation         string
 	ID                  int
 	Type                string
 	Owner               int
@@ -169,28 +179,31 @@ type Entity struct {
 	Stance              string
 }
 type Player struct {
-	UserID       string
-	UserAliases  []string
-	ID           int
-	Start        Vec
-	Name         string
-	Civilization string
-	Resources    Resources
-	Production   ResourceProduction
-	Age          int
-	Technologies map[string]bool
-	AI           bool
-	Temperament  aiTemperament
-	AIPlan       aiPlan
-	NavalPlan    navalPlan
-	voyage       *statemachine.Instance[voyageState, voyageEvent, *voyageContext]
-	strategy     *statemachine.Instance[aiState, aiEvent, *aiContext]
-	lifecycle    *statemachine.Instance[PlayerState, PlayerEvent, *playerContext]
-	Kills        int
-	Gathered     Resources
-	Explored     []bool
-	Visible      []bool
-	Memory       map[int]EntityView
+	Economy       EconomicRecord
+	ShortageSince float64
+	provisions    *statemachine.Instance[foodState, foodEvent, *foodContext]
+	UserID        string
+	UserAliases   []string
+	ID            int
+	Start         Vec
+	Name          string
+	Civilization  string
+	Resources     Resources
+	Production    ResourceProduction
+	Age           int
+	Technologies  map[string]bool
+	AI            bool
+	Temperament   aiTemperament
+	AIPlan        aiPlan
+	NavalPlan     navalPlan
+	voyage        *statemachine.Instance[voyageState, voyageEvent, *voyageContext]
+	strategy      *statemachine.Instance[aiState, aiEvent, *aiContext]
+	lifecycle     *statemachine.Instance[PlayerState, PlayerEvent, *playerContext]
+	Kills         int
+	Gathered      Resources
+	Explored      []bool
+	Visible       []bool
+	Memory        map[int]EntityView
 }
 type Projectile struct {
 	flight      *statemachine.Instance[FlightState, FlightEvent, *flightContext]
@@ -245,39 +258,44 @@ type Config struct {
 	World        WorldOptions `json:"world,omitempty"`
 }
 type World struct {
-	Aftermath    []aftermath
-	Marketplace  marketplace
-	Config       Config
-	Tick         int
-	Time         float64
-	Width        int
-	Height       int
-	Tiles        []Tile
-	Entities     map[int]*Entity
-	IDs          []int
-	Players      map[int]*Player
-	Relations    map[string]*relationship
-	Incidents    map[int]map[int]aggression
-	Projectiles  []Projectile
-	journal      eventJournal
-	NextID       int
-	NextEvent    int
-	Speed        float64
-	match        *statemachine.Instance[MatchState, MatchEvent, *matchContext]
-	Winner       int
-	aiClock      float64
-	visibleClock float64
-	rng          uint64
-	Generation   int
-	peacePeriod  *statemachine.Instance[treatyState, treatyEvent, *World]
-	landRegions  []int
-	waterRegions []int
-	viewMaps     map[int]MapView
-	barriers     map[Vec]*Entity
+	Reparations   map[int]*peaceOffer
+	Aftermath     []aftermath
+	Marketplace   marketplace
+	Config        Config
+	Tick          int
+	Time          float64
+	Width         int
+	Height        int
+	Tiles         []Tile
+	Entities      map[int]*Entity
+	IDs           []int
+	Players       map[int]*Player
+	Relations     map[string]*relationship
+	Incidents     map[int]map[int]aggression
+	Projectiles   []Projectile
+	journal       eventJournal
+	NextID        int
+	NextEvent     int
+	Speed         float64
+	match         *statemachine.Instance[MatchState, MatchEvent, *matchContext]
+	Winner        int
+	VictoryReason string
+	aiClock       float64
+	visibleClock  float64
+	rng           uint64
+	Generation    int
+	peacePeriod   *statemachine.Instance[treatyState, treatyEvent, *World]
+	landRegions   []int
+	waterRegions  []int
+	viewMaps      map[int]MapView
+	barriers      map[Vec]*Entity
+	spatial       *entityGrid
+	marches       map[int]marchSample
 }
 
 // Command contains intent only; never caller-supplied HP, costs, velocities or owners.
 type Command struct {
+	Orientation    string            `json:"orientation,omitempty"`
 	TradeMode      string            `json:"trade_mode,omitempty"`
 	TradeLimit     *int              `json:"trade_limit,omitempty"`
 	Offer          *TradeOfferIntent `json:"offer,omitempty"`
@@ -316,6 +334,9 @@ type Action struct {
 	Reason      string     `json:"reason,omitempty"`
 }
 type EntityView struct {
+	Naval         bool     `json:"naval,omitempty"`
+	DeckElevation float64  `json:"deck_elevation,omitempty"`
+	Orientation   string   `json:"orientation,omitempty"`
 	GuardTarget   int      `json:"guard_target,omitempty"`
 	DamageStage   int      `json:"damage_stage,omitempty"`
 	Connections   []Vec    `json:"connections,omitempty"`
@@ -348,6 +369,7 @@ type EntityView struct {
 	Faith         float64  `json:"faith,omitempty"`
 }
 type PlayerView struct {
+	Food         FoodView       `json:"food_supply,omitempty"`
 	ID           int            `json:"id"`
 	Name         string         `json:"name"`
 	Civilization string         `json:"civilization"`
@@ -366,12 +388,13 @@ type PlayerView struct {
 	Kills        int            `json:"kills"`
 }
 type OpponentView struct {
-	ID           int    `json:"id"`
-	Name         string `json:"name"`
-	Civilization string `json:"civilization"`
-	Defeated     bool   `json:"defeated"`
-	Relation     string `json:"relation"`
-	Temperament  string `json:"temperament"`
+	PeacePrice   float64 `json:"peace_price,omitempty"`
+	ID           int     `json:"id"`
+	Name         string  `json:"name"`
+	Civilization string  `json:"civilization"`
+	Defeated     bool    `json:"defeated"`
+	Relation     string  `json:"relation"`
+	Temperament  string  `json:"temperament"`
 }
 type MapView struct {
 	Width  int    `json:"width"`
@@ -381,6 +404,8 @@ type MapView struct {
 	Fog    []int  `json:"fog"`
 }
 type Snapshot struct {
+	GodMode     bool                    `json:"god_mode,omitempty"`
+	PeaceOffers []PeaceOfferView        `json:"peace_offers,omitempty"`
 	Effects     []BattlefieldEffectView `json:"effects"`
 	Marketplace MarketplaceView         `json:"marketplace"`
 	// Filled by the session boundary for shared control concurrency.

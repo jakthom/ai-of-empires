@@ -37,15 +37,18 @@ type Receipt struct {
 	Accepted  bool   `json:"accepted"`
 }
 type Placement struct {
+	Orientation string    `json:"orientation,omitempty"`
 	EndPosition *game.Vec `json:"end_position,omitempty"`
 	Product     string    `json:"product"`
 	Position    game.Vec  `json:"position"`
 }
 type PlacementResult struct {
-	Positions []game.Vec     `json:"positions"`
-	Cost      game.Resources `json:"cost"`
-	Valid     bool           `json:"valid"`
-	Reason    string         `json:"reason,omitempty"`
+	DeckElevation float64        `json:"deck_elevation,omitempty"`
+	Orientation   string         `json:"orientation,omitempty"`
+	Positions     []game.Vec     `json:"positions"`
+	Cost          game.Resources `json:"cost"`
+	Valid         bool           `json:"valid"`
+	Reason        string         `json:"reason,omitempty"`
 }
 type cachedCommand struct {
 	hash    [32]byte
@@ -53,6 +56,7 @@ type cachedCommand struct {
 	err     error
 }
 type Match struct {
+	snapshots       map[string]storedSnapshot
 	activeRequests  int
 	archiveCapture  *archiveMeta
 	archives        map[string][]byte
@@ -285,8 +289,11 @@ func (m *Match) Apply(c game.Command) (Receipt, error) {
 func (m *Match) Placement(p Placement) PlacementResult {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	positions, cost, err := m.world.PlanBuilding(1, p.Product, p.Position, p.EndPosition)
-	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost}
+	positions, cost, orientation, err := m.world.PlanOrientedBuilding(1, p.Product, p.Position, p.EndPosition, p.Orientation)
+	v := PlacementResult{Valid: err == nil, Positions: positions, Cost: cost, Orientation: orientation}
+	if p.Product == "bridge" {
+		v.DeckElevation = m.world.BridgeElevation(p.Position, p.EndPosition)
+	}
 	if err != nil {
 		v.Reason = err.Error()
 	}

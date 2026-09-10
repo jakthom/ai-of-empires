@@ -61,7 +61,7 @@ test('retains the last selected entity history after removal', async ({ page, ga
   await expect(page.locator('#entity-event-entries')).toContainText('Removed from the battlefield');
 });
 
-for (const viewport of [{ width: 800, height: 600 }, { width: 390, height: 640 }, { width: 320, height: 640 }]) {
+for (const viewport of [{ width: 1024, height: 768 }, { width: 900, height: 650 }, { width: 800, height: 600 }, { width: 390, height: 640 }, { width: 320, height: 640 }]) {
   test(`keeps the History tab and its rows usable at ${viewport.width}×${viewport.height}`, async ({ page, game }, info) => {
     await page.setViewportSize(viewport);
     await game.start();

@@ -80,9 +80,19 @@ function flag(g: THREE.Group, owner: number, x: number, y: number, z: number, sc
 }
 function building(g: THREE.Group, e: EntityView) {
   const r = e.radius, type = e.type;
+  if(type==='bridge'){
+    const span=new THREE.Group();g.add(span);if(e.orientation==='north_south')span.rotation.y=Math.PI/2;
+    box(span,palette.wood,0,-.09,0,1.02,.18,1);
+    for(const z of [-.47,.47]){
+      box(span,palette.wood,0,.3,z,1.02,.07,.07);
+      for(const x of [-.4,.4])box(span,palette.shade,x,-.3,z,.12,1.2,.12);
+    }
+    for(let x=-.45;x<.5;x+=.15)box(span,'#93724a',x,.012,0,.025,.024,.94);
+    return;
+  }
   if (type === 'farm') {
-    shape(g, farmBed, '#756144', 0, .08, 0, r * 1.8, .12, r * 1.8);
-    for (let row = -3; row <= 3; row++) box(g,'#8c7550',0,.155,row*.29,r*1.72,.055,.12);
+    shape(g, farmBed, '#756144', 0, .08, 0, 2, .12, 2);
+    for (let row = -3; row <= 3; row++) box(g,'#8c7550',0,.155,row*.29,1.92,.055,.12);
     if ((e.amount ?? 0) <= 0) return;
     const crops = new THREE.InstancedMesh(pine, material('#c6b567'), 63);
     const matrix = new THREE.Matrix4(), rotation = new THREE.Quaternion();
@@ -99,7 +109,7 @@ function building(g: THREE.Group, e: EntityView) {
     if (type === 'gate') {
       const arch = new THREE.Group(); g.add(arch);
       // The observed connections determine its orientation on the server.
-      if (e.connections?.some(d => d.y !== 0) && !e.connections.some(d => d.x !== 0)) arch.rotation.y = Math.PI / 2;
+      if (e.orientation === 'north_south') arch.rotation.y = Math.PI / 2;
       for (const x of [-.54,.54]) box(arch, palette.shade, x,.75,0,.25,1.5,.48);
       box(arch,palette.limestone,0,1.52,0,1.35,.3,.5);
       for (let i=-2;i<=2;i++) box(arch,palette.wood,i*.16,1.12,0,.06,.6,.1);

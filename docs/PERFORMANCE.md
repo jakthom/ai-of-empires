@@ -202,3 +202,40 @@ exposed a resume race plus a flaky reload check; after the admission fix all
 Large armies, expensive routes, many simultaneous hosted games, and long-lived
 journals can still exhaust a host's CPU or memory. The four-hour full-army soak
 remains outside these measurements.
+
+
+## Formations, crowded movement and economy streams — September 10, 2026
+
+These measurements compare commit `27f95c7` with the campaign-economy change on the same Apple M1 Pro. Both simulation benchmarks run exactly 300 ticks, so they cover the same amount of game time. The army fixture has 120 militia moving on cleared ground within a six-settlement Huge world; its AI is disabled. It exercises individual movement orders and collisions. Formation behavior is checked separately through Go and public browser controls.
+
+| Mean tick | Before | After | Bytes allocated before → after |
+|---|---:|---:|---:|
+| Quiet Huge world | 1.015 ms | 0.786 ms | 18,942 → 19,461 |
+| Moving 120-soldier army | 27.607 ms | 1.278 ms | 4,255,344 → 37,409 |
+
+The army workload improved about **21.6×**, with **99.1% fewer allocated bytes**. A per-tick entity grid narrows collision and target queries; clear routes use collision-checked direct segments instead of repeated whole-map searches. Ordinary movement no longer searches for combat targets every tick. Reaching an intermediate path endpoint resets its retry timer, removing a recurring stop during formation movement. Ranks share a pace on clear ground, release around obstructions and during their final approach, and leave enough spacing for later arrivals to enter their slots.
+
+A Chrome regression trains 24 militia using public controls, selects them with three villagers and a scout, assembles the scattered group, then marches all **28 units at 1×**. Its eight-second rendering sample recorded a **16.8 ms p95 animation interval**, with **zero frames above 50 ms**. The test also checks in-transit rank width and completion of the initial assembly. Go regressions cover interrupted and queued marches, losses, save restoration, gates, map edges and late arrivals.
+
+The existing Huge-map browser scenario uses seed 82731, six peaceful settlements and 1,457 observed entities (24 units, 18 buildings and 1,415 resources). After eight seconds of warmup, each speed has a 15-second sample:
+
+| Browser measurement | 16× | 32× |
+|---|---:|---:|
+| Animation interval, p95 | 16.7 ms | 16.8 ms |
+| Frames above 50 ms / long tasks | 0 / 0 | 0 / 0 |
+| Observed game seconds per wall second | 16.17 | 32.45 |
+| Live-stream arrival gap, p95 | 51.0 ms | 57.1 ms |
+| Decoded SSE body | 9.98 MB | 10.34 MB |
+| Encoded stream chunks | 0.77 MB | 0.89 MB |
+
+Every private SSE connection now negotiates gzip and flushes each frame. Chrome CDP reports decoded `dataLength` and encoded `encodedDataLength` separately; compression reduced these stream payloads by about **91–92%**. Figures exclude the initial snapshot and other HTTP requests. The villager moves 18.35 tiles during the first sample and is stationary in the second. Clock ratios include bracketing-request timing error. The extra resource-flow and food-accounting fields make decoded messages larger than the preceding build; compression limits their transport cost.
+
+Reproduce the fixed simulation window and isolated rendering checks with:
+
+```sh
+go test ./internal/game -run '^$' \
+  -bench 'BenchmarkHugeSimulation$|BenchmarkArmySimulation$' -benchtime=300x -count=1
+npm --prefix web run test:chrome -- army-movement.spec.ts high-speed.spec.ts --workers=1
+```
+
+Run browser measurements without other CPU-heavy jobs. These are bounded regression workloads, not a completed four-hour army/economy soak or a guarantee of 32× speed under every battle, forest or network condition. Charts and campaign histories have documented retention limits in [Campaign mechanics](CAMPAIGN_MECHANICS.md).

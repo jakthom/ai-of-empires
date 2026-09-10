@@ -26,6 +26,7 @@ type LifeEvent string
 
 const (
 	Foundation      LifeState = "foundation"
+	RotateGate      LifeEvent = "rotate_gate"
 	Active          LifeState = "active"
 	Destroyed       LifeState = "destroyed"
 	Exhausted       LifeState = "exhausted"
@@ -78,9 +79,10 @@ type FlightState string
 type FlightEvent string
 
 const (
-	Flying      FlightState = "flying"
-	Impacted    FlightState = "impacted"
-	FlightPulse FlightEvent = "pulse"
+	Flying       FlightState = "flying"
+	Impacted     FlightState = "impacted"
+	FlightPulse  FlightEvent = "pulse"
+	CancelFlight FlightEvent = "cancel"
 )
 
 type UnitState string

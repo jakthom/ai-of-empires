@@ -153,6 +153,7 @@ func TestSpoilsCaptureOnlyCarriedCargoExactlyOnce(t *testing.T) {
 				t.Fatal(err)
 			}
 			stepWorld(copy, 2)
+			stepWorld(w, 2)
 			if copy.Players[3].Resources != w.Players[3].Resources {
 				t.Fatal("restore duplicated spoils")
 			}

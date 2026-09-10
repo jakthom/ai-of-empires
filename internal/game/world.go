@@ -76,6 +76,7 @@ func New(cfg Config) *World {
 	w.initializeMarketplace()
 	w.initializeTreaty()
 	w.initializeVoyages()
+	w.initializeProvisions()
 	for i, pos := range starts[:cfg.Settlements] {
 		owner := i + 1
 		w.spawn("town_center", owner, pos)
@@ -162,10 +163,16 @@ func (w *World) spawnWithLife(typ string, owner int, pos Vec, initial LifeState)
 		e.HP = 1
 	}
 	w.Entities[e.ID] = e
+	if w.spatial != nil && w.spatial.active {
+		w.spatial.add(e)
+	}
 	if barrier(typ) {
 		w.barriers = nil
 	}
 	w.IDs = append(w.IDs, e.ID)
+	if definitions[typ].Kind == "unit" {
+		w.recordPopulationPeak(owner)
+	}
 	if (typ == "market" || typ == "dock") && owner == 0 {
 		w.addMerchantRegion(e.ID, pos)
 	}
@@ -205,7 +212,10 @@ func (w *World) tile(p Vec) Tile {
 	}
 	return w.Tiles[int(p.Y)*w.Width+int(p.X)]
 }
-func (w *World) land(p Vec) bool { t := w.tile(p); return t.Terrain != "water" && t.Terrain != "cliff" }
+func (w *World) land(p Vec) bool {
+	t := w.tile(p)
+	return t.Bridge || t.Terrain != "water" && t.Terrain != "cliff"
+}
 func (w *World) water(p Vec) bool {
 	t := w.tile(p)
 	return t.Terrain == "water" || t.Terrain == "shallows"

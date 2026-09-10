@@ -284,6 +284,29 @@ func (s *Server) gameRoutes() {
 		}
 	})
 	s.mux.HandleFunc("GET /api/v1/games/{id}/events", s.gameEvents)
+	s.mux.HandleFunc("GET /api/v1/games/{id}/observer/events", s.gameEvents)
+	s.mux.HandleFunc("GET /api/v1/games/{id}/observer", func(w http.ResponseWriter, r *http.Request) {
+		if a := s.gameAccess(w, r); a != nil {
+			defer a.Release()
+			v, err := a.ObserverView()
+			if err != nil {
+				domainError(w, err)
+				return
+			}
+			respond(w, 200, v)
+		}
+	})
+	s.mux.HandleFunc("GET /api/v1/games/{id}/statistics", func(w http.ResponseWriter, r *http.Request) {
+		if a := s.gameAccess(w, r); a != nil {
+			defer a.Release()
+			v, err := a.Statistics(r.URL.Query().Get("scope") == "world")
+			if err != nil {
+				domainError(w, err)
+				return
+			}
+			respond(w, 200, v)
+		}
+	})
 	s.mux.HandleFunc("POST /api/v1/games/{id}/transfers", func(w http.ResponseWriter, r *http.Request) {
 		gameRequest(s, w, r, func(a *matches.Access, q matches.TransferRequest) (any, error) { return a.Transfer(q) })
 	})
@@ -292,6 +315,35 @@ func (s *Server) gameRoutes() {
 	})
 	s.mux.HandleFunc("GET /api/v1/games/{id}/transfers/{transfer}/archive", s.downloadArchive)
 	s.mux.HandleFunc("POST /api/v1/games/{id}/database", s.downloadDatabase)
+	s.mux.HandleFunc("GET /api/v1/games/{id}/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		if a := s.gameAccess(w, r); a != nil {
+			defer a.Release()
+			v, err := a.Snapshots()
+			if err != nil {
+				domainError(w, err)
+				return
+			}
+			respond(w, 200, v)
+		}
+	})
+	s.mux.HandleFunc("POST /api/v1/games/{id}/snapshots", func(w http.ResponseWriter, r *http.Request) {
+		gameRequest(s, w, r, func(a *matches.Access, q matches.SaveSnapshot) (any, error) { return a.SaveSnapshot(q) })
+	})
+	s.mux.HandleFunc("POST /api/v1/games/{id}/snapshots/{snapshot}/fork", func(w http.ResponseWriter, r *http.Request) {
+		gameRequest(s, w, r, func(a *matches.Access, q matches.ForkSnapshot) (any, error) {
+			return s.matches.ForkSnapshot(a, r.PathValue("snapshot"), q, ensureBrowser(w, r))
+		})
+	})
+	s.mux.HandleFunc("DELETE /api/v1/games/{id}/snapshots/{snapshot}", func(w http.ResponseWriter, r *http.Request) {
+		if a := s.gameAccess(w, r); a != nil {
+			defer a.Release()
+			if err := a.DeleteSnapshot(r.PathValue("snapshot")); err != nil {
+				domainError(w, err)
+				return
+			}
+			w.WriteHeader(204)
+		}
+	})
 	s.mux.HandleFunc("POST /api/v1/games/{id}/transfers/{transfer}/archive", s.downloadArchive)
 	s.mux.HandleFunc("POST /api/v1/game-imports", s.importGame)
 }
@@ -306,13 +358,19 @@ func (s *Server) gameEvents(w http.ResponseWriter, r *http.Request) {
 		domainError(w, err)
 		return
 	}
-	if _, err := a.View(); err != nil {
+	view := a.View
+	if strings.HasSuffix(r.URL.Path, "/observer/events") {
+		view = a.ObserverView
+	}
+	if _, err := view(); err != nil {
 		domainError(w, err)
 		return
 	}
 	defer a.Disconnect(id)
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("X-Accel-Buffering", "no")
+	output := newEventOutput(w, r)
+	defer output.Close()
 	w.WriteHeader(200)
 	controller := http.NewResponseController(w)
 	finished, interrupted := make(chan struct{}), make(chan struct{})
@@ -347,7 +405,7 @@ func (s *Server) gameEvents(w http.ResponseWriter, r *http.Request) {
 		if err := a.Heartbeat(id); err != nil {
 			return
 		}
-		v, err := a.View()
+		v, err := view()
 		if err != nil {
 			return
 		}
@@ -361,10 +419,10 @@ func (s *Server) gameEvents(w http.ResponseWriter, r *http.Request) {
 		if err != nil {
 			return
 		}
-		if _, err = fmt.Fprintf(w, "id: %d\nevent: %s\ndata: %s\n\n", sequence, event, data); err != nil {
+		if _, err = fmt.Fprintf(output, "id: %d\nevent: %s\ndata: %s\n\n", sequence, event, data); err != nil {
 			return
 		}
-		if err = controller.Flush(); err != nil {
+		if err = output.Flush(); err != nil {
 			return
 		}
 		select {

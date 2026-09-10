@@ -43,7 +43,9 @@ test('ships exports at regional prices and keeps route controls stable on mobile
   await expect(dialog.locator('#market-error')).toBeInViewport();
   await expect(dialog.locator('#merchant-limit')).toHaveValue('500');
   await expect(dialog.getByLabel('Repeat trips at future local prices')).toBeChecked();
-  expect((await game.snapshot()).player.resources).toEqual(before.player.resources);
+  const afterRefusal=await game.snapshot();
+  for(const resource of ['wood','gold','stone'] as const) expect(afterRefusal.player.resources[resource]).toBe(before.player.resources[resource]);
+  expect(afterRefusal.player.resources.food+afterRefusal.player.food_supply!.consumed).toBeCloseTo(before.player.resources.food+before.player.food_supply!.consumed,6);
   await page.screenshot({path:info.outputPath('regional-market-mobile-error.png')});
   await dialog.locator('#merchant-limit').fill('1');
   await page.setViewportSize({width:1440,height:960});

@@ -14,6 +14,7 @@ func checkpointPointer[T any](v *T) *T {
 }
 
 func checkpointOrder(o Order) Order {
+	o.March = checkpointPointer(o.March)
 	o.Position, o.DefendFrom = checkpointPointer(o.Position), checkpointPointer(o.DefendFrom)
 	return o
 }
@@ -26,6 +27,8 @@ func (w *World) freezeCheckpointWorld() *World {
 	// These are not serialized. Do not keep old journals, spatial caches or
 	// live lifecycle instances reachable through a slow background save.
 	c.journal = eventJournal{}
+	c.spatial = nil
+	c.marches = nil
 	c.match, c.peacePeriod = nil, nil
 	c.landRegions, c.waterRegions, c.barriers, c.viewMaps = nil, nil, nil, nil
 	c.Tiles, c.IDs = slices.Clone(w.Tiles), slices.Clone(w.IDs)
@@ -46,6 +49,10 @@ func (w *World) freezeCheckpointWorld() *World {
 	for id, p := range w.Players {
 		v := *p
 		v.voyage, v.strategy, v.lifecycle = nil, nil, nil
+		v.provisions = nil
+		v.Economy.Consumption = maps.Clone(p.Economy.Consumption)
+		v.Economy.History = slices.Clone(p.Economy.History)
+		v.Production.OutBuckets = slices.Clone(p.Production.OutBuckets)
 		v.UserAliases = slices.Clone(p.UserAliases)
 		v.Production.Buckets, v.Production.History = slices.Clone(p.Production.Buckets), slices.Clone(p.Production.History)
 		v.Technologies = maps.Clone(p.Technologies)
@@ -64,6 +71,11 @@ func (w *World) freezeCheckpointWorld() *World {
 		c.Players[id] = &v
 	}
 	c.Relations = make(map[string]*relationship, len(w.Relations))
+	c.Reparations = maps.Clone(w.Reparations)
+	for id, o := range w.Reparations {
+		c.Reparations[id] = checkpointPointer(o)
+		c.Reparations[id].lifecycle = nil
+	}
 	for id, r := range w.Relations {
 		c.Relations[id] = checkpointPointer(r)
 		c.Relations[id].lifecycle = nil

@@ -29,6 +29,13 @@ export async function build(page: Page, game: Game, type: string, label: string,
     const x=i%snapshot.map.width,y=Math.floor(i/snapshot.map.width), distance=Math.hypot(x+.5-home.x,y+.5-home.y);
     return tile.terrain === 'grass' && distance > 12 && distance < 16 && [-2,2,-2*snapshot.map.width,2*snapshot.map.width].some(offset => snapshot.map.tiles[i+offset]?.terrain === 'water') ? [{x:x+.5,y:y+.5}] : [];
   });
+  if (!shore) {
+    // Larger square footprints can exhaust the familiar opening sites. Search
+    // the remaining visible ground through the same server preview controls.
+    for (let radius=8;radius<=16;radius+=2) for (let angle=0;angle<Math.PI*2;angle+=Math.PI/12) {
+      candidates.push({x:home.x+Math.cos(angle)*radius,y:home.y+Math.sin(angle)*radius});
+    }
+  }
   let placed = false;
   for (const candidate of candidates) {
     const point = await projectOpening(page,snapshot,candidate);
@@ -40,7 +47,7 @@ export async function build(page: Page, game: Game, type: string, label: string,
     placed = true; break;
   }
   expect(placed, `find an accepted ${label} site through placement previews`).toBe(true);
-  await expect.poll(async () => { const v=await game.snapshot();return v.entities.some(e=>e.type===type && e.owner===v.player.id && e.progress===1); },{timeout:15_000}).toBe(true);
+  await expect.poll(async () => { const v=await game.snapshot();return v.entities.some(e=>e.type===type && e.owner===v.player.id && e.progress===1&&!snapshot.entities.some(old=>old.id===e.id)); },{timeout:15_000}).toBe(true);
   await game.command('stop',()=>battlefieldKey(page,'s'));
   await page.getByRole('button',{name:'Orders',exact:true}).click();
 }

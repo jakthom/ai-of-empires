@@ -28,7 +28,9 @@ func economyTransitions() []unitRow {
 		unitRow{From: Returning, Event: UnitPulse, To: Returning, Guard: func(_ context.Context, c *unitContext) error { return applicable(c.DropOff == nil) }},
 		unitRow{From: Returning, Event: UnitPulse, To: SeekingResource, Guard: dropOffReached, Do: depositCargo},
 		unitRow{From: Returning, Event: UnitPulse, To: Returning, Do: approachDropOff},
+		unitRow{From: Constructing, Event: UnitPulse, To: Constructing, Guard: constructionContinues, Do: continueConstruction},
 		unitRow{From: Constructing, Event: UnitPulse, To: Idle, Guard: workTargetLost, Do: finishUnitOrder},
+		unitRow{From: Constructing, Event: UnitPulse, To: Idle, Guard: queuedConstructionFinished, Do: finishUnitOrder},
 		unitRow{From: Constructing, Event: UnitPulse, To: SeekingResource, Guard: finishedFarm, Do: retaskToFarm},
 		unitRow{From: Constructing, Event: UnitPulse, To: Idle, Guard: constructionFinished, Do: finishUnitOrder},
 		unitRow{From: Constructing, Event: UnitPulse, To: Constructing, Guard: workTargetReached, Do: contributeConstruction},
@@ -71,8 +73,8 @@ func reseedTarget(_ context.Context, c *unitContext) error {
 	c.Actor.Path = nil
 	return nil
 }
-func replacementAvailable(_ context.Context, c *unitContext) error {
-	return applicable(!validResource(c.Actor, c.Target) && c.Candidate != nil)
+func replacementAvailable(ctx context.Context, c *unitContext) error {
+	return applicable(c.Candidate != nil && (!validResource(c.Actor, c.Target) || c.Actor.behavior.State() == SeekingResource && farmOccupied(ctx, c) == nil))
 }
 func retargetResource(_ context.Context, c *unitContext) error {
 	c.Actor.Order.Target = c.Candidate.ID
@@ -84,11 +86,11 @@ func resourceLost(_ context.Context, c *unitContext) error {
 	return applicable(!validResource(c.Actor, c.Target))
 }
 func farmOccupied(_ context.Context, c *unitContext) error {
-	if c.Target.Type != "farm" {
+	if c.Target == nil || c.Target.Type != "farm" {
 		return applicable(false)
 	}
 	for _, e := range c.World.entities(c.Actor.Owner, "villager") {
-		if e.ID < c.Actor.ID && e.Order.Target == c.Target.ID && (e.behavior.State() == Gathering || e.behavior.State() == SeekingResource) {
+		if e.ID != c.Actor.ID && e.Order.Target == c.Target.ID && (e.behavior.State() == Gathering || e.behavior.State() == Returning || e.ID < c.Actor.ID && e.behavior.State() == SeekingResource) {
 			return nil
 		}
 	}
@@ -133,7 +135,7 @@ func gatheringRate(c *unitContext) float64 {
 	if p.Technologies["gold_mining"] && source.Resource == "gold" {
 		rate *= 1.15
 	}
-	return rate
+	return rate * p.workMultiplier()
 }
 func gatherResource(_ context.Context, c *unitContext) error {
 	amount := math.Min(gatheringRate(c)*Step, math.Min(cargoCapacity(c)-c.Actor.Cargo, c.Target.Amount))
@@ -196,7 +198,7 @@ func contributeConstruction(_ context.Context, c *unitContext) error {
 			builders++
 		}
 	}
-	work := Step / definitions[c.Target.Type].Time * (.4 + .6/float64(max(1, builders)))
+	work := Step / definitions[c.Target.Type].Time * (.4 + .6/float64(max(1, builders))) * c.World.Players[c.Actor.Owner].workMultiplier()
 	mustFire(c.Target.life, BuildWork, &entityContext{World: c.World, Actor: c.Target, Amount: work})
 	return nil
 }

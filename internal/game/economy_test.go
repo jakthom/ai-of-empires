@@ -21,7 +21,7 @@ func TestOpeningWorkerGathersAndDepositsResources(t *testing.T) {
 			}
 			for range 1600 {
 				w.Update()
-				if w.Players[1].Resources != before {
+				if w.Players[1].Resources.Amount(target.Resource) > before.Amount(target.Resource) {
 					if target.Amount >= source.Amount {
 						t.Fatal("deposit must come from the commanded resource")
 					}

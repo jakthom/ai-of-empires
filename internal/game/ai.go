@@ -32,8 +32,13 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 		return
 	}
 	tc := tcs[0]
+	population, _ := w.population(player)
+	foodReserve := math.Max(100, float64(population)*foodPerPersonMinute*3)
 	for i, e := range workers {
-		if e.behavior.State() != Idle || e.Container != 0 || p.voyaging(e.ID) || defending && c.Threat != nil && e.Position.Distance(c.Threat.Position) < 12 {
+		target := w.Entities[e.Order.Target]
+		blockedFarm := e.behavior.State() == SeekingResource && target != nil && farmOccupied(nil, &unitContext{World: w, Actor: e, Target: target}) == nil
+		distantFood := e.behavior.State() == SeekingResource && e.Cargo == 0 && target != nil && target.Resource == "food" && target.Position.Distance(tc.Position) > 16 && p.Resources.Wood >= 60
+		if e.behavior.State() != Idle && !blockedFarm && !distantFood || e.Container != 0 || p.voyaging(e.ID) || defending && c.Threat != nil && e.Position.Distance(c.Threat.Position) < 12 {
 			continue
 		}
 		res := "wood"
@@ -45,8 +50,14 @@ func (w *World) aiEconomy(c *aiContext, defending bool) {
 		case 8:
 			res = "stone"
 		}
-		target := w.nearest(e.Position, func(t *Entity) bool {
+		if blockedFarm || distantFood || p.Resources.Food < foodReserve && i%9 == 6 {
+			res = "food"
+		}
+		target = w.nearest(e.Position, func(t *Entity) bool {
 			if !(t.Amount > 0 && t.Resource == res && w.visibleEntity(player, t) && (t.Owner == 0 || t.Owner == player) && (definitions[t.Type].Kind == "resource" || t.Type == "farm") && t.Type != "fish" && w.sameRegion(e.Position, t.Position, false)) {
+				return false
+			}
+			if res == "food" && t.Position.Distance(tc.Position) > 16 && p.Resources.Wood >= 60 {
 				return false
 			}
 			if t.Type == "farm" {
@@ -269,7 +280,7 @@ func (w *World) aiBuild(player int, typ string, center Vec, workers []*Entity) b
 	}
 	for r := 5.; r < 16; r += 2 {
 		for a := 0.; a < math.Pi*2; a += .6 {
-			pos := snap(Vec{center.X + math.Cos(a)*r, center.Y + math.Sin(a)*r})
+			pos := buildingPosition(typ, Vec{center.X + math.Cos(a)*r, center.Y + math.Sin(a)*r})
 			// Keep walkable lanes between buildings so the economy can deliver
 			// cargo and newly trained armies can leave the settlement.
 			clear := true

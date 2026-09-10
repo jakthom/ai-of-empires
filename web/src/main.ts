@@ -1,3 +1,7 @@
+import { StatisticsUI } from './statistics';
+import { DiplomacyUI } from './diplomacy';
+import { SavedSnapshotsUI } from './saved-snapshots';
+import { BuildingGuide } from './building-guide';
 /*
 THESIS: A living medieval miniature, with a familiar RTS command console.
 OWN-WORLD: Limestone settlements, olive meadows, forest shadows, brass controls.
@@ -25,14 +29,14 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <div id="world"></div>
   <header class="topbar">
     <a class="brand" href="#" aria-label="AI of Empires, show briefing">${crown}<span>AI <i>of</i><br>Empires</span></a>
-    <div class="resources" aria-label="Your resources">${Object.entries(symbols).map(([name, icon]) => `<div class="resource ${name}" title="${name}"><span class="resource-icon">${icon}</span><div><strong id="res-${name}">—</strong><span>${name}</span></div><div class="production" id="production-${name}" role="img" aria-label="${name} production: awaiting first sample"><svg viewBox="0 0 120 20" preserveAspectRatio="none" aria-hidden="true"><path class="production-baseline" d="M0 19H120"/><path class="production-line"/></svg><small>+0/min</small></div></div>`).join('')}</div>
+    <div class="resources" aria-label="Your resources">${Object.entries(symbols).map(([name, icon]) => `<div class="resource ${name}" title="${name}"><span class="resource-icon">${icon}</span><div><strong id="res-${name}">—</strong><span>${name}</span></div><div class="production" id="production-${name}" role="img" aria-label="${name} production: awaiting first sample"><svg viewBox="0 0 120 20" preserveAspectRatio="none" aria-hidden="true"><path class="production-baseline" d="M0 19H120"/><path class="production-line"/><path class="consumption-line"/></svg><small>+0 / −0</small></div></div>`).join('')}</div>
     <div class="population" title="Population / housing capacity"><span class="people-icon">♟</span><strong id="population">— / —</strong><span>Population</span></div>
     <div class="age"><span id="age-symbol">I</span><div><strong id="age">Dark Age</strong><span id="clock">00:00</span><span id="treaty-clock" hidden></span></div></div>
     <div class="match-difficulty"><span>Difficulty</span><strong id="match-difficulty">—</strong></div>
-    <div class="match-controls"><button id="open-marketplace" aria-label="Open marketplace" title="Marketplace" disabled>Trade</button><button id="speed" title="Change game speed">1.7×</button><button id="pause" title="Pause or resume (Space)" aria-label="Pause match">Ⅱ</button><button id="help" title="Show controls" aria-label="Show controls">?</button><button id="menu" title="Match menu" aria-label="Match menu">☰</button></div>
+    <div class="match-controls"><button id="open-marketplace" aria-label="Open marketplace" title="Marketplace" disabled>Trade</button><button id="open-statistics" title="Production, consumption and campaign statistics">Stats</button><button id="speed" title="Change game speed">1.7×</button><button id="pause" title="Pause or resume (Space)" aria-label="Pause match">Ⅱ</button><button id="help" title="Show controls" aria-label="Show controls">?</button><button id="menu" title="Match menu" aria-label="Match menu">☰</button></div>
   </header>
   <aside class="briefing" id="briefing"><div class="eyebrow"><span class="tiny-rule"></span> THE BORDERLANDS</div><h1>A kingdom begins<br>with its people.</h1><p>Gather. Build. Advance. Conquer.</p><div class="objective"><span>⚑</span><div><strong>Establish your settlement</strong><span>Select a villager, choose Give order, then click a resource.</span></div></div><button id="dismiss-briefing" class="text-button">Understood <span>↗</span></button></aside>
-  <details class="rival" id="relationships"><summary aria-label="Kingdom relationships"><span class="shield" aria-hidden="true">♜</span><div><strong id="rival-name">Other kingdoms</strong><span id="rival-status">At peace</span></div><span class="rival-dot" aria-hidden="true"></span></summary><div class="relationship-body"><ul id="kingdom-relations"></ul><p>Builders favor growth. Defensive kingdoms may counterattack. Expansionists may start conflicts. Peace returns after five game minutes without attacks.</p></div></details>
+  <details class="rival" id="relationships"><summary aria-label="Kingdom relationships"><span class="shield" aria-hidden="true">♜</span><div><strong id="rival-name">Other kingdoms</strong><span id="rival-status">At peace</span></div><span class="rival-dot" aria-hidden="true"></span></summary><div class="relationship-body"><ul id="kingdom-relations"></ul><button id="open-diplomacy" class="secondary">Reparations & peace</button><p>Builders favor growth. Defensive kingdoms may counterattack. Expansionists may start conflicts. Peace returns after five game minutes without attacks.</p></div></details>
   <div id="connection" role="status" hidden></div>
   <div id="notice" role="status" aria-live="polite" hidden></div>
   <section id="startup-error" hidden role="alert"><h2>The kingdom is out of reach</h2><p id="startup-error-copy"></p><button id="startup-retry" class="primary">Try again</button></section>
@@ -41,7 +45,7 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
   <footer class="command-deck">
     <section class="map-panel"><div class="panel-heading"><span>THE BORDERLANDS</span><button id="home" title="Return to Town Center (H)">⌂</button></div><canvas id="minimap" width="220" height="160" aria-label="Minimap. Click to move the camera." tabindex="0"></canvas><div class="map-caption"><span class="legend-dot"></span><span id="civilization-label">Your kingdom</span><span id="unit-count">0 units</span></div></section>
     <section class="selection-panel"><div class="selection-top"><div id="portrait" class="portrait">${crown}</div><div><span class="eyebrow" id="selected-category">YOUR KINGDOM</span><h2 id="selected-name">The first chapter</h2><div class="health-track"><span id="health-fill"></span></div><span id="selected-health" class="muted">Select a unit or building to give orders.</span></div></div><div class="selection-activity"><div id="selected-status" class="selection-status">Your story is waiting to be written.</div></div><div id="queue" class="queue"></div></section>
-    <section class="actions-panel"><div class="panel-heading"><div class="action-tabs" role="group" aria-label="Entity panels"><button class="active" data-tab="orders" aria-pressed="true">Orders</button><button data-tab="build" aria-pressed="false">Build</button><button id="trade-tab" data-tab="trade" aria-pressed="false" hidden>Trade</button><button data-tab="research" aria-pressed="false">Research</button><button id="history-tab" data-tab="history" aria-pressed="false">History</button></div><span id="selection-count">No selection</span></div><div id="mode-hint" hidden><span id="mode-copy" role="status"></span><button id="confirm-delete" hidden>Confirm removal</button><button id="cancel-mode">Cancel</button></div><p id="action-help" class="action-help" aria-live="polite"></p><div id="actions" class="actions"><p class="empty-actions">Select your Town Center to train villagers,<br>or select settlers to begin building.</p></div><div id="entity-history-panel" role="region" aria-label="Entity history" hidden></div></section>
+    <section class="actions-panel"><div class="panel-heading"><div class="action-tabs" role="group" aria-label="Entity panels"><button class="active" data-tab="orders" aria-pressed="true">Orders</button><button data-tab="build" aria-pressed="false">Build</button><button id="trade-tab" data-tab="trade" aria-pressed="false" hidden>Trade</button><button data-tab="research" aria-pressed="false">Research</button><button id="history-tab" data-tab="history" aria-pressed="false">History</button></div><span id="selection-count">No selection</span></div><div id="mode-hint" hidden><span id="mode-copy" role="status"></span><button id="confirm-delete" hidden>Confirm removal</button><button id="rotate-placement" hidden>Rotate gate · R</button><button id="auto-placement" hidden>Auto align</button><button id="cancel-mode">Cancel</button></div><p id="action-help" class="action-help" aria-live="polite"></p><div id="actions" class="actions"><p class="empty-actions">Select your Town Center to train villagers,<br>or select settlers to begin building.</p></div><div id="entity-history-panel" role="region" aria-label="Entity history" hidden></div></section>
   </footer>
   <section id="event-tray" aria-label="Game event log"></section>
   <dialog id="start-dialog"><nav class="lobby-tabs" aria-label="Campaign setup"><button type="button" id="new-game-tab" aria-pressed="true">New game</button><button type="button" id="saved-games-tab" aria-pressed="false">Saved games</button></nav><form id="start-form">
@@ -53,9 +57,10 @@ document.querySelector<HTMLDivElement>('#app')!.innerHTML = `
     <details class="advanced-world"><summary>Advanced world options <span>Resources, distance, visibility, peace &amp; seed</span></summary><div class="advanced-grid"><div><label>Natural resources<select id="world-resources" aria-describedby="resources-description"></select></label><span id="resources-description" class="field-hint"></span></div><div><label>Starting separation<select id="world-separation" aria-describedby="separation-description"></select></label><span id="separation-description" class="field-hint"></span></div><div><label>Map reveal<select id="world-reveal" aria-describedby="reveal-description"></select></label><span id="reveal-description" class="field-hint"></span></div><div><label>Initial peace period<select id="world-treaty" aria-describedby="treaty-description"></select></label><span id="treaty-description" class="field-hint">Game minutes. Blocks attacks and conversions for every kingdom.</span></div><div><label>Map seed<input id="seed" type="number" value="4817" min="1" max="999999999" required></label><span class="field-hint">The same seed and settings recreate the same world.</span></div></div></details>
     <p class="form-error" id="start-error" role="alert"></p><button id="start" class="primary" type="submit">Begin your reign <span>→</span></button><small>Mouse &amp; trackpad controls · Autosaves every 10 seconds</small>
   </form><section id="saved-games-panel" hidden><h2>Return to your kingdom.</h2><p>Your private game library. Find a game by name or ID; use your rejoin code when changing browsers.</p><form id="resume-form"><label>Game name or session ID<input id="session-search" type="search" maxlength="200" autocomplete="off" placeholder="Find a saved game"></label><button id="resume-game" class="secondary" type="submit">Resume by name or ID</button></form><p id="sessions-error" class="form-error" role="alert"></p><p id="sessions-status" role="status"></p><div id="saved-games-list"></div></section></dialog>
-  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="Close controls">×</button><div class="eyebrow">FIELD MANUAL</div><h2>Command your kingdom</h2><dl><dt>Click / Shift-drag</dt><dd>Click to select a unit. Shift-click adds or removes a unit; Shift-drag selects a group, replacing your previous selection.</dd><dt>Pan the world</dt><dd>Click to select. Hold the left mouse button briefly, then move to pan while keeping your selection and pending order. A click still gives the order. Wall drawing uses dragging; Shift-drag selects a group.</dd><dt>Rotate the perspective</dt><dd>Hold both the left and right mouse buttons. Move left or right to rotate, and up or down to tilt. Release either button to stop. On a trackpad, use Shift + arrow keys to rotate and tilt. Reset view (R) restores the starting angle and zoom.</dd><dt>Give order / Q</dt><dd>Select your units, choose Give order (or press Q), then click a resource, enemy, building, or destination. With a building selected, click the ground to set its rally point.</dd><dt>Quick orders</dt><dd>Option/Alt-click, Mac Control-click, or right-click gives the same order directly. Two-finger secondary click works too, if enabled on your trackpad.</dd><dt>Build</dt><dd>Select villagers, open Build, choose a building, then click its site. For Stone Walls and Palisades, click and drag a line, then release to place all segments. Gates can replace one of your wall segments.</dd><dt>Fishing</dt><dd>Build a Dock on an explored shore and train a Fishing Ship. Select the ship, choose Fish, then click a fish shoal. Catches become Food when delivered to a Dock. Shoals are finite and disappear when depleted.</dd><dt>Guard trade</dt><dd>Select soldiers or warships, choose Guard, then click a friendly villager, carrier, trading post, or neutral supply caravan. Guards follow and defend it, then return to formation. Hold fire suppresses automatic combat. Enemy attacks can capture carried cargo; warehouse reservations remain at their destination.</dd><dt>Market exchanges</dt><dd>In Feudal Age, build a Market and open its Trade tab to buy or sell food, wood, or stone for gold. Each button shows the price and what you receive. Train a Trade Cart at a Market or a Trade Ship at a Dock, then choose Trade route. Carts connect Markets by land; ships connect Docks by water.</dd><dt>Reseed farm</dt><dd>Select a depleted Farm and choose Reseed farm. For 60 wood, an assigned farmer or the nearest idle villager rebuilds it and resumes farming. Assigned farmers also reseed automatically while wood is available.</dd><dt>Shift + order</dt><dd>Queue the order after the current task. Keep Shift held to place several orders.</dd><dt>Cmd/Ctrl + 1–9</dt><dd>Save a control group. Press its number to recall it.</dd><dt>H / . / A / S</dt><dd>Find your Town Center, select idle villagers, attack move, or stop.</dd><dt>Pan view / P</dt><dd>Press P, then click and drag the battlefield. Press P again or Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also move the camera.</dd><dt>Zoom / pause</dt><dd>Scroll or pinch to zoom around the ground under your cursor. The + / − keys zoom around the center of the view. Space pauses the match.</dd><dt>Cancel / Escape</dt><dd>Leave any targeting mode. Right-click also cancels building placement.</dd><dt>Military stances</dt><dd>Return fire is the default: units respond to actual attacks on themselves or nearby friends, with limited pursuit. Hold position returns fire without pursuit. Hold fire disables automatic attacks. Aggressive and Attack move can start conflicts with passing kingdoms.</dd><dt>Kingdom relationships</dt><dd>Open the kingdom panel above the world to see who is at peace with you and whether they favor building, defense, or expansion.</dd><dt>Remove units</dt><dd>Choose Delete, then Confirm removal. Delete or the Mac Delete/Backspace key also confirms.</dd></dl><p>Villagers carry resources to a drop-off. Houses raise population capacity. Two distinct buildings from your current age unlock the next age at your Town Center.</p><button class="primary" data-close="help-dialog">Return to the realm</button></dialog>
-  <dialog id="menu-dialog"><button class="dialog-close" data-close="menu-dialog" aria-label="Close menu">×</button><div class="eyebrow">YOUR CAMPAIGN</div><h2>A moment to plan</h2><p>Autosaved every 10 seconds. Leaving reserves your kingdom; the shared clock follows the game’s pause policy.</p><p id="session-name" class="session-name"></p><p id="session-world" class="bonus"></p><label>Session ID<input id="session-id" readonly></label><p id="save-status" class="bonus" role="status"></p><p id="save-error" class="form-error" role="alert"></p><button id="save-game" class="secondary">Save now</button><label>Game speed<select id="game-speed"></select></label><button id="menu-pause" class="primary">Pause / resume</button><button id="new-match" class="secondary">Start a new match</button><button id="saved-matches" class="secondary">Leave game</button><button id="resign" class="text-button danger">Resign this battle</button></dialog>
-  <dialog id="result-dialog"><div class="dialog-brand">${crown}</div><div class="eyebrow">THE CHRONICLE IS WRITTEN</div><h2 id="result-title">Victory</h2><p id="result-copy"></p><button id="play-again" class="primary">Begin another chapter →</button></dialog>
+  <dialog id="help-dialog"><button class="dialog-close" data-close="help-dialog" aria-label="Close controls">×</button><div class="eyebrow">FIELD MANUAL</div><h2>Command your kingdom</h2><dl><dt>Click / Shift-drag</dt><dd>Click to select a unit. Shift-click adds or removes a unit; Shift-drag selects a group, replacing your previous selection.</dd><dt>Pan the world</dt><dd>Click to select. Hold the left mouse button briefly, then move to pan while keeping your selection and pending order. A click still gives the order. Wall drawing uses dragging; Shift-drag selects a group.</dd><dt>Rotate the perspective</dt><dd>Hold both the left and right mouse buttons. Move left or right to rotate, and up or down to tilt. Release either button to stop. On a trackpad, use Shift + arrow keys to rotate and tilt. Reset view (R) restores the starting angle and zoom.</dd><dt>Give order / Q</dt><dd>Select your units, choose Give order (or press Q), then click a resource, enemy, building, or destination. With a building selected, click the ground to set its rally point.</dd><dt>Quick orders</dt><dd>Option/Alt-click, Mac Control-click, or right-click gives the same order directly. Two-finger secondary click works too, if enabled on your trackpad.</dd><dt>Build</dt><dd>Select villagers, open Build, choose a building, then click its site. For Stone Walls and Palisades, click and drag a line, then release to place all segments. Gates can replace a wall segment; press R while placing to rotate, or choose Auto align. Drag a Bridge from one bank to the other to cross water. Shift-place repeated buildings; a replacement villager continues unfinished work in that batch. Farms share grid edges.</dd><dt>Fishing</dt><dd>Build a Dock on an explored shore and train a Fishing Ship. Select the ship, choose Fish, then click a fish shoal. Catches become Food when delivered to a Dock. Shoals are finite and disappear when depleted.</dd><dt>Guard trade</dt><dd>Select soldiers or warships, choose Guard, then click a friendly villager, carrier, trading post, or neutral supply caravan. Guards follow and defend it, then return to formation. Hold fire suppresses automatic combat. Enemy attacks can capture carried cargo; warehouse reservations remain at their destination.</dd><dt>Market exchanges</dt><dd>In Feudal Age, build a Market and open its Trade tab to buy or sell food, wood, or stone for gold. Each button shows the price and what you receive. Train a Trade Cart at a Market or a Trade Ship at a Dock, then choose Trade route. Carts connect Markets by land; ships connect Docks by water.</dd><dt>Reseed farm</dt><dd>Select a depleted Farm and choose Reseed farm. For 60 wood, an assigned farmer or the nearest idle villager rebuilds it and resumes farming. Assigned farmers also reseed automatically while wood is available.</dd><dt>Shift + order</dt><dd>Queue the order after the current task. Keep Shift held to place several orders.</dd><dt>Cmd/Ctrl + 1–9</dt><dd>Save a control group. Press its number to recall it.</dd><dt>H / . / A / S</dt><dd>Find your Town Center, select idle villagers, attack move, or stop.</dd><dt>Pan view / P</dt><dd>Press P, then click and drag the battlefield. Press P again or Escape to return to normal selection and camera gestures. Arrow keys, middle-drag, and clicking the minimap also move the camera.</dd><dt>Zoom / pause</dt><dd>Scroll or pinch to zoom around the ground under your cursor. The + / − keys zoom around the center of the view. Space pauses the match.</dd><dt>Cancel / Escape</dt><dd>Leave any targeting mode. Right-click also cancels building placement.</dd><dt>Military stances</dt><dd>Return fire is the default: units respond to actual attacks on themselves or nearby friends, with limited pursuit. Hold position returns fire without pursuit. Hold fire disables automatic attacks. Aggressive and Attack move can start conflicts with passing kingdoms.</dd><dt>Kingdom relationships</dt><dd>Attacking peaceful kingdoms or neutral trade targets is an act of war. Open the kingdom panel for reparations. Offers reserve gold; acceptance restores peace. Unowned markets and caravans involve kingdoms using or guarding them.</dd><dt>Remove units</dt><dd>Choose Delete, then Confirm removal. Delete or the Mac Delete/Backspace key also confirms.</dd></dl><p>Villagers carry resources to a drop-off. Houses raise population capacity. Two distinct buildings from your current age unlock the next age at your Town Center.</p><button class="primary" data-close="help-dialog">Return to the realm</button></dialog>
+  <dialog id="menu-dialog"><button class="dialog-close" data-close="menu-dialog" aria-label="Close menu">×</button><div class="eyebrow">YOUR CAMPAIGN</div><h2>A moment to plan</h2><p>Autosaved every 10 seconds. Leaving reserves your kingdom; the shared clock follows the game’s pause policy.</p><p id="session-name" class="session-name"></p><p id="session-world" class="bonus"></p><label>Session ID<input id="session-id" readonly></label><p id="save-status" class="bonus" role="status"></p><p id="save-error" class="form-error" role="alert"></p><button id="save-game" class="secondary">Save now</button><div id="snapshot-menu-actions"><button id="open-snapshots" class="secondary">Snapshots & exports</button><button id="toggle-god" class="secondary">Enable god mode</button><button id="quick-export" class="secondary">Download SQLite file</button></div><label>Game speed<select id="game-speed"></select></label><button id="menu-pause" class="primary">Pause / resume</button><button id="new-match" class="secondary">Start a new match</button><button id="saved-matches" class="secondary">Leave game</button><button id="resign" class="text-button danger">Resign this battle</button></dialog>
+  <div id="god-banner" role="status" hidden><strong>God mode · Full world</strong><button id="exit-god">Return to kingdom view</button></div>
+  <dialog id="result-dialog"><div class="dialog-brand">${crown}</div><div class="eyebrow">THE CHRONICLE IS WRITTEN</div><h2 id="result-title">Victory</h2><p id="result-copy"></p><div id="result-summary"></div><button id="result-statistics" class="secondary">Read the full campaign report</button><button id="play-again" class="primary">Begin another chapter →</button></dialog>
 `;
 
 function el<T extends HTMLElement = HTMLElement>(id: string) { return document.getElementById(id) as T; }
@@ -64,12 +69,24 @@ function escape(value: string) { return value.replace(/[&<>"']/g, c => ({ '&': '
 function cost(resources: Resources) { return Object.entries(resources).filter(([, amount]) => amount > 0).map(([key, amount]) => `${Math.round(amount)}${key[0].toUpperCase()}`).join(' · '); }
 function time(seconds: number) { return `${Math.floor(seconds / 60).toString().padStart(2, '0')}:${Math.floor(seconds % 60).toString().padStart(2, '0')}`; }
 const api = new GameAPI();
+const buildingGuide = new BuildingGuide();
+let gateOrientation = 'auto';
+let godMode=false, switchingView=false;
+const statistics=new StatisticsUI(api);
+const diplomacy=new DiplomacyUI(api);
+el('open-statistics').onclick=()=>{cancelMode();statistics.open(godMode);};
+el('result-statistics').onclick=()=>statistics.open(true);
+el('open-diplomacy').onclick=()=>{cancelMode();el<HTMLDetailsElement>('relationships').open=false;diplomacy.open();};
+el('toggle-god').onclick=el('exit-god').onclick=()=>void toggleGodMode();
 const journal = new EventLog(api, el('event-tray'), 'tray', locateEvent);
 const entityHistory = new EventLog(api, el('entity-history-panel'), 'panel');
 let historyTarget: number | undefined;
 let world: WorldRenderer;
 let loadedGameID = '';
-const multiplayer = new MultiplayerUI(api, enterWorld, () => resetMatch(true), showNotice);
+const multiplayer = new MultiplayerUI(api, enterWorld, () => resetMatch(true), showNotice, () => {multiplayer.hide();void savedSnapshots.open(()=>{void multiplayer.show();});});
+const savedSnapshots = new SavedSnapshotsUI(api, () => multiplayer.continueSession());
+el('open-snapshots').onclick=()=>{cancelMode();void savedSnapshots.open();};
+el('quick-export').onclick=async()=>{const button=el<HTMLButtonElement>('quick-export');button.disabled=true;try{await savedSnapshots.download();text('save-status','SQLite download ready.');}catch(e){text('save-error',e instanceof Error?e.message:'Download failed. Try again.');}finally{button.disabled=false;}};
 // Input modes only describe the next gesture; Go owns every gameplay lifecycle.
 type InputMode = { kind: 'order' | 'pan' } | { kind: 'target'; action: Action } | { kind: 'delete'; entityIds: number[] };
 let catalog: Catalog, snapshot: Snapshot | null = null, selection: number[] = [], tab = 'orders', actionSignature = '', queueSignature = '', activeMode: InputMode | null = null;
@@ -81,9 +98,10 @@ function showNotice(message: string) { text('notice', message); el('notice').hid
 function selectedViews() { return snapshot?.entities.filter(e => selection.includes(e.id)) ?? []; }
 function select(ids: number[]) { cancelMode(); selection = ids; historyTarget = ids[0]; world.setSelection(ids); actionSignature = ''; queueSignature = '__reset__'; refreshSelection(); }
 function setMode(mode: InputMode | null, message = '') {
-  activeMode = mode; buildingPoint = null; previewVersion++; clearTimeout(previewTimer); previewTimer = 0; world.preview(null);
+  activeMode = mode; gateOrientation='auto'; buildingGuide.hide(); buildingPoint = null; previewVersion++; clearTimeout(previewTimer); previewTimer = 0; world.preview(null);
   text('mode-copy', message); el('mode-hint').hidden = !mode;
   el('confirm-delete').hidden = mode?.kind !== 'delete';
+  const gate=mode?.kind==='target'&&mode.action.product==='gate';el('rotate-placement').hidden=el('auto-placement').hidden=!gate;
   world.canvas.style.cursor = mode?.kind === 'pan' ? 'grab' : mode ? 'crosshair' : 'default';
 }
 function cancelMode() { setMode(null); }
@@ -98,7 +116,7 @@ async function send(command: Omit<Command, 'id'>) {
   try { if (api.session?.membership_id && (command.kind === 'pause' || command.kind === 'speed')) { await api.control(command.kind === 'pause' ? snapshot?.paused ? 'resume' : 'pause' : 'speed', command.kind === 'speed' ? {value:command.value} : {}); } else await api.command(command); return true; } catch (error) { showNotice(error instanceof Error ? error.message : 'The order could not be completed.'); return false; }
 }
 function startTargeting(action: Action) {
-  setMode({ kind: 'target', action }, action.kind === 'build' && ['wall','palisade'].includes(action.product ?? '') ? `${action.label}: click and drag a line, release to place · Esc to cancel` : `${action.label}: click ${action.kind === 'build' ? 'a building site' : 'a target'} · Esc to cancel`); world.canvas.focus();
+  setMode({ kind: 'target', action }, action.kind === 'build' && ['wall','palisade','bridge'].includes(action.product ?? '') ? `${action.label}: click and drag ${action.product==='bridge'?'from bank to bank':'a line'}, release to place · Esc to cancel` : `${action.label}: click ${action.kind === 'build' ? 'a building site' : 'a target'} · Esc to cancel`); if(action.kind==='build')buildingGuide.show(action,catalog); world.canvas.focus();
 }
 function toggleOrder() {
   if (activeMode?.kind === 'order') cancelMode();
@@ -136,11 +154,11 @@ function runAction(action: Action) {
   if (!action.enabled) { showNotice(action.reason || 'This action is unavailable.'); return; }
   if (snapshot?.paused || !connectionReady) { showNotice(snapshot?.paused ? 'Resume the match before issuing an order.' : 'Waiting for the server connection.'); return; }
   if (action.kind === 'trade') { cancelMode(); marketplace.open('merchants'); return; }
-  if (['build', 'move', 'attack_move', 'convert', 'heal', 'gather', 'guard'].includes(action.kind)) { startTargeting(action); return; }
+  if (['build', 'move', 'attack_move', 'convert', 'heal', 'gather', 'guard', 'repair'].includes(action.kind)) { startTargeting(action); return; }
   if (action.kind === 'delete') {
     setMode({ kind: 'delete', entityIds: [...selection] }, 'Remove this selection?'); world.canvas.focus(); return;
   }
-  const ids = ['train', 'research', 'age', 'deploy', 'unload', 'market_sell', 'market_buy', 'reseed_farm'].includes(action.kind) ? selection.slice(0, 1) : selection;
+  const ids = ['train', 'research', 'age', 'deploy', 'unload', 'market_sell', 'market_buy', 'reseed_farm', 'repair_building', 'work_farm', 'rotate_gate'].includes(action.kind) ? selection.slice(0, 1) : selection;
   void send({ kind: action.kind, product: action.product, entity_ids: ids, ...(['market_buy', 'market_sell'].includes(action.kind) ? {market_revision: snapshot!.marketplace.merchants.revision} : {}) });
 }
 function refreshSelection() {
@@ -178,10 +196,10 @@ function refreshSelection() {
       const stance = a.kind === 'stance';
       const pressed = stance && own.every(e => e.stance === a.product) ? 'true' : stance && own.some(e => e.stance === a.product) ? 'mixed' : 'false';
       const detail = stance ? pressed === 'true' ? 'Selected' : pressed === 'mixed' ? 'Some selected' : 'Stance' : a.gain ? `${cost(a.cost)} → ${cost(a.gain)}` : cost(a.cost) || (a.duration ? `${a.duration}s` : a.kind === 'delete' ? 'Choose to confirm' : 'Command');
-      return `<button class="action ${a.kind === 'age' ? 'advance' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? buildingIcon(a.product ?? '') : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span></button>`;
+      return `<button class="action ${a.kind === 'age' ? 'advance' : a.kind === 'build' ? 'build-choice' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? buildingIcon(a.product ?? '') : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span>${a.kind==='build'?`<span class="build-purpose">${escape(a.description)}</span>`:''}</button>`;
     }).join('') : `<p class="empty-actions">${first ? tab === 'build' ? 'Select villagers to construct buildings.' : tab === 'research' ? 'Select a building to see its technologies.' : 'No orders available for this selection.' : 'Select your Town Center to train villagers,<br>or select settlers to begin building.'}</p>`;
     text('action-help', tab === 'trade' ? 'Home prices · cost → received · Open Trade for regional routes and kingdom offers' : '');
-    el('actions').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button => { const action = filtered[Number(button.dataset.action)]; button.onclick = () => runAction(action); button.onfocus = button.onpointerenter = () => text('action-help', action.reason || action.description); });
+    el('actions').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button => { const action = filtered[Number(button.dataset.action)]; button.onclick = () => runAction(action); button.onfocus = button.onpointerenter = () => {text('action-help', action.reason || action.description);if(action.kind==='build')buildingGuide.show(action,catalog);}; });
     if (focusedAction !== undefined) el('actions').querySelector<HTMLButtonElement>(`[data-action="${focusedAction}"]`)?.focus({ preventScroll: true });
   }
   const tasks = first?.tasks ?? [], qSignature = tasks.map(t => t.product).join(':');
@@ -207,6 +225,7 @@ function minimap() {
 function receive(next: Snapshot) {
   const previous = snapshot;
   snapshot = next; world.update(next);
+  statistics.update(next);diplomacy.update(next,connectionReady);
   marketplace.update(next, catalog, connectionReady); el<HTMLButtonElement>('open-marketplace').disabled = false;
   if(api.room && next.control_revision!==undefined && next.control_revision>=api.room.revision){api.room.revision=next.control_revision;api.room.match_status=next.status;}
   const tooltip = document.getElementById('building-tooltip');
@@ -218,7 +237,8 @@ function receive(next: Snapshot) {
   selection = selection.filter(id => next.entities.some(e => e.id === id));
   for (const resource of Object.keys(symbols)) text(`res-${resource}`, Math.floor(next.player.resources[resource as keyof Resources]).toLocaleString());
   if (previous?.player.production !== next.player.production) renderProduction(next.player.production);
-  text('population', `${next.player.population} / ${next.player.capacity}`); el('population').classList.toggle('capped', next.player.population >= next.player.capacity);
+  text('population', `${next.player.population} / ${next.player.capacity}`);
+  if(next.player.food_supply){const f=next.player.food_supply;el('population').title=`${f.demand_per_minute} food per game minute · ${f.state}`;el('production-food').dataset.food=f.state;} el('population').classList.toggle('capped', next.player.population >= next.player.capacity);
   text('age', next.player.age_name); text('age-symbol', ['I', 'II', 'III', 'IV'][next.player.age]); text('clock', time(next.time)); text('speed', `${next.speed}×`);
   el('treaty-clock').hidden = next.treaty_remaining <= 0; text('treaty-clock', `Peace ${time(next.treaty_remaining)}`);
   text('match-difficulty', next.difficulty.name); el('match-difficulty').title = next.difficulty.description;
@@ -227,6 +247,7 @@ function receive(next: Snapshot) {
   text('idle-count', String(next.player.idle)); text('unit-count', `${next.player.workers} settlers · ${next.player.military} military`); text('civilization-label', catalog.civilizations.find(c => c.id === next.player.civilization)?.name || 'Your kingdom');
   el('paused').hidden = !next.paused; el('pause').setAttribute('aria-label', next.paused ? 'Resume match' : 'Pause match'); text('pause', next.paused ? '▶' : 'Ⅱ');
   const owner = !api.session?.membership_id || !!api.session.owner;
+  el('snapshot-menu-actions').hidden=!api.session?.membership_id||!api.session.owner;
   el<HTMLButtonElement>('pause').disabled = next.paused && !owner; el<HTMLButtonElement>('resume').disabled = !owner;
   el<HTMLButtonElement>('speed').disabled = !owner; el<HTMLSelectElement>('game-speed').disabled = !owner;
   el<HTMLButtonElement>('menu-pause').disabled = next.paused && !owner;
@@ -242,13 +263,13 @@ function receive(next: Snapshot) {
   }
   journal.update(next);
   refreshSelection(); minimap();
-  if ((next.status === 'finished' || next.player.defeated) && !resultShown) { resultShown = true; text('result-title', next.winner === next.player.id ? 'A kingdom victorious.' : next.winner || next.player.defeated ? 'Your banner has fallen.' : 'An unfinished chronicle.'); text('result-copy', `${time(next.time)} in the field. ${next.player.kills} enemy units and buildings defeated.`); el<HTMLDialogElement>('result-dialog').showModal(); }
+  if ((next.status === 'finished' || next.player.defeated) && !resultShown) { resultShown = true; text('result-title', next.winner === next.player.id ? 'A kingdom victorious.' : next.winner || next.player.defeated ? 'Your banner has fallen.' : 'An unfinished chronicle.'); text('result-copy', `${time(next.time)} in the field. ${next.player.kills} enemy units and buildings defeated.`); el<HTMLDialogElement>('result-dialog').showModal();void loadResultSummary(); }
 }
 function connection(state: string) {
   connectionReady = state === 'connected'; el('connection').hidden = connectionReady;
   if (!connectionReady) text('connection', state === 'expired' ? 'This session is no longer connected. Open Saved games from the menu to resume.' : 'Reconnecting to your kingdom…');
   if(state==='expired'&&api.session?.membership_id)void multiplayer.show();
-  if(snapshot) marketplace.update(snapshot, catalog, connectionReady);
+  if(snapshot) {marketplace.update(snapshot, catalog, connectionReady);diplomacy.update(snapshot,connectionReady);}
   refreshSelection();
 }
 
@@ -307,7 +328,7 @@ function attachControls() {
     world.canvas.focus();
     const secondary = e.button === 2 || (e.button === 0 && (e.ctrlKey || e.altKey));
     const click = !secondary && e.button === 0 && activeMode?.kind !== 'pan' ? activeMode ? 'action' : 'select' : null;
-    const drawingWall = click === 'action' && activeMode?.kind === 'target' && activeMode.action.kind === 'build' && ['wall','palisade'].includes(activeMode.action.product ?? '');
+    const drawingWall = click === 'action' && activeMode?.kind === 'target' && activeMode.action.kind === 'build' && ['wall','palisade','bridge'].includes(activeMode.action.product ?? '');
     // Selection and armed orders share hold-to-pan. Only an explicit wall
     // drawing tool or Shift-selection owns a primary drag immediately.
     const kind = secondary ? 'secondary' : e.button === 1 || activeMode?.kind === 'pan' ? 'pan' : drawingWall ? 'action' : click === 'select' && e.shiftKey ? 'select' : 'pending';
@@ -338,17 +359,29 @@ function attachControls() {
     previewInFlight = true; lastPreviewAt = performance.now();
     try {
       const { product, point, start, preview } = request;
-      const result = await api.placement(product, start ?? point, start ? point : undefined);
+      const result = await api.placement(product, start ?? point, start ? point : undefined, product==='gate'?gateOrientation:undefined);
       if (request.mode !== activeMode || request.version !== previewVersion) return;
       if (start && result.positions?.length) {
         const sites = result.positions;
-        world.previewMany(sites.map(position => ({...preview, position, connections: [{x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}].filter(d => sites.some(other => other.x === position.x+d.x && other.y === position.y+d.y))})), result.valid);
-      } else world.preview(preview, point, result.valid);
-      text('mode-copy', result.valid ? start ? `${sitesLabel(result.positions.length)} · ${cost(result.cost)} · Release to place` : `${preview.name}: ${['wall','palisade'].includes(product) ? 'click and drag a line' : 'click to place'} · Esc to cancel` : result.reason || 'Choose another site.');
+        world.previewMany(sites.map(position => ({...preview, position,orientation:result.orientation,deck_elevation:result.deck_elevation, connections: [{x:0,y:-1},{x:1,y:0},{x:0,y:1},{x:-1,y:0}].filter(d => sites.some(other => other.x === position.x+d.x && other.y === position.y+d.y))})), result.valid);
+      } else {world.preview({...preview,orientation:result.orientation},result.positions?.[0]??point,result.valid);if(product==='gate')el('rotate-placement').dataset.orientation=result.orientation??'';}
+      text('mode-copy', result.valid ? start ? `${sitesLabel(result.positions.length)} · ${cost(result.cost)} · Release to place` : `${preview.name}: ${['wall','palisade','bridge'].includes(product) ? product==='bridge'?'drag from bank to bank':'click and drag a line' : 'click to place'} · Esc to cancel` : result.reason || 'Choose another site.');
     } catch {
       if (request.mode === activeMode) text('mode-copy', 'Site check unavailable. Try again shortly.');
     } finally { previewInFlight = false; schedulePreview(); }
   }
+  function requestRotatedPreview(){
+    previewVersion++;
+    if(buildingPoint&&activeMode?.kind==='target'){
+      const product=activeMode.action.product;const d=catalog.definitions.find(d=>d.id===product)!;
+      const preview:EntityView={...d,id:-1,type:d.id,name:d.name,owner:snapshot!.player.id,position:buildingPoint,hp:d.hp,max_hp:d.hp,progress:1,state:'preview',activity:'Placement preview',visible:true,actions:[],tasks:[],passengers:[],deployed:false,relic:false};
+      pendingPreview={product:d.id,point:buildingPoint,preview,mode:activeMode,version:previewVersion};schedulePreview();
+    }
+    world.canvas.focus();
+  }
+  function rotatePlacement(){gateOrientation=(el('rotate-placement').dataset.orientation||gateOrientation)==='north_south'?'east_west':'north_south';requestRotatedPreview();}
+  el('rotate-placement').onclick=rotatePlacement;
+  el('auto-placement').onclick=()=>{gateOrientation='auto';requestRotatedPreview();};
   world.canvas.addEventListener('pointermove', e => {
     if (pointer && pointer.id !== e.pointerId) return;
     // Pointer Events report extra mouse buttons as pointermove, including
@@ -378,8 +411,8 @@ function attachControls() {
     if (action?.kind === 'build') {
       const point = world.groundPoint(e.clientX, e.clientY); if (!point) return; buildingPoint = point;
       const definition = catalog.definitions.find(d => d.id === action.product); if (!definition) return;
-      const preview: EntityView = { ...definition, id: -1, type: definition.id, kind: definition.kind, name: definition.name, owner: 1, position: point, hp: definition.hp, max_hp: definition.hp, progress: 1, state: 'preview', activity: 'Placement preview', visible: true, actions: [], tasks: [], passengers: [], deployed: false, relic: false };
-      if (!pointer?.wallStart) world.preview(preview, point);
+      const preview: EntityView = { ...definition, id: -1, type: definition.id, kind: definition.kind, name: definition.name, owner: snapshot!.player.id, position: point, hp: definition.hp, max_hp: definition.hp, progress: 1, state: 'preview', activity: 'Placement preview', visible: true, actions: [], tasks: [], passengers: [], deployed: false, relic: false };
+      if (!pointer?.wallStart && action.product!=='gate') world.preview(preview, point);
       pendingPreview = { product: action.product!, point, start: pointer?.wallStart, preview, mode: activeMode, version: previewVersion };
       text('mode-copy', `${definition.name}: checking ${pointer?.wallStart ? 'wall line' : 'this site'}…`);
       schedulePreview();
@@ -402,8 +435,8 @@ function attachControls() {
     if (down.click === 'action' && activeMode?.kind === 'target' && point) {
       const action = activeMode.action;
       const cmd: Omit<Command, 'id'> = { kind: action.kind, entity_ids: selection, queue: e.shiftKey };
-      if (action.kind === 'build') { cmd.position = down.wallStart ?? point; cmd.product = action.product; if (down.wallStart) cmd.end_position = point; }
-      else if (['heal', 'convert', 'gather', 'trade', 'guard'].includes(action.kind)) { if (!target) return; cmd.target_id = target; }
+      if (action.kind === 'build') { cmd.position = down.wallStart ?? point; cmd.product = action.product; if(action.product==='gate')cmd.orientation=gateOrientation; if (down.wallStart) cmd.end_position = point; }
+      else if (['heal', 'convert', 'gather', 'trade', 'guard', 'repair'].includes(action.kind)) { if (!target) return; cmd.target_id = target; }
       else cmd.position = point;
       const mode = activeMode, keepMode = e.shiftKey;
       void send(cmd).then(accepted => { if (!accepted) return; world.orderMarker(point); if (!keepMode && activeMode === mode) cancelMode(); }); return;
@@ -431,7 +464,7 @@ function attachControls() {
     if (e.repeat) return;
     if (e.key.toLowerCase() === 'q') { e.preventDefault(); toggleOrder(); }
     if (e.key.toLowerCase() === 'p') { e.preventDefault(); togglePan(); }
-    if (e.key.toLowerCase() === 'r') { e.preventDefault(); resetView(); }
+    if (e.key.toLowerCase() === 'r') { e.preventDefault(); if(activeMode?.kind==='target'&&activeMode.action.product==='gate')rotatePlacement();else resetView(); }
     if (e.code === 'Space') { e.preventDefault(); void send({ kind: 'pause' }); }
     if (e.key.toLowerCase() === 'h') home();
     if (e.key === '.') idle();
@@ -472,16 +505,16 @@ async function resetMatch(saved = false) {
   try { await api.close(); }
   catch (error) {
     if (error instanceof APIError && [401, 404].includes(error.status)) api.forget();
-    else { if(snapshot)api.subscribe(receive, connection); const message = error instanceof Error ? error.message : 'Save failed. Try again before leaving.'; text('save-error', message); const roomError=document.getElementById('room-error');if(roomError)roomError.textContent=message;showNotice(message);return; }
+    else { if(snapshot)api.subscribe(receive, connection,godMode); const message = error instanceof Error ? error.message : 'Save failed. Try again before leaving.'; text('save-error', message); const roomError=document.getElementById('room-error');if(roomError)roomError.textContent=message;showNotice(message);return; }
   }
   multiplayer.hide();
   journal.reset(); entityHistory.reset(); historyTarget = undefined;
   document.querySelectorAll<HTMLDialogElement>('dialog[open]').forEach(d => d.close());
-  selection = []; groups.clear(); world.resetWorld(); resultShown = false; connectionReady = false; snapshot = null; loadedGameID = ''; cancelMode(); setTab('orders');
+  selection = []; groups.clear(); world.resetWorld(); resultShown = false; connectionReady = false; snapshot = null; loadedGameID = ''; godMode=false;el('god-banner').hidden=true;cancelMode(); setTab('orders');
   setLobbyTab(saved); el<HTMLDialogElement>('start-dialog').showModal();
 }
 document.querySelectorAll<HTMLButtonElement>('[data-close]').forEach(b => b.onclick = () => el<HTMLDialogElement>(b.dataset.close!).close());
-function setTab(next: string) { tab = next; document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(button => { const active = button.dataset.tab === tab; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); refreshSelection(); }
+function setTab(next: string) { buildingGuide.hide(); tab = next; document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(button => { const active = button.dataset.tab === tab; button.classList.toggle('active', active); button.setAttribute('aria-pressed', String(active)); }); refreshSelection(); }
 document.querySelectorAll<HTMLButtonElement>('[data-tab]').forEach(b => b.onclick = () => setTab(b.dataset.tab!));
 el('dismiss-briefing').onclick = () => { el('briefing').hidden = true; };
 el('help').onclick = () => el<HTMLDialogElement>('help-dialog').showModal();
@@ -607,10 +640,21 @@ window.addEventListener('pageshow', event => {
   journal.reset(); entityHistory.reset(); world.resetWorld(); selection = []; groups.clear(); snapshot = null; resultShown = false; connectionReady = false; historyTarget = undefined; cancelMode();
   void loadSession();
 });
+async function loadResultSummary(){
+  try{const r=await api.request<import('./api.generated').StatisticsReport>(`${api.path()}/statistics?scope=${snapshot?.status==='finished'||api.session?.owner?'world':'kingdom'}`);
+    if(!resultShown)return;el('result-summary').innerHTML=r.summary.map(s=>`<p>${escape(s)}</p>`).join('')+`<p>${r.awards.map(a=>`${escape(a.name)}: ${a.winners.map(id=>escape(r.kingdoms.find(k=>k.id===id)?.name??'Kingdom')).join(', ')}`).join('<br>')}</p>`;
+  }catch{el('result-summary').textContent='Open the full campaign report to load the final accounts.';}
+}
+async function toggleGodMode(){
+  if(switchingView||!api.session?.owner)return;switchingView=true;const nextMode=!godMode;
+  try{const next=await api.snapshot(nextMode);godMode=nextMode;selection=[];cancelMode();world.resetWorld();receive(next);api.subscribe(receive,connection,godMode);el('god-banner').hidden=!godMode;text('toggle-god',godMode?'Disable god mode':'Enable god mode');el<HTMLDialogElement>('menu-dialog').close();showNotice(godMode?'God mode reveals the world for this owner connection. Your kingdom’s orders still follow its explored map.':'Returned to your kingdom’s vision.');}
+  catch(e){showNotice(e instanceof Error?e.message:'Unable to change observation mode.');}
+  finally{switchingView=false;}
+}
 async function enterWorld() {
   const changed=loadedGameID!==api.session?.match_id;
-  if(changed){world.resetWorld();journal.reset();entityHistory.reset();selection=[];groups.clear();resultShown=false;historyTarget=undefined;}
-  await api.ensureConnection(); receive(await api.snapshot()); api.subscribe(receive,connection);
+  if(changed){godMode=false;el('god-banner').hidden=true;world.resetWorld();journal.reset();entityHistory.reset();selection=[];groups.clear();resultShown=false;historyTarget=undefined;}
+  await api.ensureConnection(); receive(await api.snapshot(godMode)); api.subscribe(receive,connection,godMode);
   if(changed)home(); loadedGameID=api.session!.match_id;
   void refreshSaveStatus();el<HTMLDialogElement>('start-dialog').close();
 }

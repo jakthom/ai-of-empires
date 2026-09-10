@@ -1,6 +1,68 @@
 package game
 
-import "math"
+import (
+	"context"
+	"math"
+)
+
+// Orientation names the wall's axis; the opening crosses that axis. An empty
+// intent follows friendly neighbors, including walls added later.
+func (w *World) GateOrientation(player int, pos Vec, intent string) (string, error) {
+	if intent != "" && intent != "auto" && intent != "east_west" && intent != "north_south" {
+		return "", rule("invalid_orientation", "Choose automatic, east–west, or north–south gate alignment.")
+	}
+	horizontal, vertical := false, false
+	for e := range w.nearby(pos, 1) {
+		if e.Owner == player && barrier(e.Type) && e.Position.Distance(pos) == 1 {
+			horizontal = horizontal || e.Position.X != pos.X
+			vertical = vertical || e.Position.Y != pos.Y
+		}
+	}
+	if horizontal && vertical {
+		return "", rule("invalid_placement", "Place gates in a straight wall section, not a corner.")
+	}
+	if intent == "" || intent == "auto" {
+		if vertical {
+			return "north_south", nil
+		}
+		return "east_west", nil
+	}
+	if intent == "east_west" && vertical || intent == "north_south" && horizontal {
+		return intent, rule("gate_alignment", "Align the gate with its connected walls, or choose automatic alignment.")
+	}
+	return intent, nil
+}
+func canRotateGate(_ context.Context, c *entityContext) error {
+	if c.Actor.Type != "gate" {
+		return rule("invalid_gate", "Select a gate to rotate.")
+	}
+	_, err := c.World.GateOrientation(c.Actor.Owner, c.Actor.Position, c.Orientation)
+	return err
+}
+func rotateGate(_ context.Context, c *entityContext) error {
+	c.Actor.Orientation = c.Orientation
+	return nil
+}
+
+func (w *World) PlanOrientedBuilding(player int, typ string, start Vec, end *Vec, orientation string) ([]Vec, Resources, string, error) {
+	positions, cost, err := w.PlanBuilding(player, typ, start, end)
+	axis := ""
+	if typ == "gate" {
+		var orientationError error
+		axis, orientationError = w.GateOrientation(player, snap(start), orientation)
+		if err == nil {
+			err = orientationError
+		}
+	} else if typ == "bridge" && end != nil {
+		axis = "east_west"
+		if math.Abs(end.Y-start.Y) > math.Abs(end.X-start.X) {
+			axis = "north_south"
+		}
+	} else if orientation != "" {
+		err = rule("invalid_orientation", "Only gates have a wall alignment.")
+	}
+	return positions, cost, axis, err
+}
 
 func barrier(typ string) bool { return typ == "wall" || typ == "palisade" || typ == "gate" }
 
@@ -38,6 +100,11 @@ func (w *World) straightGate(player int, pos Vec, planned map[Vec]bool) bool {
 		if planned[point] || neighbour != nil && neighbour.Owner == player {
 			horizontal = horizontal || delta.X != 0
 			vertical = vertical || delta.Y != 0
+		}
+	}
+	if gate := w.barrierAt(pos); gate != nil && gate.Type == "gate" {
+		if gate.Orientation == "east_west" && vertical || gate.Orientation == "north_south" && horizontal {
+			return false
 		}
 	}
 	return !horizontal || !vertical
@@ -83,7 +150,10 @@ func (w *World) PlanBuilding(player int, typ string, start Vec, end *Vec) ([]Vec
 	if !start.Finite() || !w.inside(start) || end != nil && (!end.Finite() || !w.inside(*end)) {
 		return nil, Resources{}, rule("invalid_position", "Choose a site inside the map.")
 	}
-	points := []Vec{snap(start)}
+	if typ == "bridge" {
+		return w.bridgePlan(player, start, end)
+	}
+	points := []Vec{buildingPosition(typ, start)}
 	if end != nil {
 		if typ != "wall" && typ != "palisade" {
 			return nil, Resources{}, rule("invalid_wall", "Drag placement is available for walls and palisades.")

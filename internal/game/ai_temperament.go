@@ -24,6 +24,9 @@ func (w *World) aiWantsConflict(p *Player, opponent int) bool {
 	if w.treatyInForce() {
 		return false
 	}
+	if r := w.Relations[relationKey(p.ID, opponent)]; r != nil && w.Time < r.PurchasedUntil {
+		return false
+	}
 	return p.Temperament == aiExpansionist || p.Temperament == aiGuarded && w.relation(p.ID, opponent) == inConflict
 }
 

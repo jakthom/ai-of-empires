@@ -71,7 +71,7 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 |---|---|
 | `move`, `attack_move` | `entity_ids`, `position`, optional `queue` |
 | `interact`, `attack`, `guard`, `gather`, `heal`, `convert`, `repair`, `relic`, `deposit_relic`, `garrison` | `entity_ids`, `target_id`, optional `queue` |
-| `build` | Villager `entity_ids`, building `product`, `position`, optional `queue`; walls/palisades also accept `end_position` |
+| `build` | Villager `entity_ids`, building `product`, `position`, optional `queue`; walls/palisades accept `end_position`; bridges require the two banks; gates accept `orientation` |
 | `train`, `research` | One producer in `entity_ids`, catalog `product` |
 | `age` | One Town Center in `entity_ids` |
 | `cancel` | One producer in `entity_ids`, zero-based queue index in `value` |
@@ -164,3 +164,25 @@ This server supports up to 16 loaded games with up to six human/AI kingdoms each
 `-db <path>` names the host catalog; game files are `<path>.games/<game-id>.sqlite`. The catalog only retains deletion markers. A game file carries its world checkpoint, complete journal, rate history, room/membership/invite state, browser recovery bindings, command receipts, archives and imported-transfer receipts. Checkpoint updates and journal appends commit together in that file. Discovery reads game IDs from the files and authenticates memberships before restoring worlds. Legacy combined libraries migrate transactionally per game, then remove the old rows; retries compare every copied table before proceeding.
 
 `POST /games/{id}/database` is an authenticated **owner-only** download, returning `application/vnd.sqlite3`. It saves and uses `VACUUM INTO` under the match lock, then streams the resulting standalone file. This administrative backup contains all kingdoms' private state and credentials. Place it in another host's game directory and start that host; rejoin codes and game identities survive. Stop the source when moving a game, or use the existing fenced `.aoegame` move protocol. A raw live-file copy is not a consistent backup. The ordinary log, history, snapshot and audit APIs remain private to the requesting member.
+
+## Campaign observation, statistics and saved points
+
+All routes below are under `/api/v1/games/{id}` and use authenticated membership access.
+
+| Route | Result and authority |
+|---|---|
+| `GET /statistics` | Own kingdom's `StatisticsReport` |
+| `GET /statistics?scope=world` | Owner during play; any member after match finish |
+| `GET /observer` | Owner-only full-world `Snapshot`, `god_mode: true` |
+| `GET /observer/events?connection=…&format=delta-v1` | Owner-only observation SSE, same framing and reconnect rules |
+| `GET /snapshots` | Owner's named snapshot library |
+| `POST /snapshots` | `{id, name}` captures an immutable named point |
+| `POST /snapshots/{snapshot}/fork` | `{id, name}` forks a separate paused game; returns `ImportResult`; repeated request IDs are idempotent |
+| `DELETE /snapshots/{snapshot}` | Owner deletes one saved point |
+| `POST /database` | Owner downloads a consistent SQLite database including named points |
+
+The `statistics` MCP tool always requests own-kingdom scope. Gameplay agents cannot invoke REST administration with their restricted tokens. Observer requests do not mutate fog or command permissions. A snapshot stream restarts with a full frame if its observation mode changes.
+
+`PlayerView.food_supply` reports Go's population demand, actual food eaten, unmet demand, shortage duration and work multiplier. `ProductionView.consumption_rates` and `ProductionSample.consumption` accompany production rates; all times and rates use game seconds/minutes. `Snapshot.peace_offers` and changed `SnapshotDelta.peace_offers` include only offers involving this kingdom. `MarketplaceView.global` includes only public open buy/sell orders. `Definition.footprint`, `importance` and `capabilities`, and placement `orientation`/`deck_elevation`, are server-authored display inputs.
+
+`peace_offer` takes `target_player` and whole-number gold in `value`; `peace_accept`, `peace_decline` and `peace_withdraw` take `offer_id`. `repair_building` and `work_farm` take one building ID; `rotate_gate` takes one gate ID and optional orientation. Full mechanics, accounting coverage and limitations: [Campaign mechanics](CAMPAIGN_MECHANICS.md). SSE negotiates gzip and flushes each frame; clients must retain the authenticated per-connection baseline after decoding.

@@ -18,6 +18,7 @@ func merchantTotal(w *World) Resources {
 	sum := Resources{}
 	for _, p := range w.Players {
 		sum.Add(p.Resources)
+		sum.Food += p.Economy.Consumption["food_upkeep"].Food
 	}
 	for _, r := range w.Marketplace.Regions {
 		sum.Add(r.Stock)
@@ -31,6 +32,7 @@ func merchantTotal(w *World) Resources {
 			sum.Deposit(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
 		}
 	}
+	sum.Food = math.Round(sum.Food*1e8) / 1e8
 	return sum
 }
 func TestRegionalPricesAreLocalAndRebuildingCannotResetSupply(t *testing.T) {

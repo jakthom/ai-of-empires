@@ -24,6 +24,7 @@ type MapCell struct {
 }
 
 type SnapshotDelta struct {
+	PeaceOffers     *[]PeaceOfferView       `json:"peace_offers,omitempty"`
 	Effects         []BattlefieldEffectView `json:"effects"`
 	Marketplace     *MarketplaceView        `json:"marketplace,omitempty"`
 	ControlRevision int                     `json:"control_revision"`
@@ -57,7 +58,7 @@ func (s *SnapshotStream) Next(v Snapshot, sampleMS float64) SnapshotFrame {
 	s.sequence++
 	f := SnapshotFrame{Sequence: s.sequence, Base: s.sequence - 1, SampleMS: sampleMS}
 	p := s.previous
-	if p == nil || p.Version != v.Version || p.World != v.World || p.Player.ID != v.Player.ID || p.Map.Width != v.Map.Width || p.Map.Height != v.Map.Height || p.Map.Biome != v.Map.Biome {
+	if p == nil || p.GodMode != v.GodMode || p.Version != v.Version || p.World != v.World || p.Player.ID != v.Player.ID || p.Map.Width != v.Map.Width || p.Map.Height != v.Map.Height || p.Map.Biome != v.Map.Biome {
 		f.Base, f.Snapshot = 0, &v
 	} else {
 		d := &SnapshotDelta{Effects: v.Effects, ControlRevision: v.ControlRevision, Tick: v.Tick, Time: v.Time, Speed: v.Speed, Paused: v.Paused, Status: v.Status, Winner: v.Winner, TreatyRemaining: v.TreatyRemaining, Projectiles: v.Projectiles, EventCursor: v.EventCursor}
@@ -66,6 +67,9 @@ func (s *SnapshotStream) Next(v Snapshot, sampleMS float64) SnapshotFrame {
 		}
 		if !reflect.DeepEqual(p.Marketplace, v.Marketplace) {
 			d.Marketplace = &v.Marketplace
+		}
+		if !slices.Equal(p.PeaceOffers, v.PeaceOffers) {
+			d.PeaceOffers = &v.PeaceOffers
 		}
 		if !slices.Equal(p.Opponents, v.Opponents) {
 			d.Opponents = &v.Opponents

@@ -18,7 +18,7 @@ func (w *World) free(p Vec, r float64, ignore int, naval bool) bool {
 			continue
 		}
 		d := definitions[e.Type]
-		if d.Kind == "unit" || e.Type == "farm" || e.Type == "relic" || e.Type == "fish" || e.Type == "gate" || e.Type == "sheep" || e.Type == "berries" {
+		if d.Kind == "unit" || e.Type == "bridge" || e.Type == "farm" || e.Type == "relic" || e.Type == "fish" || e.Type == "gate" || e.Type == "sheep" || e.Type == "berries" {
 			continue
 		}
 		if p.Distance(e.Position) < r+d.Radius {
@@ -95,6 +95,9 @@ func (w *World) clearPathSegment(from, to Vec, naval bool, obstacles *pathObstac
 }
 
 func (w *World) path(e *Entity, goal Vec, reach float64) []Vec {
+	if path := w.directPath(e, goal, reach); len(path) > 0 {
+		return path
+	}
 	path := w.findPath(e, goal, reach, true)
 	if len(path) == 0 {
 		// Traffic can temporarily fill every coarse path cell in a narrow
@@ -111,7 +114,7 @@ func (w *World) findPath(e *Entity, goal Vec, reach float64, avoidUnits bool) []
 	obstacles := &pathObstacles{width: (w.Width + 3) / 4, height: (w.Height + 3) / 4}
 	obstacles.cells = make([][]pathObstacle, obstacles.width*obstacles.height)
 	for i, t := range w.Tiles {
-		blocked[i] = t.Terrain == "cliff" || (!d.Naval && t.Terrain == "water") || (d.Naval && t.Terrain != "water" && t.Terrain != "shallows")
+		blocked[i] = t.Terrain == "cliff" || (!d.Naval && t.Terrain == "water" && !t.Bridge) || (d.Naval && t.Terrain != "water" && t.Terrain != "shallows")
 	}
 	for _, id := range w.IDs {
 		o := w.Entities[id]
@@ -125,7 +128,7 @@ func (w *World) findPath(e *Entity, goal Vec, reach float64, avoidUnits bool) []
 			if !avoidUnits || od.Naval != d.Naval || o.Position.Distance(e.Position) < d.Radius+od.Radius {
 				continue
 			}
-		} else if o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
+		} else if o.Type == "bridge" || o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
 			continue
 		}
 		r := od.Radius + d.Radius - .05
@@ -222,6 +225,8 @@ func (w *World) findPath(e *Entity, goal Vec, reach float64, avoidUnits bool) []
 }
 func (w *World) move(e *Entity, goal Vec, reach, dt float64) bool {
 	if e.Position.Distance(goal) <= reach {
+		e.Path = nil
+		e.Repath = 0
 		return true
 	}
 	if e.Type == "trebuchet" && e.siege.State() != SiegePacked {
@@ -245,6 +250,9 @@ func (w *World) move(e *Entity, goal Vec, reach, dt float64) bool {
 	step := w.stats(e).Speed * dt
 	if dist < step {
 		e.Path = e.Path[1:]
+		if len(e.Path) == 0 {
+			e.Repath = 0
+		}
 		step = dist
 	}
 	if dist <= 1e-9 {
@@ -275,15 +283,14 @@ func (w *World) move(e *Entity, goal Vec, reach, dt float64) bool {
 			return false
 		}
 	}
-	e.Position = pos
+	w.positionEntity(e, pos)
 	return e.Position.Distance(goal) <= reach
 }
 
 func (w *World) clearUnitStep(actor *Entity, pos Vec) bool {
 	d := definitions[actor.Type]
-	for _, id := range w.IDs {
-		o := w.Entities[id]
-		if o == nil || id == actor.ID || o.Container != 0 {
+	for o := range w.nearby(pos, w.collisionRadius(d.Radius)) {
+		if o.ID == actor.ID || o.Container != 0 {
 			continue
 		}
 		od := definitions[o.Type]
@@ -302,13 +309,12 @@ func (w *World) freeFor(e *Entity, pos Vec) bool {
 	if !w.inside(pos) || d.Naval && !w.water(pos) || !d.Naval && !w.land(pos) {
 		return false
 	}
-	for _, id := range w.IDs {
-		o := w.Entities[id]
-		if o == nil || id == e.ID || o.Container != 0 {
+	for o := range w.nearby(pos, w.collisionRadius(d.Radius)) {
+		if o.ID == e.ID || o.Container != 0 {
 			continue
 		}
 		od := definitions[o.Type]
-		if od.Kind == "unit" || o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
+		if od.Kind == "unit" || o.Type == "bridge" || o.Type == "farm" || o.Type == "fish" || o.Type == "relic" || o.Type == "sheep" || o.Type == "berries" || o.Type == "gate" && w.canUseGate(e, o) {
 			continue
 		}
 		if pos.Distance(o.Position) < d.Radius+od.Radius-.05 {

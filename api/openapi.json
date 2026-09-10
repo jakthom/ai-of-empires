@@ -439,6 +439,9 @@
           "offer_id": {
             "type": "integer"
           },
+          "orientation": {
+            "type": "string"
+          },
           "position": {
             "$ref": "#/components/schemas/Vec"
           },
@@ -600,6 +603,12 @@
           "attack": {
             "type": "number"
           },
+          "capabilities": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
           "class": {
             "type": "string"
           },
@@ -615,6 +624,9 @@
             },
             "type": "array"
           },
+          "footprint": {
+            "type": "integer"
+          },
           "housing": {
             "type": "integer"
           },
@@ -622,6 +634,9 @@
             "type": "number"
           },
           "id": {
+            "type": "string"
+          },
+          "importance": {
             "type": "string"
           },
           "kind": {
@@ -715,6 +730,38 @@
         ],
         "type": "object"
       },
+      "EconomicSample": {
+        "additionalProperties": false,
+        "properties": {
+          "buildings": {
+            "type": "integer"
+          },
+          "consumed": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "gdp": {
+            "type": "number"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "produced": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "time",
+          "population",
+          "buildings",
+          "gdp",
+          "produced",
+          "consumed"
+        ],
+        "type": "object"
+      },
       "EntityView": {
         "additionalProperties": false,
         "properties": {
@@ -751,6 +798,9 @@
           "damage_stage": {
             "type": "integer"
           },
+          "deck_elevation": {
+            "type": "number"
+          },
           "deployed": {
             "type": "boolean"
           },
@@ -773,6 +823,12 @@
             "type": "number"
           },
           "name": {
+            "type": "string"
+          },
+          "naval": {
+            "type": "boolean"
+          },
+          "orientation": {
             "type": "string"
           },
           "owner": {
@@ -966,6 +1022,58 @@
         ],
         "type": "object"
       },
+      "FoodView": {
+        "additionalProperties": false,
+        "properties": {
+          "consumed": {
+            "type": "number"
+          },
+          "demand_per_minute": {
+            "type": "number"
+          },
+          "per_person_minute": {
+            "type": "number"
+          },
+          "shortage_seconds": {
+            "type": "number"
+          },
+          "state": {
+            "type": "string"
+          },
+          "unmet": {
+            "type": "number"
+          },
+          "work_multiplier": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "state",
+          "per_person_minute",
+          "demand_per_minute",
+          "consumed",
+          "unmet",
+          "shortage_seconds",
+          "work_multiplier"
+        ],
+        "type": "object"
+      },
+      "ForkSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "GameControl": {
         "additionalProperties": false,
         "properties": {
@@ -1077,6 +1185,40 @@
         },
         "required": [
           "games"
+        ],
+        "type": "object"
+      },
+      "GlobalCommodityView": {
+        "additionalProperties": false,
+        "properties": {
+          "best_ask": {
+            "type": "number"
+          },
+          "best_bid": {
+            "type": "number"
+          },
+          "buy_orders": {
+            "type": "integer"
+          },
+          "demand": {
+            "type": "integer"
+          },
+          "resource": {
+            "type": "string"
+          },
+          "sell_orders": {
+            "type": "integer"
+          },
+          "supply": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "resource",
+          "demand",
+          "supply",
+          "buy_orders",
+          "sell_orders"
         ],
         "type": "object"
       },
@@ -1207,6 +1349,204 @@
         },
         "required": [
           "secret"
+        ],
+        "type": "object"
+      },
+      "KingdomStatistics": {
+        "additionalProperties": false,
+        "properties": {
+          "accounting_since": {
+            "type": "number"
+          },
+          "age": {
+            "type": "string"
+          },
+          "age_index": {
+            "type": "integer"
+          },
+          "buildings": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "buildings_completed": {
+            "type": "integer"
+          },
+          "buildings_lost": {
+            "type": "integer"
+          },
+          "civilization": {
+            "type": "string"
+          },
+          "construction_value": {
+            "type": "number"
+          },
+          "consumed": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "consumption_by_purpose": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/Resources"
+            },
+            "type": "object"
+          },
+          "damage_dealt": {
+            "type": "number"
+          },
+          "damage_taken": {
+            "type": "number"
+          },
+          "defeated": {
+            "type": "boolean"
+          },
+          "development_per_minute": {
+            "type": "number"
+          },
+          "explored_percent": {
+            "type": "number"
+          },
+          "food": {
+            "$ref": "#/components/schemas/FoodView"
+          },
+          "foundations": {
+            "type": "integer"
+          },
+          "gdp": {
+            "type": "number"
+          },
+          "gdp_per_capita": {
+            "type": "number"
+          },
+          "gdp_per_minute": {
+            "type": "number"
+          },
+          "history": {
+            "items": {
+              "$ref": "#/components/schemas/EconomicSample"
+            },
+            "type": "array"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "idle_workers": {
+            "type": "integer"
+          },
+          "kills": {
+            "type": "integer"
+          },
+          "military": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "peak_population": {
+            "type": "integer"
+          },
+          "population": {
+            "type": "integer"
+          },
+          "produced": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "production": {
+            "$ref": "#/components/schemas/ProductionView"
+          },
+          "refunded": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "stock": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "stock_value": {
+            "type": "number"
+          },
+          "technologies": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "trade_bought": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "trade_deliveries": {
+            "type": "integer"
+          },
+          "trade_sold": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "trade_volume": {
+            "type": "number"
+          },
+          "units": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "units_lost": {
+            "type": "integer"
+          },
+          "units_trained": {
+            "type": "integer"
+          },
+          "worker_tasks": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "type": "object"
+          },
+          "workers": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "civilization",
+          "age",
+          "age_index",
+          "defeated",
+          "accounting_since",
+          "population",
+          "peak_population",
+          "workers",
+          "military",
+          "idle_workers",
+          "worker_tasks",
+          "buildings",
+          "foundations",
+          "units",
+          "technologies",
+          "stock",
+          "produced",
+          "consumed",
+          "refunded",
+          "consumption_by_purpose",
+          "production",
+          "food",
+          "gdp",
+          "gdp_per_minute",
+          "gdp_per_capita",
+          "stock_value",
+          "construction_value",
+          "development_per_minute",
+          "buildings_completed",
+          "units_trained",
+          "units_lost",
+          "buildings_lost",
+          "kills",
+          "damage_dealt",
+          "damage_taken",
+          "explored_percent",
+          "trade_sold",
+          "trade_bought",
+          "trade_volume",
+          "trade_deliveries",
+          "history"
         ],
         "type": "object"
       },
@@ -1359,6 +1699,12 @@
         "properties": {
           "capacity": {
             "type": "integer"
+          },
+          "global": {
+            "items": {
+              "$ref": "#/components/schemas/GlobalCommodityView"
+            },
+            "type": "array"
           },
           "markets": {
             "items": {
@@ -1604,6 +1950,9 @@
           "name": {
             "type": "string"
           },
+          "peace_price": {
+            "type": "number"
+          },
           "relation": {
             "type": "string"
           },
@@ -1621,11 +1970,58 @@
         ],
         "type": "object"
       },
+      "PeaceOfferView": {
+        "additionalProperties": false,
+        "properties": {
+          "can_accept": {
+            "type": "boolean"
+          },
+          "can_decline": {
+            "type": "boolean"
+          },
+          "can_withdraw": {
+            "type": "boolean"
+          },
+          "expires_in": {
+            "type": "number"
+          },
+          "from": {
+            "type": "integer"
+          },
+          "gold": {
+            "type": "number"
+          },
+          "id": {
+            "type": "integer"
+          },
+          "state": {
+            "type": "string"
+          },
+          "to": {
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to",
+          "gold",
+          "expires_in",
+          "state",
+          "can_accept",
+          "can_decline",
+          "can_withdraw"
+        ],
+        "type": "object"
+      },
       "Placement": {
         "additionalProperties": false,
         "properties": {
           "end_position": {
             "$ref": "#/components/schemas/Vec"
+          },
+          "orientation": {
+            "type": "string"
           },
           "position": {
             "$ref": "#/components/schemas/Vec"
@@ -1645,6 +2041,12 @@
         "properties": {
           "cost": {
             "$ref": "#/components/schemas/Resources"
+          },
+          "deck_elevation": {
+            "type": "number"
+          },
+          "orientation": {
+            "type": "string"
           },
           "positions": {
             "items": {
@@ -1683,6 +2085,9 @@
           },
           "defeated": {
             "type": "boolean"
+          },
+          "food_supply": {
+            "$ref": "#/components/schemas/FoodView"
           },
           "id": {
             "type": "integer"
@@ -1744,6 +2149,9 @@
       "ProductionSample": {
         "additionalProperties": false,
         "properties": {
+          "consumption": {
+            "$ref": "#/components/schemas/Resources"
+          },
           "rates": {
             "$ref": "#/components/schemas/Resources"
           },
@@ -1760,6 +2168,9 @@
       "ProductionView": {
         "additionalProperties": false,
         "properties": {
+          "consumption_rates": {
+            "$ref": "#/components/schemas/Resources"
+          },
           "history": {
             "items": {
               "$ref": "#/components/schemas/ProductionSample"
@@ -1955,6 +2366,22 @@
         ],
         "type": "object"
       },
+      "SaveSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "type": "object"
+      },
       "SavedGame": {
         "additionalProperties": false,
         "properties": {
@@ -2018,6 +2445,34 @@
         },
         "required": [
           "games"
+        ],
+        "type": "object"
+      },
+      "SavedSnapshot": {
+        "additionalProperties": false,
+        "properties": {
+          "created_at": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "tick": {
+            "type": "integer"
+          },
+          "time": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "time",
+          "tick",
+          "created_at"
         ],
         "type": "object"
       },
@@ -2166,6 +2621,9 @@
             },
             "type": "array"
           },
+          "god_mode": {
+            "type": "boolean"
+          },
           "map": {
             "$ref": "#/components/schemas/MapView"
           },
@@ -2180,6 +2638,12 @@
           },
           "paused": {
             "type": "boolean"
+          },
+          "peace_offers": {
+            "items": {
+              "$ref": "#/components/schemas/PeaceOfferView"
+            },
+            "type": "array"
           },
           "player": {
             "$ref": "#/components/schemas/PlayerView"
@@ -2294,6 +2758,12 @@
           "paused": {
             "type": "boolean"
           },
+          "peace_offers": {
+            "items": {
+              "$ref": "#/components/schemas/PeaceOfferView"
+            },
+            "type": "array"
+          },
           "player": {
             "$ref": "#/components/schemas/PlayerView"
           },
@@ -2369,6 +2839,109 @@
         ],
         "type": "object"
       },
+      "SnapshotLibrary": {
+        "additionalProperties": false,
+        "properties": {
+          "snapshots": {
+            "items": {
+              "$ref": "#/components/schemas/SavedSnapshot"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "snapshots"
+        ],
+        "type": "object"
+      },
+      "StatisticAward": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "value": {
+            "type": "number"
+          },
+          "winners": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "rule",
+          "winners",
+          "value"
+        ],
+        "type": "object"
+      },
+      "StatisticsReport": {
+        "additionalProperties": false,
+        "properties": {
+          "accounting": {
+            "type": "string"
+          },
+          "awards": {
+            "items": {
+              "$ref": "#/components/schemas/StatisticAward"
+            },
+            "type": "array"
+          },
+          "kingdoms": {
+            "items": {
+              "$ref": "#/components/schemas/KingdomStatistics"
+            },
+            "type": "array"
+          },
+          "official_winner": {
+            "type": "integer"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "summary": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          },
+          "time": {
+            "type": "number"
+          },
+          "valuation": {
+            "$ref": "#/components/schemas/Resources"
+          },
+          "victory_reason": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "time",
+          "status",
+          "scope",
+          "official_winner",
+          "victory_reason",
+          "valuation",
+          "accounting",
+          "kingdoms",
+          "awards",
+          "summary"
+        ],
+        "type": "object"
+      },
       "Task": {
         "additionalProperties": false,
         "properties": {
@@ -2441,6 +3014,12 @@
         "properties": {
           "biome": {
             "type": "string"
+          },
+          "bridge": {
+            "type": "boolean"
+          },
+          "deck_elevation": {
+            "type": "number"
           },
           "elevation": {
             "type": "number"
@@ -4494,6 +5073,153 @@
         "summary": "Player-specific MCP Streamable HTTP endpoint"
       }
     },
+    "/games/{id}/observer": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Snapshot"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Owner-only god view; never changes any player's fog or knowledge"
+      }
+    },
+    "/games/{id}/observer/events": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "connection",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Omit for 10 Hz complete snapshots. delta-v1 sends 20 Hz SnapshotFrame observations: a full snapshot first, then entity replacements/removals and changed map cells. base must equal the last sequence; reconnect on a gap. sample_ms is monotonic wall time within this connection, independent of game speed. No historical replay or unobserved positions.",
+            "in": "query",
+            "name": "format",
+            "schema": {
+              "enum": [
+                "delta-v1"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "text/event-stream": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "description": "SSE event snapshot (Snapshot, id=tick) by default; event frame (SnapshotFrame, id=sequence) for format=delta-v1. Every reconnect starts with a fresh, authenticated full snapshot. Authorization and fog filtering apply before differencing."
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Owner-only observation stream supporting delta-v1"
+      }
+    },
     "/games/{id}/pause": {
       "post": {
         "parameters": [
@@ -5376,6 +6102,289 @@
         "summary": "Read this member's authorized world view"
       }
     },
+    "/games/{id}/snapshots": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SnapshotLibrary"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "List the owner's named game snapshots"
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SaveSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SavedSnapshot"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Save an immutable named game snapshot; owner only"
+      }
+    },
+    "/games/{id}/snapshots/{snapshot}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "snapshot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Delete a named snapshot; owner only"
+      }
+    },
+    "/games/{id}/snapshots/{snapshot}/fork": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "snapshot",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ForkSnapshot"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Start a separate paused game from a named snapshot with fresh player access; owner only"
+      }
+    },
     "/games/{id}/speed": {
       "post": {
         "parameters": [
@@ -5522,6 +6531,82 @@
           }
         ],
         "summary": "Explicit shared game control: start"
+      }
+    },
+    "/games/{id}/statistics": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "scope",
+            "schema": {
+              "default": "kingdom",
+              "enum": [
+                "kingdom",
+                "world"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatisticsReport"
+                }
+              }
+            },
+            "description": "Success"
+          },
+          "503": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Server unavailable: server_shutting_down during shutdown, or server_full at capacity. Reconnect after restart; retry uncertain commands with their original IDs.",
+            "headers": {
+              "Retry-After": {
+                "description": "Suggested retry delay in seconds; included during shutdown.",
+                "schema": {
+                  "example": "1",
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorBody"
+                }
+              }
+            },
+            "description": "Structured error"
+          }
+        },
+        "security": [
+          {
+            "matchToken": []
+          },
+          {
+            "browserMembership": []
+          }
+        ],
+        "summary": "Kingdom accounting; scope=world requires the owner during play and is available to members after the match finishes"
       }
     },
     "/games/{id}/transfers": {
