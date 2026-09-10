@@ -70,7 +70,7 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | Kind | Additional fields |
 |---|---|
 | `move`, `attack_move` | `entity_ids`, `position`, optional `queue` |
-| `interact`, `attack`, `gather`, `heal`, `convert`, `repair`, `relic`, `deposit_relic`, `garrison`, `trade` | `entity_ids`, `target_id`, optional `queue` |
+| `interact`, `attack`, `gather`, `heal`, `convert`, `repair`, `relic`, `deposit_relic`, `garrison` | `entity_ids`, `target_id`, optional `queue` |
 | `build` | Villager `entity_ids`, building `product`, `position`, optional `queue`; walls/palisades also accept `end_position` |
 | `train`, `research` | One producer in `entity_ids`, catalog `product` |
 | `age` | One Town Center in `entity_ids` |
@@ -81,6 +81,7 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 | `stance` | `entity_ids`, `product`: `defensive` (default), `stand_ground`, `passive`, or `aggressive` |
 | `reseed_farm` | One owned, depleted farm in `entity_ids`; pays 60 wood and assigns its farmer or the nearest idle villager on connected land |
 | `market_buy`, `market_sell` | One market in `entity_ids`, `product`: `food`, `wood`, or `stone`; optional `market_revision` requires the displayed merchant quote |
+| `trade` | One idle cart at an owned Market, neutral `target_id`, `product`, optional `trade_mode` (`sell`/`buy`), `trade_limit`, `market_revision`, `repeat`; no queued or multi-cart funding |
 | `market_post` | One owned Market in `entity_ids`; `offer` supplies give/want resource and amount, lots and optional private `target_player` |
 | `market_accept` | One idle Trade Cart at your Market in `entity_ids`, `offer_id`, optional `repeat` |
 | `market_cancel` | Your `offer_id`; refunds unclaimed lots |
@@ -94,7 +95,7 @@ Use actual entity IDs from the latest snapshot. Coordinates are map-space X/Y, n
 
 The authenticated `GET /games/{id}/marketplace`, `Snapshot.marketplace`, optional `SnapshotDelta.marketplace`, and MCP `marketplace` tool share the same player-filtered read model. See [Marketplace](MARKETPLACE.md) for offers, escrow, finite stocks, transport and privacy.
 
-For market exchange actions, optional `gain` has the same resource-object shape as `cost`. Render both from the snapshot; clients must not calculate exchange rates. The server validates and executes its current quote against finite shared stock and appends an `exchange` event, included by the `economy` log filter. `trade` orders require an explored neutral Market and a completed owned Market on connected land.
+For market exchange actions, optional `gain` has the same resource-object shape as `cost`. Render both from the snapshot; clients must not calculate exchange rates. The server validates and executes its current quote against the home merchants’ local stock and appends an `exchange` event, included by the `economy` log filter. `trade` reserves and delivers real goods/payment between an explored neutral Market and an owned Market on connected land. Distance does not generate gold. `marketplace.markets` contains currently visible neutral quotes, production, demand, supply status and route intentions; home inventory is private. See the marketplace guide for replenishment and price limits.
 
 Fishing uses `gather` or `interact` with a Fishing Ship and a Fish Shoal target. Fish have `resource: "food"`; cargo contributes to the Food stockpile only after delivery at a reachable Dock. Depletion removes the shoal through its lifecycle. Cargo, orders, remaining fish and reseeding progress are checkpointed normally.
 
@@ -110,7 +111,7 @@ For wall/palisade drags, `position` and `end_position` define a route of at most
 
 Snapshots contain simulation tick/time, match status, your economy, explored terrain/fog, observable entities and projectiles, and recent events. Entity views include a backend-derived `activity` label such as `Farming`, `Logging`, or `Mining stone`. Owned entity views contain current state, production progress, and server-computed actions with `enabled`, `reason`, `cost`, and `duration`. Render these fields; do not reproduce rules or infer affordability in the client. Actions can become stale between observation and command, so all commands are revalidated.
 
-`player.production` contains `rates` (the four resource amounts per game minute), `history` (`{time,rates}` samples), `sample_seconds: 5`, and `window_seconds: 60`. It measures actual harvest/fish deliveries, trade-route gold and relic income, excluding initial supplies, spending, refunds, commodity trades and merchant exchanges. History contains up to 60 samples. Samples use fixed simulation time, stop while paused, and persist with their partially accumulated bucket. Only the viewer's production series appears in a snapshot.
+`player.production` contains `rates` (the four resource amounts per game minute), `history` (`{time,rates}` samples), `sample_seconds: 5`, and `window_seconds: 60`. It measures actual harvest/fish deliveries and relic income, excluding initial supplies, spending, refunds, commodity trades and merchant exchanges. History contains up to 60 samples. Samples use fixed simulation time, stop while paused, and persist with their partially accumulated bucket. Only the viewer's production series appears in a snapshot.
 
 
 Owned entities also include `stance`; foreign stances remain private. Each `opponents` entry includes its relationship **with the authenticated player** (`relation`: `peaceful` or `hostile`) and a public `temperament` label (`Builder`, `Defensive`, `Expansionist`, or `Player controlled`). This does not disclose targets, army plans, or third-party relationships. Attacks and conversion attempts change relationships on the backend; quiet periods can restore peace. These fields and current stances survive checkpoint resume.

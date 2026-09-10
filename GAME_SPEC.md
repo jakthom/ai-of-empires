@@ -138,7 +138,9 @@ All population-consuming entities use their declared population cost. Housing ra
 
 Queueing pays the cost immediately; housing availability controls production according to the reference queue rules. Units cannot be granted for free or spawned beyond the applicable production cap. A population-blocked queue displays its reason and resumes when capacity is available. Losing housing does not kill existing units. Conversion and special civilization rules can create over-cap states; those states do not authorize unrestricted new training.
 
-### 4.4 Market, trade, and tribute
+### 4.4 Reference market, trade, and tribute
+
+The regional-economy direction in §4.5 intentionally supersedes reference pricing scope and distance-generated trade income. Other reference features here remain long-term scope.
 
 - Exchange food, wood, and stone for gold and buy them with gold in discrete lots. Prices respond to buying and selling; fees and price floors/ceilings are ruleset data. Display a quote before the order and the authoritative price on execution.
 - Market pricing scope, per-lot rounding, simultaneous order ordering, and technology discounts must match the reference. Prices must not differ merely because clients receive events at different times.
@@ -151,7 +153,7 @@ Queueing pays the cost immediately; housing availability controls production acc
 
 Product direction: mutual economic benefit should emerge from regional resource advantages, persistent offers, and physical deliveries. A kingdom rich in timber can supply a mineral-producing partner, and both benefit from keeping the route open.
 
-The current ruleset implements biome-dependent countryside deposit amounts, equal viable starting patches, public or privately addressed standing buy/sell/barter offers, reserved inventory, and Trade Cart delivery. Posting commits offered stock; payment travels to the offering Market and purchased goods travel back. Recall, interruption, destruction, conversion and save/reload must preserve exactly-once accounting. Repeated trips continue through the ordinary command boundary. Merchant exchange uses finite shared stock and supply-responsive quotes; neutral gold routes draw from the same finite treasury. No clock-based restocking creates substitute resources.
+The current ruleset implements biome-dependent countryside deposit amounts, equal viable starting patches, public or privately addressed standing buy/sell/barter offers, reserved inventory, and Trade Cart delivery. Posting commits offered stock; payment travels to the offering Market and purchased goods travel back. Recall, interruption, destruction, conversion and save/reload must preserve exactly-once accounting. Repeated trips continue through the ordinary command boundary. Merchant exchange uses separate home and neutral inventories with local prices. Biome-dependent production and imports arrive by visible supply caravans; bounded consumer demand consumes goods and replenishes merchant cash. Merchant routes carry actual purchased goods or exports, with price limits and optional repetition. Distance changes travel time and risk, not payment. New maps place outlying Markets where terrain permits. Food and wood supply is renewable at a limited rate; map deposits remain finite.
 
 Offer terms are disclosed to their intended audience. A listing alone never reveals unexplored Market locations or foreign stockpiles. Only its participants see a delivery’s terms and settlement milestones; cargo location follows ordinary ownership/visibility rules. Peaceful trade grants the assigned cart gate passage, without general military access or shared vision. Formal negotiated treaties, automatic matching of independent offers, and naval commodity freight remain future extensions. Implemented limits and transport semantics are documented in `docs/MARKETPLACE.md`.
 

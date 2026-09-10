@@ -108,6 +108,11 @@ func init() {
 	unit("fire_ship", "Fire Ship", "dock", "ship", 1, Resources{Wood: 75, Gold: 45}, 120, 1.3, 10, 2, 40)
 	unit("transport", "Transport Ship", "dock", "ship", 1, Resources{Wood: 125}, 150, 1.4, 0, 0, 46)
 	unit("trade_cart", "Trade Cart", "market", "trader", 1, Resources{Wood: 100, Gold: 50}, 70, 1.3, 0, 0, 50)
+	unit("supply_cart", "Regional Supply Caravan", "", "trader", 0, Resources{}, 70, 1, 0, 0, 0)
+	supply := definitions["supply_cart"]
+	supply.Population = 0
+	supply.Description = "Carries regional production and buyers to a Market. Interrupting it delays replenishment."
+	definitions[supply.ID] = supply
 	for _, id := range []string{"fishing_ship", "galley", "fire_ship", "transport"} {
 		d := definitions[id]
 		d.Naval = true

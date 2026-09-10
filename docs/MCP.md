@@ -93,7 +93,7 @@ The endpoint advertises 16 tools:
 | `game_status` | Your identity/seat, shared lobby and match status, owner flag and control revision; no seed or foreign membership IDs |
 | `catalog` | Commands and required/optional fields, units, buildings, technologies, civilizations, world options and log filters |
 | `observe` | Your snapshot with at most 200 entities per page (100 by default); optional `owner` and `entity_ids` filters |
-| `marketplace` | Published offers, participant-only private offers/deliveries, and shared finite merchant stock/quotes; see [trading examples](MARKETPLACE.md) |
+| `marketplace` | Published offers, participant-only private offers/deliveries, your home merchants and currently visible regional quotes; see [trading examples](MARKETPLACE.md) |
 | `map_region` | Up to 32×32 fog-filtered tiles in row-major order |
 | `check_placement` | Go validates/prices a building or wall route without spending resources |
 | `command` | A typed gameplay intention with a unique ID |
@@ -142,3 +142,5 @@ For explicit agent disconnect detection, or play without any open human browser,
 The backend uses the [official Go MCP SDK](https://github.com/modelcontextprotocol/go-sdk/releases/tag/v1.7.0), with stateless Streamable HTTP and JSON responses. Clients may use current protocol discovery or the older initialize handshake. Every POST must accept both `application/json` and `text/event-stream`; SDK clients handle these headers. GET/DELETE on the MCP endpoint return 405. Requests are limited to 32 KiB including the protocol envelope. Private responses use `Cache-Control: no-store`, and the normal same-origin and shutdown boundaries apply.
 
 Run `make check`. Tests use real MCP clients over HTTP and cover different member URLs, scope-restricted credentials, fog and history isolation, visible enemy privacy, malformed inputs, bounded reads, shared controls, concurrent/cross-transport retries, cancellation refunds, presence ownership, restart and credential revocation. No test-only gameplay authority is exposed.
+
+Local commerce uses the same `marketplace` tool and `command` endpoint. `merchants` is your private home inventory; `markets` lists currently visible neutral prices, supply status, output/demand and server-authored import/export quotes. Send `trade` with one idle cart at your Market, a neutral `target_id`, `product`, `trade_mode` (`buy` or `sell`), optional gold `trade_limit`, quote `market_revision`, and `repeat`. Payment and goods are reserved for each trip; repeated trips reprice. Supplies and consumer purchases run on Go lifecycles, without agent-facing clock or stock mutation tools. See [local economy rules](MARKETPLACE.md).

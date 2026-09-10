@@ -18,6 +18,7 @@ type entityStates struct {
 	Siege      SiegeState
 }
 type checkpoint struct {
+	Supplies              map[int]supplyState
 	Offers                map[int]offerState
 	Shipments             map[int]shipmentState
 	Version               int
@@ -54,7 +55,7 @@ func (w *World) JournalSince(after int) []JournalRecord {
 }
 
 func (w *World) checkpointState() checkpoint {
-	c := checkpoint{Version: 5, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
+	c := checkpoint{Version: 6, Supplies: map[int]supplyState{}, Rules: RulesVersion, World: w, Treaty: w.peacePeriod.State(), Entities: map[int]entityStates{}, Players: map[int]PlayerState{}, Strategies: map[int]aiState{}, Voyages: map[int]voyageState{}, Relations: map[string]relationState{}, Offers: map[int]offerState{}, Shipments: map[int]shipmentState{}, Match: w.match.State(), AIClock: w.aiClock, VisibleClock: w.visibleClock, RNG: w.rng}
 	for id, e := range w.Entities {
 		c.Entities[id] = entityStates{e.behavior.State(), e.life.State(), e.production.State(), e.siege.State()}
 	}
@@ -74,6 +75,9 @@ func (w *World) checkpointState() checkpoint {
 	}
 	for id, s := range w.Marketplace.Shipments {
 		c.Shipments[id] = s.lifecycle.State()
+	}
+	for id, r := range w.Marketplace.Regions {
+		c.Supplies[id] = r.lifecycle.State()
 	}
 	return c
 }
@@ -106,7 +110,7 @@ func RestoreForUsers(data []byte, journal []JournalRecord, users map[int]Restore
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, fmt.Errorf("decode checkpoint: %w", err)
 	}
-	if (c.Version < 1 || c.Version > 5) || c.Rules != RulesVersion {
+	if (c.Version < 1 || c.Version > 6) || c.Rules != RulesVersion {
 		return nil, fmt.Errorf("unsupported checkpoint version %d / %q", c.Version, c.Rules)
 	}
 	w := c.World

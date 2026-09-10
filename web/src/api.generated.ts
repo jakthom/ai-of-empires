@@ -101,6 +101,8 @@ export interface ClaimInvite {
 }
 
 export interface Command {
+  trade_mode?: string;
+  trade_limit?: number;
   offer?: TradeOfferIntent;
   offer_id?: number;
   shipment_id?: number;
@@ -361,6 +363,7 @@ export interface MapView {
 }
 
 export interface MarketplaceView {
+  markets: RegionalMarketView[];
   offers: TradeOfferView[];
   shipments: TradeShipmentView[];
   merchants: MerchantView;
@@ -381,7 +384,27 @@ export interface MemberSession {
   owner: boolean;
 }
 
+export interface MerchantRouteView {
+  product: string;
+  mode: string;
+  cost: Resources;
+  gain: Resources;
+  can_start: boolean;
+  reason?: string;
+  cart_id?: number;
+  home_margin: number;
+}
+
 export interface MerchantView {
+  region_id: number;
+  biome: string;
+  production: Resources;
+  demand: Resources;
+  supply_state: string;
+  supply_interval: number;
+  next_supply_in: number;
+  supply_cart_id?: number;
+  supply_position?: Vec;
   stock: Resources;
   revision: number;
   market_id?: number;
@@ -473,6 +496,12 @@ export interface Receipt {
   command_id: string;
   tick: number;
   accepted: boolean;
+}
+
+export interface RegionalMarketView {
+  merchant: MerchantView;
+  position: Vec;
+  routes: MerchantRouteView[];
 }
 
 export interface RejoinRequest {
@@ -651,6 +680,9 @@ export interface TradeOfferView {
 }
 
 export interface TradeShipmentView {
+  merchant_id?: number;
+  trade_mode?: string;
+  price_limit?: number;
   id: number;
   offer_id: number;
   seller: number;

@@ -11,19 +11,22 @@ type shipmentState string
 type shipmentEvent string
 
 const (
-	shipmentReserved  shipmentState = "reserved"
-	shipmentOutbound  shipmentState = "outbound"
-	shipmentReturning shipmentState = "returning"
-	shipmentRefunding shipmentState = "returning_payment"
-	shipmentDelivered shipmentState = "delivered"
-	shipmentRecalled  shipmentState = "recalled"
-	shipmentLost      shipmentState = "lost"
-	shipmentLaunch    shipmentEvent = "launch"
-	shipmentPulse     shipmentEvent = "pulse"
-	shipmentRecall    shipmentEvent = "recall"
+	shipmentReserved       shipmentState = "reserved"
+	shipmentOutbound       shipmentState = "outbound"
+	shipmentReturning      shipmentState = "returning"
+	shipmentRefunding      shipmentState = "returning_payment"
+	shipmentDelivered      shipmentState = "delivered"
+	shipmentRecalled       shipmentState = "recalled"
+	shipmentLost           shipmentState = "lost"
+	shipmentLaunch         shipmentEvent = "launch"
+	shipmentMerchantLaunch shipmentEvent = "merchant_launch"
+	shipmentPulse          shipmentEvent = "pulse"
+	shipmentRecall         shipmentEvent = "recall"
 )
 
 type tradeShipment struct {
+	Merchant, Limit                              int
+	Product, TradeMode                           string
 	ID, Offer, Seller, Buyer, Market, Home, Cart int
 	Terms                                        TradeOfferIntent
 	Repeat                                       bool
@@ -40,6 +43,7 @@ var shipmentMachine = statemachine.MustCompile(shipmentTransitions())
 func shipmentTransitions() []statemachine.Transition[shipmentState, shipmentEvent, *shipmentContext] {
 	type row = statemachine.Transition[shipmentState, shipmentEvent, *shipmentContext]
 	rows := []row{
+		{From: shipmentReserved, Event: shipmentMerchantLaunch, To: shipmentOutbound, Guard: merchantShipmentAvailable, Do: launchMerchantShipment},
 		{From: shipmentReserved, Event: shipmentLaunch, To: shipmentOutbound, Do: launchShipment},
 		{From: shipmentOutbound, Event: shipmentPulse, To: shipmentLost, Guard: shipmentCartLost, Do: loseUncollectedShipment},
 	}
@@ -72,7 +76,7 @@ func launchShipment(_ context.Context, c *shipmentContext) error {
 	cart.CargoType, cart.Cargo = s.Terms.WantResource, float64(s.Terms.WantAmount)
 	w.setOrder(cart, Order{Kind: "caravan", Shipment: s.ID}, false)
 	for _, player := range []int{s.Buyer, s.Seller} {
-		w.tradeNotice(player, fmt.Sprintf("Caravan #%d accepted offer #%d: %s.", s.ID, s.Offer, tradeTerms(s.Terms)))
+		w.tradeNotice(player, fmt.Sprintf("Caravan #%d accepted %s: %s.", s.ID, s.label(), tradeTerms(s.Terms)))
 	}
 	return nil
 }
@@ -81,6 +85,9 @@ func shipmentCartLost(_ context.Context, c *shipmentContext) error {
 }
 func shipmentPartnerLost(_ context.Context, c *shipmentContext) error {
 	s, w := c.Shipment, c.World
+	if s.Merchant != 0 {
+		return applicable(w.merchantHost(w.Marketplace.Regions[s.Merchant]) == nil)
+	}
 	return applicable(!w.ownMarket(s.Seller, s.Market) || w.Players[s.Seller].lifecycle.State() == PlayerDefeated || w.relation(s.Seller, s.Buyer) != atPeace)
 }
 func shipmentAtSeller(_ context.Context, c *shipmentContext) error {
@@ -88,7 +95,7 @@ func shipmentAtSeller(_ context.Context, c *shipmentContext) error {
 }
 func collectShipment(_ context.Context, c *shipmentContext) error {
 	s, cart := c.Shipment, c.cart()
-	c.World.Players[s.Seller].Resources.Deposit(s.Terms.WantResource, float64(s.Terms.WantAmount))
+	c.World.creditShipmentSeller(s, s.Terms.WantResource, float64(s.Terms.WantAmount))
 	cart.CargoType, cart.Cargo, cart.Path = s.Terms.GiveResource, float64(s.Terms.GiveAmount), nil
 	for _, player := range []int{s.Buyer, s.Seller} {
 		c.World.tradeNotice(player, fmt.Sprintf("Caravan #%d paid %d %s and collected %d %s.", s.ID, s.Terms.WantAmount, s.Terms.WantResource, s.Terms.GiveAmount, s.Terms.GiveResource))
@@ -145,7 +152,7 @@ func deliverShipment(_ context.Context, c *shipmentContext) error {
 }
 func recallShipment(_ context.Context, c *shipmentContext) error {
 	s := c.Shipment
-	c.World.Players[s.Seller].Resources.Deposit(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
+	c.World.creditShipmentSeller(s, s.Terms.GiveResource, float64(s.Terms.GiveAmount))
 	if cart := c.cart(); cart != nil {
 		cart.Path = nil
 	}
@@ -163,7 +170,7 @@ func returnShipmentPayment(_ context.Context, c *shipmentContext) error {
 }
 func loseUncollectedShipment(ctx context.Context, c *shipmentContext) error {
 	s := c.Shipment
-	c.World.Players[s.Seller].Resources.Deposit(s.Terms.GiveResource, float64(s.Terms.GiveAmount))
+	c.World.creditShipmentSeller(s, s.Terms.GiveResource, float64(s.Terms.GiveAmount))
 	return loseShipment(ctx, c)
 }
 func loseShipment(_ context.Context, c *shipmentContext) error {
@@ -188,6 +195,10 @@ func (w *World) canUseGate(e, gate *Entity) bool {
 	}
 	if gate.Owner == e.Owner {
 		return true
+	}
+	if e.Type == "supply_cart" && e.Owner == 0 {
+		r := w.Marketplace.Regions[-gate.Owner]
+		return r != nil && r.Cart == e.ID && r.lifecycle.State() == supplyTravelling
 	}
 	if e.Type != "trade_cart" || e.Order.Kind != "caravan" {
 		return false

@@ -16,8 +16,10 @@ const merchantCapacity = 5000
 // open lots belong to the offer; a reserved lot belongs to its shipment until
 // collection; transported goods belong to the cart. None are spendable stock.
 type marketplace struct {
-	Merchants               Resources
-	Revision                int
+	// Read only during migration from v5 saves; new saves omit these fields.
+	LegacyStock             Resources `json:"Merchants,omitzero"`
+	LegacyRevision          int       `json:"Revision,omitempty"`
+	Regions                 map[int]*merchantRegion
 	NextOffer, NextShipment int
 	Offers                  map[int]*tradeOffer
 	Shipments               map[int]*tradeShipment
@@ -53,7 +55,7 @@ func (r Resources) Amount(kind string) float64 {
 }
 
 func (w *World) initializeMarketplace() {
-	w.Marketplace = marketplace{Merchants: Resources{Food: 1000, Wood: 1000, Gold: 2000, Stone: 1000}, NextOffer: 1, NextShipment: 1, Offers: map[int]*tradeOffer{}, Shipments: map[int]*tradeShipment{}}
+	w.Marketplace = marketplace{Regions: map[int]*merchantRegion{}, NextOffer: 1, NextShipment: 1, Offers: map[int]*tradeOffer{}, Shipments: map[int]*tradeShipment{}}
 }
 
 func (w *World) ownMarket(player, id int) bool {
@@ -145,10 +147,14 @@ func (w *World) marketplaceCommand(player int, c Command) error {
 }
 
 func (w *World) tradeNotice(player int, message string) {
+	if player == 0 {
+		return
+	}
 	w.record(Event{Player: player, Kind: "trade", Message: message}, nil, player)
 }
 
 func (w *World) pulseMarketplace() {
+	w.pulseMerchantSupplies()
 	for _, id := range sortedTradeIDs(w.Marketplace.Offers) {
 		o := w.Marketplace.Offers[id]
 		if o.lifecycle.State() == offerOpen {
@@ -170,6 +176,11 @@ func (w *World) pulseMarketplace() {
 			}
 		}
 		if s.lifecycle.State() == shipmentDelivered && s.Repeat {
+			if s.Merchant != 0 {
+				followups = append(followups, Command{Kind: "trade", EntityIDs: []int{s.Cart}, TargetID: s.Market, Product: s.Product, TradeMode: s.TradeMode, TradeLimit: &s.Limit, Repeat: true})
+				buyers = append(buyers, s.Buyer)
+				continue
+			}
 			if offer := w.Marketplace.Offers[s.Offer]; offer == nil || offer.lifecycle.State() != offerOpen {
 				w.tradeNotice(s.Buyer, fmt.Sprintf("Trade route complete: offer #%d has closed.", s.Offer))
 				continue

@@ -166,7 +166,7 @@ func (w *World) entityView(e *Entity, player int) EntityView {
 			if w.tradeHome(e) == nil {
 				err = rule("market_required", "Build a Market on this landmass to receive trade gold.")
 			}
-			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Choose an explored neutral Market. This cart returns gold to your Market after each trip.", Resources{}, 0, err))
+			v.Actions = append(v.Actions, action("trade", "", "Trade route", "Start beside your Market. Choose an explored neutral Market to sell 100 surplus goods. The Marketplace shows local prices, purchases, and repeat controls.", Resources{}, 0, err))
 		}
 		if e.Type == "villager" {
 			for _, building := range defs {

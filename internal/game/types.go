@@ -276,6 +276,8 @@ type World struct {
 
 // Command contains intent only; never caller-supplied HP, costs, velocities or owners.
 type Command struct {
+	TradeMode      string            `json:"trade_mode,omitempty"`
+	TradeLimit     *int              `json:"trade_limit,omitempty"`
 	Offer          *TradeOfferIntent `json:"offer,omitempty"`
 	OfferID        int               `json:"offer_id,omitempty"`
 	ShipmentID     int               `json:"shipment_id,omitempty"`

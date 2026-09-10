@@ -26,6 +26,8 @@ func marketplaceFixture(t *testing.T) (*World, *Entity, *Entity, *Entity) {
 	}
 	home, partner := w.spawn("market", 1, Vec{12, 20}), w.spawn("market", 2, Vec{32, 20})
 	cart := w.spawn("trade_cart", 1, Vec{14.5, 20})
+	w.Marketplace.Regions = map[int]*merchantRegion{}
+	w.initializeMerchantRegions()
 	w.refreshVisibility()
 	return w, home, partner, cart
 }
@@ -253,9 +255,9 @@ func TestMarketplaceMarketLossAndCompetingClaims(t *testing.T) {
 func TestMerchantFiniteStockPricesAndStaleQuotes(t *testing.T) {
 	w, home, _, _ := marketplaceFixture(t)
 	before := w.Players[1].Resources
-	stock := w.Marketplace.Merchants
+	stock := w.Marketplace.Regions[-1].Stock
 	quote, _ := w.quoteExchange(w.Players[1], home, "market_buy", "wood")
-	revision := w.Marketplace.Revision
+	revision := w.Marketplace.Regions[-1].Revision
 	if err := w.Apply(1, Command{Kind: "market_buy", EntityIDs: []int{home.ID}, Product: "wood", MarketRevision: &revision}); err != nil {
 		t.Fatal(err)
 	}
@@ -264,7 +266,7 @@ func TestMerchantFiniteStockPricesAndStaleQuotes(t *testing.T) {
 		t.Fatal("buying did not increase price")
 	}
 	total := w.Players[1].Resources
-	total.Add(w.Marketplace.Merchants)
+	total.Add(w.Marketplace.Regions[-1].Stock)
 	expected := before
 	expected.Add(stock)
 	if total != expected {
@@ -274,11 +276,11 @@ func TestMerchantFiniteStockPricesAndStaleQuotes(t *testing.T) {
 	if err := w.Apply(1, Command{Kind: "market_buy", EntityIDs: []int{home.ID}, Product: "wood", MarketRevision: &revision}); err == nil || w.Players[1].Resources != after {
 		t.Fatal("stale quote executed")
 	}
-	w.Marketplace.Merchants.Wood = 0
+	w.Marketplace.Regions[-1].Stock.Wood = 0
 	if err := w.Apply(1, Command{Kind: "market_buy", EntityIDs: []int{home.ID}, Product: "wood"}); err == nil {
 		t.Fatal("merchants created missing wood")
 	}
-	w.Marketplace.Merchants.Gold = 0
+	w.Marketplace.Regions[-1].Stock.Gold = 0
 	if err := w.Apply(1, Command{Kind: "market_sell", EntityIDs: []int{home.ID}, Product: "stone"}); err == nil {
 		t.Fatal("merchants created missing gold")
 	}
@@ -311,7 +313,7 @@ func TestMarketplaceFrozenCaptureAndOldCheckpointUpgrade(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if restored.Marketplace.Merchants.Wood != 1000 || len(restored.Marketplace.Offers) != 0 {
+	if restored.Marketplace.Regions[-1].Stock.Wood != 1000 || len(restored.Marketplace.Offers) != 0 {
 		t.Fatal("legacy marketplace initialization failed")
 	}
 }
@@ -389,20 +391,33 @@ func TestMarketplaceGuardQueriesDoNotConsumeStockOrRNG(t *testing.T) {
 	}
 }
 
-func TestNeutralTradeCannotMintGoldAfterTreasuryExhaustion(t *testing.T) {
+func TestNeutralTradeRequiresFundedGoodsAndMerchantPayment(t *testing.T) {
 	w, _, _, cart := marketplaceFixture(t)
 	neutral := w.spawn("market", 0, Vec{22, 20})
 	w.refreshVisibility()
-	w.Marketplace.Merchants.Gold = 5
-	if err := w.Apply(1, Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: neutral.ID}); err != nil {
+	region := w.Marketplace.Regions[neutral.ID]
+	region.Stock.Gold = 5
+	command := Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: neutral.ID, Product: "wood"}
+	before := w.Players[1].Resources
+	if err := w.Apply(1, command); err == nil || w.Players[1].Resources != before {
+		t.Fatal("unfunded merchant payment was accepted")
+	}
+	region.Stock.Gold = 1000
+	w.Players[1].Resources.Wood = 0
+	if err := w.Apply(1, command); err == nil || region.Stock.Gold != 1000 {
+		t.Fatal("empty cart harvested merchant money")
+	}
+	w.Players[1].Resources.Wood = 1000
+	if err := w.Apply(1, command); err != nil {
 		t.Fatal(err)
 	}
-	untilTrade(t, w, func() bool { return w.Players[1].Resources.Gold > 1000 })
-	for range 1000 {
-		w.Update()
+	shipment := w.Marketplace.Shipments[w.Marketplace.NextShipment-1]
+	if cart.CargoType != "wood" || cart.Cargo != 100 || w.Players[1].Resources.Wood != 900 {
+		t.Fatal("exports did not load physically")
 	}
-	if w.Players[1].Resources.Gold != 1005 || w.Marketplace.Merchants.Gold != 0 || cart.Cargo != 0 {
-		t.Fatal("neutral route created gold after treasury exhaustion")
+	untilTrade(t, w, func() bool { return shipment.terminal() })
+	if shipment.lifecycle.State() != shipmentDelivered || w.Players[1].Resources.Gold != 1070 || region.Stock.Wood != 1100 || region.Stock.Gold != 930 {
+		t.Fatal("funded merchant settlement failed", region.Stock)
 	}
 }
 

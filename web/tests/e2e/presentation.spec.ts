@@ -6,7 +6,7 @@ import type { Snapshot, SnapshotDelta } from '../../src/api.generated';
 // Pure presentation checks. These fixtures never enter the live renderer or
 // grant a browser game authority; public gameplay is tested by the UI suite.
 const sampleSnapshot = (): Snapshot => ({
-	marketplace: {offers: [], shipments: [], merchants: {stock: {food:0,wood:0,gold:0,stone:0}, revision:0, actions:[]}, reserved: {food:0,wood:0,gold:0,stone:0}, capacity:500, max_lots:20, max_offers:12},
+	marketplace: {markets: [], offers: [], shipments: [], merchants: {region_id:-1,biome:'temperate',production:{food:0,wood:0,gold:0,stone:0},demand:{food:0,wood:0,gold:0,stone:0},supply_state:'preparing',supply_interval:90,next_supply_in:90,stock: {food:0,wood:0,gold:0,stone:0}, revision:0, actions:[]}, reserved: {food:0,wood:0,gold:0,stone:0}, capacity:500, max_lots:20, max_offers:12},
   version: 'test', difficulty: { id: 'peaceful', name: 'Practice', description: '' }, settlements: 1, world: {},
   tick: 0, time: 0, speed: 1, paused: false, status: 'running', winner: 0, treaty_remaining: 0,
   player: { id: 1, name: 'Player', civilization: 'britons', resources: { food: 0, wood: 0, gold: 0, stone: 0 },

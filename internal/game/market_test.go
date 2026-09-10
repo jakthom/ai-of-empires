@@ -85,40 +85,26 @@ func TestMarketRefusesUnaffordableInvalidAndUnfinishedExchanges(t *testing.T) {
 	}
 }
 
-func TestTradeCartLoopsAndStopsWhenItsMarketIsLost(t *testing.T) {
-	w, err := NewWorld(Config{Settlements: 1, Difficulty: "peaceful", World: WorldOptions{Type: "plains", Reveal: "all"}})
-	if err != nil {
+func TestTradeCartLoopsAndWaitsWhenItsHomeMarketIsLost(t *testing.T) {
+	w, home, _, cart := marketplaceFixture(t)
+	target := w.spawn("market", 0, Vec{32, 30})
+	w.refreshVisibility()
+	if err := w.Apply(1, Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: target.ID, Product: "wood", Repeat: true}); err != nil {
 		t.Fatal(err)
 	}
-	p := w.Players[1]
-	home := w.spawn("market", 1, Vec{p.Start.X + 5, p.Start.Y + 3})
-	destination := w.spawn("market", 0, Vec{p.Start.X - 4, p.Start.Y - 4})
-	cart := w.spawn("trade_cart", 1, Vec{p.Start.X + 3, p.Start.Y + 3})
-	before := p.Resources.Gold
-	if err := w.Apply(1, Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: destination.ID}); err != nil {
-		t.Fatal(err)
-	}
-	deliveries := 0
-	for i := 0; i < 4000 && deliveries < 2; i++ {
-		w.Update()
-		deliveries = 0
-		for _, event := range w.journal.records {
-			if event.EntityID == cart.ID && event.Kind == "trade" {
-				deliveries++
-			}
-		}
-	}
-	if deliveries != 2 || p.Resources.Gold <= before {
-		t.Fatal("trade route did not deliver repeated paid cargo")
+	untilTrade(t, w, func() bool { return len(w.Marketplace.Shipments) >= 3 })
+	if w.Players[1].Resources.Wood != 700 || w.Players[1].Resources.Gold <= 1000 {
+		t.Fatal("route did not fund repeat trips")
 	}
 	w.remove(home.ID)
-	w.Update()
-	if cart.behavior.State() != Idle {
-		t.Fatal("cart did not stop when its receiving market was lost")
+	for range 800 {
+		w.Update()
 	}
-	gold := p.Resources.Gold
-	if err := w.Apply(1, Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: destination.ID}); err == nil || p.Resources.Gold != gold {
-		t.Fatal("route without an owned market was accepted")
+	if cart.Cargo == 0 || cart.behavior.State() != Caravanning {
+		t.Fatal("lost home should retain cargo awaiting a replacement")
+	}
+	if err := w.Apply(1, Command{Kind: "trade", EntityIDs: []int{cart.ID}, TargetID: target.ID}); err == nil {
+		t.Fatal("busy cart accepted another route")
 	}
 }
 

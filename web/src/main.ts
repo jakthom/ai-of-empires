@@ -135,7 +135,8 @@ function runAction(action: Action) {
   if (action.kind === 'interact' && action.enabled) { toggleOrder(); return; }
   if (!action.enabled) { showNotice(action.reason || 'This action is unavailable.'); return; }
   if (snapshot?.paused || !connectionReady) { showNotice(snapshot?.paused ? 'Resume the match before issuing an order.' : 'Waiting for the server connection.'); return; }
-  if (['build', 'move', 'attack_move', 'convert', 'heal', 'gather', 'trade'].includes(action.kind)) { startTargeting(action); return; }
+  if (action.kind === 'trade') { cancelMode(); marketplace.open('merchants'); return; }
+  if (['build', 'move', 'attack_move', 'convert', 'heal', 'gather'].includes(action.kind)) { startTargeting(action); return; }
   if (action.kind === 'delete') {
     setMode({ kind: 'delete', entityIds: [...selection] }, 'Remove this selection?'); world.canvas.focus(); return;
   }
@@ -179,7 +180,7 @@ function refreshSelection() {
       const detail = stance ? pressed === 'true' ? 'Selected' : pressed === 'mixed' ? 'Some selected' : 'Stance' : a.gain ? `${cost(a.cost)} → ${cost(a.gain)}` : cost(a.cost) || (a.duration ? `${a.duration}s` : a.kind === 'delete' ? 'Choose to confirm' : 'Command');
       return `<button class="action ${a.kind === 'age' ? 'advance' : ''}" data-action="${i}" ${stance ? `aria-pressed="${pressed}"` : ''} aria-disabled="${!a.enabled || !connectionReady || snapshot!.paused}" aria-describedby="action-help" title="${escape(a.reason || a.description)}${a.duration ? ` · ${Math.round(a.duration)} seconds` : ''}"><span class="action-icon" aria-hidden="true">${a.kind === 'build' ? buildingIcon(a.product ?? '') : a.kind === 'train' ? '♟' : a.kind === 'research' ? '✧' : a.kind === 'age' ? '⇧' : a.kind === 'delete' ? '×' : a.kind === 'stop' ? '■' : stance ? pressed === 'true' ? '✓' : '◇' : '↗'}</span><span class="action-copy"><strong>${escape(a.label)}</strong><small>${escape(detail)}</small></span></button>`;
     }).join('') : `<p class="empty-actions">${first ? tab === 'build' ? 'Select villagers to construct buildings.' : tab === 'research' ? 'Select a building to see its technologies.' : 'No orders available for this selection.' : 'Select your Town Center to train villagers,<br>or select settlers to begin building.'}</p>`;
-    text('action-help', tab === 'trade' ? 'Finite merchant stock · cost → received · Open Trade in the top bar for kingdom offers' : '');
+    text('action-help', tab === 'trade' ? 'Home prices · cost → received · Open Trade for regional routes and kingdom offers' : '');
     el('actions').querySelectorAll<HTMLButtonElement>('[data-action]').forEach(button => { const action = filtered[Number(button.dataset.action)]; button.onclick = () => runAction(action); button.onfocus = button.onpointerenter = () => text('action-help', action.reason || action.description); });
     if (focusedAction !== undefined) el('actions').querySelector<HTMLButtonElement>(`[data-action="${focusedAction}"]`)?.focus({ preventScroll: true });
   }
